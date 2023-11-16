@@ -16,6 +16,7 @@ export PS_START_TIMEOUT=100
 export MYSQL_DATABASE=test
 export MYSQL_NAME=PS
 SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/share}
+
 #MYEXTRA=${MYEXTRA:=--disable-log-bin}
 #TASKSET_MYSQLD=${TASKSET_MYSQLD:=taskset -c 0}
 #TASKSET_SYSBENCH=${TASKSET_SYSBENCH:=taskset -c 1}
@@ -86,19 +87,6 @@ if [ -z $WORKSPACE ]; then
   export WORKSPACE=$BIG_DIR/backups
 fi
 
-function sysbench_run(){
-  TEST_TYPE="$1"
-  DB="$2"
-  SDURATION="$3"
-  if [ "$TEST_TYPE" == "load_data" ];then
-    SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/oltp_insert.lua --table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$DB --mysql-user=$SUSER  --threads=$NUM_TABLES --db-driver=mysql"
-  elif [ "$TEST_TYPE" == "oltp" ];then
-    SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/oltp_read_write.lua --table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$DB --mysql-user=$SUSER  --threads=$num_threads --time=$SDURATION --warmup-time=$WARMUP_TIME_SECONDS --report-interval=10 --events=1870000000 --db-driver=mysql --non_index_updates=1 --db-ps-mode=disable"
-  elif [ "$TEST_TYPE" == "oltp_read" ];then
-    SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/oltp_read_only.lua --table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$DB --mysql-user=$SUSER --threads=$num_threads --time=$SDURATION --report-interval=10 --events=1870000000 --db-driver=mysql --db-ps-mode=disable"
-  fi
-}
-
 function start_ps_node(){
   ps -ef | grep 'ps_socket.sock' | grep ${BENCH_NUMBER} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
   BIN=`find ${DB_DIR} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
@@ -131,8 +119,7 @@ function start_ps_node(){
   if [ "$1" == "startup" ];then
     echo "Creating data directory in $node"
     ${DB_DIR}/bin/mysql -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
-    sysbench_run load_data $MYSQL_DATABASE
-    time ${TASKSET_SYSBENCH} sysbench $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare 2>&1 | tee $LOGS/sysbench_prepare.log
+    time ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_insert.lua --threads=$NUM_TABLES $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare 2>&1 | tee $LOGS/sysbench_prepare.log
     echo -e "Data directory in $node created\nShutting mysqld down"
     time ${DB_DIR}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
   fi
@@ -230,6 +217,7 @@ function start_ps(){
   ps -ef | grep 'ps_socket' | grep ${BENCH_NUMBER} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
   BIN=`find ${DB_DIR} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
   NUM_ROWS=$(numfmt --from=si $DATASIZE)
+  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable"
   WS_DATADIR="${BIG_DIR}/80_sysbench_data_template"
 
   drop_caches
@@ -243,7 +231,7 @@ function start_ps(){
   start_ps_node
 }
 
-function sysbench_rw_run(){
+function run_sysbench(){
   BENCH_ID=innodb-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
   MEM_PID=()
   if [ ${WARMUP} == "Y" ]; then
@@ -251,8 +239,7 @@ function sysbench_rw_run(){
     # *** REMEMBER *** warmmup is READ ONLY!
     num_threads=64
     echo "Warming up for $WARMUP_TIME_AT_START seconds"
-    sysbench_run oltp_read $MYSQL_DATABASE $WARMUP_TIME_AT_START
-    ${TASKSET_SYSBENCH} sysbench $SYSBENCH_OPTIONS --rand-type=$RAND_TYPE --mysql-socket=$MYSQL_SOCKET --percentile=99 run > ${LOGS_CONFIG}/sysbench_warmup.log 2>&1
+    ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_read_only.lua --threads=$num_threads --time=$WARMUP_TIME_AT_START $SYSBENCH_OPTIONS --rand-type=$RAND_TYPE --mysql-socket=$MYSQL_SOCKET --percentile=99 run > ${LOGS_CONFIG}/sysbench_warmup.log 2>&1
     sleep $[WARMUP_TIME_AT_START/10]
   fi
   echo "Storing Sysbench results in ${WORKSPACE}"
@@ -275,8 +262,7 @@ function sysbench_rw_run(){
         rm -f $LOG_NAME_INXI
         (x=1; while [ $x -le $DSTAT_ROUNDS ]; do inxi -C -c 0 >> $LOG_NAME_INXI; sleep $DSTAT_INTERVAL; x=$(( $x + 1 )); done) &
     fi
-    sysbench_run oltp $MYSQL_DATABASE $RUN_TIME_SECONDS
-    ${TASKSET_SYSBENCH} sysbench $SYSBENCH_OPTIONS --rand-type=$RAND_TYPE --mysql-socket=$MYSQL_SOCKET --percentile=99 run | tee $LOG_NAME
+    ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_read_write.lua --threads=$num_threads --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --rand-type=$RAND_TYPE --mysql-socket=$MYSQL_SOCKET --percentile=99 run | tee $LOG_NAME
     sleep 6
     result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
   done
@@ -343,7 +329,7 @@ for file in $CONFIG_FILES; do
   echo "Using $CONFIG_FILE as mysqld config file"
 
   start_ps
-  sysbench_rw_run
+  run_sysbench
 done
 
 restore_turbo_boost >> ${LOGS_CPU}
