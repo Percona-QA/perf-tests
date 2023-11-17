@@ -15,7 +15,7 @@ export SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 export PS_START_TIMEOUT=100
 export MYSQL_DATABASE=test
 export MYSQL_NAME=PS
-SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/share}
+SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/local/share}
 
 #MYEXTRA=${MYEXTRA:=--disable-log-bin}
 #TASKSET_MYSQLD=${TASKSET_MYSQLD:=taskset -c 0}
