@@ -32,6 +32,7 @@ data = []
 with open(data_file, "r") as file:
     for line in file:
         values=parse_line(line)
+        #print(values)
         data.append(values)
 
 # Iterate through the data and compare each line with the line n-1
