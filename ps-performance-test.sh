@@ -15,7 +15,8 @@ export SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 export PS_START_TIMEOUT=100
 export MYSQL_DATABASE=test
 export MYSQL_NAME=PS
-SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/share}
+SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/local/share}
+
 #MYEXTRA=${MYEXTRA:=--disable-log-bin}
 #TASKSET_MYSQLD=${TASKSET_MYSQLD:=taskset -c 0}
 #TASKSET_SYSBENCH=${TASKSET_SYSBENCH:=taskset -c 1}
@@ -86,19 +87,6 @@ if [ -z $WORKSPACE ]; then
   export WORKSPACE=$BIG_DIR/backups
 fi
 
-function sysbench_run(){
-  TEST_TYPE="$1"
-  DB="$2"
-  SDURATION="$3"
-  if [ "$TEST_TYPE" == "load_data" ];then
-    SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/oltp_insert.lua --table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$DB --mysql-user=$SUSER  --threads=$NUM_TABLES --db-driver=mysql"
-  elif [ "$TEST_TYPE" == "oltp" ];then
-    SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/oltp_read_write.lua --table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$DB --mysql-user=$SUSER  --threads=$num_threads --time=$SDURATION --warmup-time=$WARMUP_TIME_SECONDS --report-interval=10 --events=1870000000 --db-driver=mysql --non_index_updates=1 --db-ps-mode=disable"
-  elif [ "$TEST_TYPE" == "oltp_read" ];then
-    SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/oltp_read_only.lua --table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$DB --mysql-user=$SUSER --threads=$num_threads --time=$SDURATION --report-interval=10 --events=1870000000 --db-driver=mysql --db-ps-mode=disable"
-  fi
-}
-
 function start_ps_node(){
   ps -ef | grep 'ps_socket.sock' | grep ${BENCH_NUMBER} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
   BIN=`find ${DB_DIR} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
@@ -131,8 +119,7 @@ function start_ps_node(){
   if [ "$1" == "startup" ];then
     echo "Creating data directory in $node"
     ${DB_DIR}/bin/mysql -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
-    sysbench_run load_data $MYSQL_DATABASE
-    time ${TASKSET_SYSBENCH} sysbench $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare 2>&1 | tee $LOGS/sysbench_prepare.log
+    time ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_insert.lua --threads=$NUM_TABLES $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare 2>&1 | tee $LOGS/sysbench_prepare.log
     echo -e "Data directory in $node created\nShutting mysqld down"
     time ${DB_DIR}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
   fi
@@ -230,6 +217,7 @@ function start_ps(){
   ps -ef | grep 'ps_socket' | grep ${BENCH_NUMBER} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
   BIN=`find ${DB_DIR} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
   NUM_ROWS=$(numfmt --from=si $DATASIZE)
+  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable"
   WS_DATADIR="${BIG_DIR}/80_sysbench_data_template"
 
   drop_caches
@@ -243,56 +231,60 @@ function start_ps(){
   start_ps_node
 }
 
-function sysbench_rw_run(){
-  BENCH_ID=innodb-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+function run_sysbench(){
   MEM_PID=()
   if [ ${WARMUP} == "Y" ]; then
     #warmup the cache, 64 threads for 10 minutes, don't bother logging
     # *** REMEMBER *** warmmup is READ ONLY!
     num_threads=64
     echo "Warming up for $WARMUP_TIME_AT_START seconds"
-    sysbench_run oltp_read $MYSQL_DATABASE $WARMUP_TIME_AT_START
-    ${TASKSET_SYSBENCH} sysbench $SYSBENCH_OPTIONS --rand-type=$RAND_TYPE --mysql-socket=$MYSQL_SOCKET --percentile=99 run > ${LOGS_CONFIG}/sysbench_warmup.log 2>&1
+    ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_read_only.lua --threads=$num_threads --time=$WARMUP_TIME_AT_START $SYSBENCH_OPTIONS --rand-type=$RAND_TYPE --mysql-socket=$MYSQL_SOCKET --percentile=99 run > ${LOGS_CONFIG}/sysbench_warmup.log 2>&1
     sleep $[WARMUP_TIME_AT_START/10]
   fi
   echo "Storing Sysbench results in ${WORKSPACE}"
-  for num_threads in ${THREADS_LIST}; do
-    LOG_NAME_RESULTS=${LOGS_CONFIG}/results-QPS-${BENCH_ID}.txt
-    LOG_NAME=${LOGS_CONFIG}/${MYSQL_NAME}-${MYSQL_VERSION}-${BENCH_ID}-$num_threads.txt
-    LOG_NAME_MEMORY=${LOG_NAME}.memory
-    LOG_NAME_IOSTAT=${LOG_NAME}.iostat
-    LOG_NAME_DSTAT=${LOG_NAME}.dstat
-    LOG_NAME_DSTAT_CSV=${LOG_NAME}.dstat.csv
-    LOG_NAME_INXI=${LOG_NAME}.inxi
+  for lua_script in ${LUA_SCRIPTS}; do
+    BENCH_ID=${lua_script%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
 
-    if [ ${BENCHMARK_LOGGING} == "Y" ]; then
-        # verbose logging
-        echo "*** verbose benchmark logging enabled ***"
-        check_memory &
-        MEM_PID+=("$!")
-        iostat -dxm $IOSTAT_INTERVAL $IOSTAT_ROUNDS  > $LOG_NAME_IOSTAT &
-        dstat -t -v --nocolor --output $LOG_NAME_DSTAT_CSV $DSTAT_INTERVAL $DSTAT_ROUNDS > $LOG_NAME_DSTAT &
-        rm -f $LOG_NAME_INXI
-        (x=1; while [ $x -le $DSTAT_ROUNDS ]; do inxi -C -c 0 >> $LOG_NAME_INXI; sleep $DSTAT_INTERVAL; x=$(( $x + 1 )); done) &
-    fi
-    sysbench_run oltp $MYSQL_DATABASE $RUN_TIME_SECONDS
-    ${TASKSET_SYSBENCH} sysbench $SYSBENCH_OPTIONS --rand-type=$RAND_TYPE --mysql-socket=$MYSQL_SOCKET --percentile=99 run | tee $LOG_NAME
-    sleep 6
-    result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
+    for num_threads in ${THREADS_LIST}; do
+      echo "Testing $lua_script with $num_threads threads"
+      LOG_NAME_RESULTS=${LOGS_CONFIG}/results-QPS-${BENCH_ID}.txt
+      LOG_NAME=${LOGS_CONFIG}/${MYSQL_NAME}-${MYSQL_VERSION}-${BENCH_ID}-$num_threads.txt
+      LOG_NAME_MEMORY=${LOG_NAME}.memory
+      LOG_NAME_IOSTAT=${LOG_NAME}.iostat
+      LOG_NAME_DSTAT=${LOG_NAME}.dstat
+      LOG_NAME_DSTAT_CSV=${LOG_NAME}.dstat.csv
+      LOG_NAME_INXI=${LOG_NAME}.inxi
+
+      if [ ${BENCHMARK_LOGGING} == "Y" ]; then
+          # verbose logging
+          echo "*** verbose benchmark logging enabled ***"
+          check_memory &
+          MEM_PID+=("$!")
+          iostat -dxm $IOSTAT_INTERVAL $IOSTAT_ROUNDS  > $LOG_NAME_IOSTAT &
+          dstat -t -v --nocolor --output $LOG_NAME_DSTAT_CSV $DSTAT_INTERVAL $DSTAT_ROUNDS > $LOG_NAME_DSTAT &
+          rm -f $LOG_NAME_INXI
+          (x=1; while [ $x -le $DSTAT_ROUNDS ]; do inxi -C -c 0 >> $LOG_NAME_INXI; sleep $DSTAT_INTERVAL; x=$(( $x + 1 )); done) &
+      fi
+      ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/$lua_script --threads=$num_threads --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --rand-type=$RAND_TYPE --mysql-socket=$MYSQL_SOCKET --percentile=99 run | tee $LOG_NAME
+      sleep 6
+      result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
+    done
+
+    pkill -f dstat
+    pkill -f iostat
+    kill -9 ${MEM_PID[@]}
+    for i in {0..7}; do if [ -z ${result_set[i]} ]; then  result_set[i]='0,' ; fi; done
+    echo "[ '${BENCH_NUMBER}_${CONFIG_BASE}_${BENCH_ID}', ${result_set[*]} ]," >> ${LOG_NAME_RESULTS}
+    cat ${LOG_NAME_RESULTS} >> ${LOGS}/sysbench_${BENCH_ID}_${BENCH_NUMBER}_perf_result_set.txt
+    unset result_set
   done
 
-  pkill -f dstat
-  pkill -f iostat
-  kill -9 ${MEM_PID[@]}
   timeout --signal=9 20s ${DB_DIR}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
   ps -ef | grep 'ps_socket' | grep ${BENCH_NUMBER} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
-  for i in {0..7}; do if [ -z ${result_set[i]} ]; then  result_set[i]='0,' ; fi; done
-  echo "[ '${BENCH_NUMBER}_${CONFIG_BASE}_${BENCH_ID}', ${result_set[*]} ]," >> ${LOG_NAME_RESULTS}
-  cat ${LOG_NAME_RESULTS} >> ${LOGS}/sysbench_${BENCH_ID}_${BENCH_NUMBER}_perf_result_set.txt
-  unset result_set
 }
 
 function archive_logs(){
+  BENCH_ID=${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
   DATE=`date +"%Y%m%d%H%M%S"`
   tarFileName="sysbench_${BENCH_ID}_perf_result_set_${BENCH_NUMBER}_${DATE}.tar.gz"
   tar czvf ${tarFileName} ${BENCH_NUMBER}/logs --transform "s+^${BENCH_NUMBER}/logs++"
@@ -307,6 +299,7 @@ function archive_logs(){
 # sysbench
 # **********************************************************************************************
 export THREADS_LIST=${THREADS_LIST:="0001 0004 0016 0064 0128 0256 0512 1024"}
+export LUA_SCRIPTS=${LUA_SCRIPTS:="oltp_read_write.lua"}
 export WARMUP=Y
 export BENCHMARK_LOGGING=Y
 WARMUP_TIME_AT_START=${WARMUP_TIME_AT_START:-600}
@@ -343,14 +336,13 @@ for file in $CONFIG_FILES; do
   echo "Using $CONFIG_FILE as mysqld config file"
 
   start_ps
-  sysbench_rw_run
+  run_sysbench
 done
 
 restore_turbo_boost >> ${LOGS_CPU}
 restore_scaling_governor >> ${LOGS_CPU}
 enable_idle_states >> ${LOGS_CPU}
 restore_address_randomization >> ${LOGS_CPU}
-archive_logs
 
 #Generate graph
 VERSION_INFO=`$DB_DIR/bin/mysqld --version | cut -d' ' -f2-`
@@ -371,4 +363,5 @@ $SCRIPT_DIR/multibench_html_gen.sh $LOGS
 cat ${LOGS}/sysbench_*_perf_result_set.txt > ${LOGS}/sysbench_${BENCH_NUMBER}_full_result_set.txt
 cat ${LOGS}/sysbench_*_perf_result_set.txt
 
+archive_logs
 exit 0
