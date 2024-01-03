@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # Compare results in the following format:
 #'404_mysql-innodb_oltp_update_index-16x10M-32G', 790.25, 1299.29, 12216.47, 18231.34, 21488.34, 24436.32, 24334.07, 24111.19
 #'405_mysql-innodb_oltp_update_index-16x10M-32G', 784.03, 1632.28, 12216.99, 18234.55, 21589.48, 24523.99, 24448.70, 24290.00
@@ -28,33 +30,35 @@ def parse_line(line):
     values = [values[0]] + [float(val.strip()) for val in values[1:]]
     return values
 
-# Read data from the file
-data = []
-with open(data_file, "r") as file:
-    for line in file:
-        values=parse_line(line)
-        data.append(values)
-data.append("")
+def parse_table(table):
+    if (len(table) == 0):
+        return
 
-# Iterate through the data and compare each line with the line n-1
-start = 0
-for i in range(len(data)):
-    if i < len(data) and data[i] != "":
-        continue
-    if i == 0:
-        start = i+1
-        continue
-
-    #for row in range(start, i):
-    #    print(data[row])
+    #for row in range(0, len(table)):
+    #    print(table[row])
     #print()
 
     # Calculate and print median for each column
-    print(f"Median {data[start][0]},", end='')
-    for col in range(1, len(data[start])):
-        column_values = [data[row][col] for row in range(start, i)]
+    header=table[0][0].strip('\'')
+    print(f"Median{len(table)}-{header},", end='')
+    for col in range(1, len(table[0])):
+        column_values = [table[row][col] for row in range(0, len(table))]
+        #print(column_values)
+        maxv = max(column_values)
+        column_values.append(maxv)
+        #print(column_values)
         median = statistics.median(column_values)
-        print(f" {median:.2f},", end='')
+        print(f" {median:.0f},", end='')
     print()
 
-    start = i+1
+# Read data from the file
+table = []
+with open(data_file, "r") as file:
+    for line in file:
+        values=parse_line(line)
+        if values != "":
+            table.append(values)
+        else:
+            parse_table(table)
+            table = []
+    parse_table(table)
