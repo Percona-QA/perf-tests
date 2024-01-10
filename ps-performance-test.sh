@@ -15,14 +15,28 @@ export CONFIG_FILES="$3"
 export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
 export WORKSPACE=${WORKSPACE:-${PWD}}
-export PS_START_TIMEOUT=100
+export BENCHMARK_LOGGING=Y
 export MYSQL_NAME=PS
 
 # sysbench variables
 export MYSQL_DATABASE=test
 export SUSER=root
+export RAND_TYPE=${RAND_TYPE:-uniform}
 export RAND_SEED=${RAND_SEED:-1111}
+export THREADS_LIST=${THREADS_LIST:="0001 0004 0016 0064 0128 0256 0512 1024"}
+export LUA_SCRIPTS=${LUA_SCRIPTS:="oltp_read_write.lua"}
 SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/local/share}
+
+# time variables
+export PS_START_TIMEOUT=100
+WARMUP_TIME_AT_START=${WARMUP_TIME_AT_START:-600}
+export WARMUP_TIME_SECONDS=${WARMUP_TIME_SECONDS:-30}
+export RUN_TIME_SECONDS=${RUN_TIME_SECONDS:-600}
+export REPORT_INTERVAL=10
+export IOSTAT_INTERVAL=10
+export IOSTAT_ROUNDS=$[(RUN_TIME_SECONDS+WARMUP_TIME_SECONDS)/IOSTAT_INTERVAL+1]
+export DSTAT_INTERVAL=10
+export DSTAT_ROUNDS=$[(RUN_TIME_SECONDS+WARMUP_TIME_SECONDS)/DSTAT_INTERVAL+1]
 
 #MYEXTRA=${MYEXTRA:=--disable-log-bin}
 #TASKSET_MYSQLD=${TASKSET_MYSQLD:=taskset -c 0}
@@ -43,30 +57,16 @@ function usage(){
   exit 1
 }
 
+function disable_address_randomization(){
+    PREVIOUS_ASLR=`cat /proc/sys/kernel/randomize_va_space`
+    sudo sh -c "echo 0 > /proc/sys/kernel/randomize_va_space"
+    echo "Changing /proc/sys/kernel/randomize_va_space from $PREVIOUS_ASLR to `cat /proc/sys/kernel/randomize_va_space`"
+}
+
 function restore_address_randomization(){
     CURRENT_ASLR=`cat /proc/sys/kernel/randomize_va_space`
     sudo sh -c "echo $PREVIOUS_ASLR > /proc/sys/kernel/randomize_va_space"
     echo "Resoring /proc/sys/kernel/randomize_va_space from $CURRENT_ASLR to `cat /proc/sys/kernel/randomize_va_space`"
-}
-
-function disable_address_randomization(){
-    PREVIOUS_ASLR=`cat /proc/sys/kernel/randomize_va_space`
-    sudo sh -c "echo 0 > /proc/sys/kernel/randomize_va_space"
-    echo "Setting /proc/sys/kernel/randomize_va_space from $PREVIOUS_ASLR to `cat /proc/sys/kernel/randomize_va_space`"
-}
-
-function restore_turbo_boost(){
-  echo "Restore turbo boost with $SCALING_DRIVER scaling driver"
-
-  if [[ ${SCALING_DRIVER} == "intel_pstate" || ${SCALING_DRIVER} == "intel_cpufreq" ]]; then
-    CURRENT_TURBO=`cat /sys/devices/system/cpu/intel_pstate/no_turbo`
-    sudo sh -c "echo $PREVIOUS_TURBO > /sys/devices/system/cpu/intel_pstate/no_turbo"
-    echo "Setting /sys/devices/system/cpu/intel_pstate/no_turbo from $CURRENT_TURBO to $PREVIOUS_TURBO"
-  else
-    CURRENT_TURBO=`cat /sys/devices/system/cpu/cpufreq/boost`
-    sudo sh -c "echo $PREVIOUS_TURBO > /sys/devices/system/cpu/cpufreq/boost"
-    echo "Setting /sys/devices/system/cpu/cpufreq/boost from $CURRENT_TURBO to $PREVIOUS_TURBO"
-  fi
 }
 
 function disable_turbo_boost(){
@@ -76,35 +76,49 @@ function disable_turbo_boost(){
   if [[ ${SCALING_DRIVER} == "intel_pstate" || ${SCALING_DRIVER} == "intel_cpufreq" ]]; then
     PREVIOUS_TURBO=`cat /sys/devices/system/cpu/intel_pstate/no_turbo`
     sudo sh -c "echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo"
-    echo "Setting /sys/devices/system/cpu/intel_pstate/no_turbo from $PREVIOUS_TURBO to `cat /sys/devices/system/cpu/intel_pstate/no_turbo`"
+    echo "Changing /sys/devices/system/cpu/intel_pstate/no_turbo from $PREVIOUS_TURBO to `cat /sys/devices/system/cpu/intel_pstate/no_turbo`"
   else
     PREVIOUS_TURBO=`cat /sys/devices/system/cpu/cpufreq/boost`
     sudo sh -c "echo 0 > /sys/devices/system/cpu/cpufreq/boost"
-    echo "Setting /sys/devices/system/cpu/cpufreq/boost from $PREVIOUS_TURBO to `cat /sys/devices/system/cpu/cpufreq/boost`"
+    echo "Changing /sys/devices/system/cpu/cpufreq/boost from $PREVIOUS_TURBO to `cat /sys/devices/system/cpu/cpufreq/boost`"
   fi
 }
 
-function restore_scaling_governor(){
-  CURRENT_GOVERNOR=`cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`
-  sudo cpupower frequency-set -g $PREVIOUS_GOVERNOR
-  echo "Changed scaling governor from $CURRENT_GOVERNOR to `cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`"
-  sudo cpupower frequency-info
+function restore_turbo_boost(){
+  echo "Restore turbo boost with $SCALING_DRIVER scaling driver"
+
+  if [[ ${SCALING_DRIVER} == "intel_pstate" || ${SCALING_DRIVER} == "intel_cpufreq" ]]; then
+    CURRENT_TURBO=`cat /sys/devices/system/cpu/intel_pstate/no_turbo`
+    sudo sh -c "echo $PREVIOUS_TURBO > /sys/devices/system/cpu/intel_pstate/no_turbo"
+    echo "Resoring /sys/devices/system/cpu/intel_pstate/no_turbo from $CURRENT_TURBO to $PREVIOUS_TURBO"
+  else
+    CURRENT_TURBO=`cat /sys/devices/system/cpu/cpufreq/boost`
+    sudo sh -c "echo $PREVIOUS_TURBO > /sys/devices/system/cpu/cpufreq/boost"
+    echo "Resoring /sys/devices/system/cpu/cpufreq/boost from $CURRENT_TURBO to $PREVIOUS_TURBO"
+  fi
 }
 
 function change_scaling_governor(){
   PREVIOUS_GOVERNOR=`cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`
   sudo cpupower frequency-set -g $1
-  echo "Changed scaling governor from $PREVIOUS_GOVERNOR to `cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`"
+  echo "Changing scaling governor from $PREVIOUS_GOVERNOR to `cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`"
   sudo cpupower frequency-info
 }
 
-function enable_idle_states(){
-  sudo cpupower idle-set --enable-all
-  sudo cpupower idle-info
+function restore_scaling_governor(){
+  CURRENT_GOVERNOR=`cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`
+  sudo cpupower frequency-set -g $PREVIOUS_GOVERNOR
+  echo "Restoring scaling governor from $CURRENT_GOVERNOR to `cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`"
+  sudo cpupower frequency-info
 }
 
 function disable_idle_states(){
   sudo cpupower idle-set --disable-by-latency 0
+  sudo cpupower idle-info
+}
+
+function enable_idle_states(){
+  sudo cpupower idle-set --enable-all
   sudo cpupower idle-info
 }
 
@@ -169,7 +183,7 @@ function start_ps_node(){
 
 function start_ps(){
   MYSQL_SOCKET=${LOGS}/ps_socket.sock
-  timeout --signal=9 20s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
+  timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
   ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
   BIN=`find ${BUILD_PATH} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
   NUM_ROWS=$(numfmt --from=si $DATASIZE)
@@ -235,8 +249,26 @@ function run_sysbench(){
     unset result_set
   done
 
-  timeout --signal=9 20s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
+  echo "Shutting mysqld down"
+  timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
   ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
+}
+
+function save_system_info(){
+  VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
+  UPTIME_HOUR=`uptime -p`
+  SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
+  MEM=`free -g | grep "Mem:" | awk '{print "Total:"$2"GB  Used:"$3"GB  Free:"$4"GB" }'`
+  if [ ! -f $LOGS/hw.info ];then
+    if [ -f /etc/redhat-release ]; then
+      RELEASE=`cat /etc/redhat-release`
+    else
+      RELEASE=`cat /etc/issue`
+    fi
+    KERNEL=`uname -r`
+    echo "HW info | $RELEASE $KERNEL"  > $LOGS/hw.info
+  fi
+  echo "Build #$BENCH_NAME | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
 }
 
 function archive_logs(){
@@ -244,9 +276,30 @@ function archive_logs(){
   DATE=`date +"%Y%m%d%H%M%S"`
   tarFileName="sysbench_${BENCH_ID}_perf_result_set_${BENCH_NAME}_${DATE}.tar.gz"
   tar czvf ${tarFileName} ${BENCH_NAME}/logs --transform "s+^${BENCH_NAME}/logs++"
+}
+
+function on_exit(){
+  killall -9 mysqld
+
+  echo "Restoring address randomization"
+  restore_address_randomization >> ${LOGS_CPU}
+  echo "Restoring turbo boost"
+  restore_turbo_boost >> ${LOGS_CPU}
+  echo "Restoring scaling governor"
+  restore_scaling_governor >> ${LOGS_CPU}
+  echo "Enabling idle states"
+  enable_idle_states >> ${LOGS_CPU}
+
+  save_system_info
+
+  cat ${LOGS}/sysbench_*_perf_result_set.txt > ${LOGS}/sysbench_${BENCH_NAME}_full_result_set.txt
+  cat ${LOGS}/sysbench_*_perf_result_set.txt
+
+  archive_logs
 
   rm -rf ${DATA_DIR}
 }
+
 
 #**********************************************************************************************
 # main
@@ -257,54 +310,31 @@ export BENCH_DIR=$WORKSPACE/$BENCH_NAME
 export BUILD_PATH=$BENCH_DIR/$BUILD_DIR
 export DATA_DIR=$BENCH_DIR/datadir
 export LOGS=$BENCH_DIR/logs
+LOGS_CPU=$LOGS/cpu-states.txt
 
 # check parameters
 echo "Using WORKSPACE=$WORKSPACE"
 if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
 if [[ ! -d $WORKSPACE/$BUILD_DIR ]]; then usage "ERROR: Couldn't find binaries in $WORKSPACE/$BUILD_DIR"; fi
 
-mkdir -p $LOGS
+rm -rf ${LOGS}
+mkdir -p ${LOGS}
 cd $WORKSPACE
-echo "Copying server binaries from $WORKSPACE/$BUILD_DIR to $BENCH_DIR/$BUILD_DIR"
-cp -r $WORKSPACE/$BUILD_DIR $BENCH_DIR || usage "ERROR: Failed to copy binaries from $WORKSPACE/$BUILD_DIR to $BENCH_DIR/$BUILD_DIR"
+echo "Copying server binaries from $WORKSPACE/$BUILD_DIR to $BUILD_PATH"
+cp -r $WORKSPACE/$BUILD_DIR $BENCH_DIR || usage "ERROR: Failed to copy binaries from $WORKSPACE/$BUILD_DIR to $BUILD_PATH"
 
 export MYSQL_VERSION=`$BUILD_PATH/bin/mysqld --version | awk '{ print $3}'`
-
-#**********************************************************************************************
-# sysbench
-#**********************************************************************************************
-export THREADS_LIST=${THREADS_LIST:="0001 0004 0016 0064 0128 0256 0512 1024"}
-export LUA_SCRIPTS=${LUA_SCRIPTS:="oltp_read_write.lua"}
-export BENCHMARK_LOGGING=Y
-WARMUP_TIME_AT_START=${WARMUP_TIME_AT_START:-600}
-export WARMUP_TIME_SECONDS=${WARMUP_TIME_SECONDS:=30}
-export RUN_TIME_SECONDS=${RUN_TIME_SECONDS:-600}
-export REPORT_INTERVAL=10
-export IOSTAT_INTERVAL=10
-export IOSTAT_ROUNDS=$[(RUN_TIME_SECONDS+WARMUP_TIME_SECONDS)/IOSTAT_INTERVAL+1]
-export DSTAT_INTERVAL=10
-export DSTAT_ROUNDS=$[(RUN_TIME_SECONDS+WARMUP_TIME_SECONDS)/DSTAT_INTERVAL+1]
-export BENCH_SUITE=sysbench
 
 export INNODB_CACHE=${INNODB_CACHE:-32G}
 export NUM_TABLES=${NUM_TABLES:-16}
 export DATASIZE=${DATASIZE:-10M}
-export RAND_TYPE=${RAND_TYPE:-uniform}
 
-rm -rf ${LOGS}
-mkdir -p ${LOGS}
-LOGS_CPU=$LOGS/cpu-states.txt
-
+disable_address_randomization >> ${LOGS_CPU}
 disable_turbo_boost > ${LOGS_CPU}
 change_scaling_governor powersave >> ${LOGS_CPU}
 disable_idle_states >> ${LOGS_CPU}
-disable_address_randomization >> ${LOGS_CPU}
 
-archives() {
-  tar czf ${WORKSPACE}/results-${BENCH_NAME}.tar.gz ${BENCH_NAME}/logs --transform "s+^${BENCH_NAME}/logs++"
-}
-
-trap archives EXIT KILL
+trap on_exit EXIT KILL
 
 for file in $CONFIG_FILES; do
   if [ ! -f $file ]; then usage "ERROR: Config file $file not found."; fi
@@ -319,27 +349,5 @@ for file in $CONFIG_FILES; do
   run_sysbench
 done
 
-restore_turbo_boost >> ${LOGS_CPU}
-restore_scaling_governor >> ${LOGS_CPU}
-enable_idle_states >> ${LOGS_CPU}
-restore_address_randomization >> ${LOGS_CPU}
-
-VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
-UPTIME_HOUR=`uptime -p`
-SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
-MEM=`free -g | grep "Mem:" | awk '{print "Total:"$2"GB  Used:"$3"GB  Free:"$4"GB" }'`
-if [ ! -f $LOGS/hw.info ];then
-  if [ -f /etc/redhat-release ]; then
-    RELEASE=`cat /etc/redhat-release`
-  else
-    RELEASE=`cat /etc/issue`
-  fi
-  KERNEL=`uname -r`
-  echo "HW info | $RELEASE $KERNEL"  > $LOGS/hw.info
-fi
-echo "Build #$BENCH_NAME | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
-cat ${LOGS}/sysbench_*_perf_result_set.txt > ${LOGS}/sysbench_${BENCH_NAME}_full_result_set.txt
-cat ${LOGS}/sysbench_*_perf_result_set.txt
-
-archive_logs
+# "exit" calls on_exit()
 exit 0
