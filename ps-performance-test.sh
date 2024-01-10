@@ -1,10 +1,15 @@
 #!/bin/bash
 # set -x
 
-# **********************************************************************************************
+#**********************************************************************************************
 # PS performance benchmark scripts
 # Sysbench suite will run performance tests
-# **********************************************************************************************
+#**********************************************************************************************
+
+# script parameters
+export BENCH_NAME=$1
+export BUILD_DIR=$2
+export CONFIG_FILES="$3"
 
 # generic variables
 export RPORT=$(( RANDOM%21 + 10 ))
@@ -12,6 +17,7 @@ export RBASE="$(( RPORT*1000 ))"
 export WORKSPACE=${WORKSPACE:-${PWD}}
 export PS_START_TIMEOUT=100
 export MYSQL_NAME=PS
+
 # sysbench variables
 export MYSQL_DATABASE=test
 export SUSER=root
@@ -22,7 +28,6 @@ SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/local/share}
 #TASKSET_MYSQLD=${TASKSET_MYSQLD:=taskset -c 0}
 #TASKSET_SYSBENCH=${TASKSET_SYSBENCH:=taskset -c 1}
 
-command -v cpupower >/dev/null 2>&1 || { echo >&2 "cpupower is not installed. Aborting."; exit 1; }
 
 function usage(){
   echo $1
@@ -36,76 +41,6 @@ function usage(){
   echo "This would lead to $WORKSPACE/100 being created, in which testing takes place and"
   echo "$WORKSPACE/Percona-Server-8.0.34-26-Linux.x86_64.glibc2.35 would be used to test."
   exit 1
-}
-
-export BENCH_NUMBER=$1
-export BENCH_DIR=$WORKSPACE/$1
-export DB_DIR=$BENCH_DIR/$2
-export DATA_DIR=$BENCH_DIR/datadir
-export LOGS=$BENCH_DIR/logs
-export CONFIG_FILES="$3"
-
-# check parameters
-echo "Using WORKSPACE=$WORKSPACE"
-if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
-if [[ ! -d $WORKSPACE/$2 ]]; then usage "ERROR: Couldn't find binaries in $WORKSPACE/$2"; fi
-
-mkdir -p $LOGS
-cd $WORKSPACE
-echo "Copying server binaries from $WORKSPACE/$2 to $BENCH_DIR/$2"
-cp -r $WORKSPACE/$2 $BENCH_DIR || usage "ERROR: Failed to copy binaries from $WORKSPACE/$2 to $BENCH_DIR/$2"
-
-export MYSQL_VERSION=`$DB_DIR/bin/mysqld --version | awk '{ print $3}'`
-
-function start_ps_node(){
-  ps -ef | grep 'ps_socket.sock' | grep ${BENCH_NUMBER} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
-  BIN=`find ${DB_DIR} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
-  EXTRA_PARAMS=$MYEXTRA
-  EXTRA_PARAMS+=" --innodb-buffer-pool-size=$INNODB_CACHE"
-  RBASE="$(( RBASE + 100 ))"
-  if [ "$1" == "startup" ];then
-    node="${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE}"
-    if [ ! -d $node ]; then
-      ${TASKSET_MYSQLD} ${DB_DIR}/bin/mysqld --no-defaults --initialize-insecure --basedir=${DB_DIR} --datadir=$node  > $LOGS/startup.err 2>&1
-    fi
-    EXTRA_PARAMS+=" --disable-log-bin"
-  else
-    node="${DATA_DIR}"
-  fi
-
-  MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --datadir=$node --basedir=${DB_DIR} $EXTRA_PARAMS --log-error=${LOGS_CONFIG}/master.err --socket=$MYSQL_SOCKET --port=$RBASE"
-  echo "Starting Percona Server with options $MYSQLD_OPTIONS"
-  ${TASKSET_MYSQLD} ${DB_DIR}/bin/mysqld $MYSQLD_OPTIONS > ${LOGS_CONFIG}/master.err 2>&1 &
-
-  for X in $(seq 0 ${PS_START_TIMEOUT}); do
-    sleep 1
-    if ${DB_DIR}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1; then
-      echo "Started Percona Server. Socket=$MYSQL_SOCKET Port=$RBASE"
-      break
-    fi
-  done
-  ${DB_DIR}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { echo “Couldn\'t connect $MYSQL_SOCKET” && exit 0; }
-
-  if [ "$1" == "startup" ];then
-    echo "Creating data directory in $node"
-    ${DB_DIR}/bin/mysql -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
-    time ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_insert.lua --threads=$NUM_TABLES $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare 2>&1 | tee $LOGS/sysbench_prepare.log
-    echo -e "Data directory in $node created\nShutting mysqld down"
-    time ${DB_DIR}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
-  fi
-}
-
-function check_memory(){
-  CHECK_PID=`ps -ef | grep ps_socket | grep -v grep | awk '{ print $2}'`
-  WAIT_TIME_SECONDS=10
-  RUN_TIME_SECONDS=$(($RUN_TIME_SECONDS + $WARMUP_TIME_SECONDS))
-  while [ ${RUN_TIME_SECONDS} -gt 0 ]; do
-    DATE=`date +"%Y%m%d%H%M%S"`
-    CURRENT_INFO=`ps -o rss,vsz,pcpu ${CHECK_PID} | tail -n 1`
-    echo "${DATE} ${CURRENT_INFO}" >> ${LOG_NAME_MEMORY}
-    RUN_TIME_SECONDS=$(($RUN_TIME_SECONDS - $WAIT_TIME_SECONDS))
-    sleep ${WAIT_TIME_SECONDS}
-  done
 }
 
 function restore_address_randomization(){
@@ -181,11 +116,62 @@ function drop_caches(){
   ulimit -n 1000000
 }
 
+function check_memory(){
+  CHECK_PID=`ps -ef | grep ps_socket | grep -v grep | awk '{ print $2}'`
+  WAIT_TIME_SECONDS=10
+  RUN_TIME_SECONDS=$(($RUN_TIME_SECONDS + $WARMUP_TIME_SECONDS))
+  while [ ${RUN_TIME_SECONDS} -gt 0 ]; do
+    DATE=`date +"%Y%m%d%H%M%S"`
+    CURRENT_INFO=`ps -o rss,vsz,pcpu ${CHECK_PID} | tail -n 1`
+    echo "${DATE} ${CURRENT_INFO}" >> ${LOG_NAME_MEMORY}
+    RUN_TIME_SECONDS=$(($RUN_TIME_SECONDS - $WAIT_TIME_SECONDS))
+    sleep ${WAIT_TIME_SECONDS}
+  done
+}
+
+function start_ps_node(){
+  ps -ef | grep 'ps_socket.sock' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
+  BIN=`find ${BUILD_PATH} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
+  EXTRA_PARAMS=$MYEXTRA
+  EXTRA_PARAMS+=" --innodb-buffer-pool-size=$INNODB_CACHE"
+  RBASE="$(( RBASE + 100 ))"
+  if [ "$1" == "startup" ];then
+    node="${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE}"
+    if [ ! -d $node ]; then
+      ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=$node  > $LOGS/startup.err 2>&1
+    fi
+    EXTRA_PARAMS+=" --disable-log-bin"
+  else
+    node="${DATA_DIR}"
+  fi
+
+  MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --datadir=$node --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=${LOGS_CONFIG}/master.err --socket=$MYSQL_SOCKET --port=$RBASE"
+  echo "Starting Percona Server with options $MYSQLD_OPTIONS"
+  ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld $MYSQLD_OPTIONS > ${LOGS_CONFIG}/master.err 2>&1 &
+
+  for X in $(seq 0 ${PS_START_TIMEOUT}); do
+    sleep 1
+    if ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1; then
+      echo "Started Percona Server. Socket=$MYSQL_SOCKET Port=$RBASE"
+      break
+    fi
+  done
+  ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { echo “Couldn\'t connect $MYSQL_SOCKET” && exit 0; }
+
+  if [ "$1" == "startup" ];then
+    echo "Creating data directory in $node"
+    ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
+    time ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_insert.lua --threads=$NUM_TABLES $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare 2>&1 | tee $LOGS/sysbench_prepare.log
+    echo -e "Data directory in $node created\nShutting mysqld down"
+    time ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
+  fi
+}
+
 function start_ps(){
   MYSQL_SOCKET=${LOGS}/ps_socket.sock
-  timeout --signal=9 20s ${DB_DIR}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
-  ps -ef | grep 'ps_socket' | grep ${BENCH_NUMBER} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
-  BIN=`find ${DB_DIR} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
+  timeout --signal=9 20s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
+  ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
+  BIN=`find ${BUILD_PATH} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
   NUM_ROWS=$(numfmt --from=si $DATASIZE)
   SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable --rand-seed=$RAND_SEED"
   WS_DATADIR="${WORKSPACE}/80_sysbench_data_template"
@@ -244,27 +230,49 @@ function run_sysbench(){
     pkill -f iostat
     kill -9 ${MEM_PID[@]}
     for i in {0..7}; do if [ -z ${result_set[i]} ]; then  result_set[i]='0,' ; fi; done
-    echo "[ '${BENCH_NUMBER}_${CONFIG_BASE}_${BENCH_ID}', ${result_set[*]} ]," >> ${LOG_NAME_RESULTS}
-    cat ${LOG_NAME_RESULTS} >> ${LOGS}/sysbench_${BENCH_ID}_${BENCH_NUMBER}_perf_result_set.txt
+    echo "[ '${BENCH_NAME}_${CONFIG_BASE}_${BENCH_ID}', ${result_set[*]} ]," >> ${LOG_NAME_RESULTS}
+    cat ${LOG_NAME_RESULTS} >> ${LOGS}/sysbench_${BENCH_ID}_${BENCH_NAME}_perf_result_set.txt
     unset result_set
   done
 
-  timeout --signal=9 20s ${DB_DIR}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
-  ps -ef | grep 'ps_socket' | grep ${BENCH_NUMBER} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
+  timeout --signal=9 20s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
+  ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
 }
 
 function archive_logs(){
   BENCH_ID=${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
   DATE=`date +"%Y%m%d%H%M%S"`
-  tarFileName="sysbench_${BENCH_ID}_perf_result_set_${BENCH_NUMBER}_${DATE}.tar.gz"
-  tar czvf ${tarFileName} ${BENCH_NUMBER}/logs --transform "s+^${BENCH_NUMBER}/logs++"
+  tarFileName="sysbench_${BENCH_ID}_perf_result_set_${BENCH_NAME}_${DATE}.tar.gz"
+  tar czvf ${tarFileName} ${BENCH_NAME}/logs --transform "s+^${BENCH_NAME}/logs++"
 
   rm -rf ${DATA_DIR}
 }
 
-# **********************************************************************************************
+#**********************************************************************************************
+# main
+#**********************************************************************************************
+command -v cpupower >/dev/null 2>&1 || { echo >&2 "cpupower is not installed. Aborting."; exit 1; }
+
+export BENCH_DIR=$WORKSPACE/$BENCH_NAME
+export BUILD_PATH=$BENCH_DIR/$BUILD_DIR
+export DATA_DIR=$BENCH_DIR/datadir
+export LOGS=$BENCH_DIR/logs
+
+# check parameters
+echo "Using WORKSPACE=$WORKSPACE"
+if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
+if [[ ! -d $WORKSPACE/$BUILD_DIR ]]; then usage "ERROR: Couldn't find binaries in $WORKSPACE/$BUILD_DIR"; fi
+
+mkdir -p $LOGS
+cd $WORKSPACE
+echo "Copying server binaries from $WORKSPACE/$BUILD_DIR to $BENCH_DIR/$BUILD_DIR"
+cp -r $WORKSPACE/$BUILD_DIR $BENCH_DIR || usage "ERROR: Failed to copy binaries from $WORKSPACE/$BUILD_DIR to $BENCH_DIR/$BUILD_DIR"
+
+export MYSQL_VERSION=`$BUILD_PATH/bin/mysqld --version | awk '{ print $3}'`
+
+#**********************************************************************************************
 # sysbench
-# **********************************************************************************************
+#**********************************************************************************************
 export THREADS_LIST=${THREADS_LIST:="0001 0004 0016 0064 0128 0256 0512 1024"}
 export LUA_SCRIPTS=${LUA_SCRIPTS:="oltp_read_write.lua"}
 export BENCHMARK_LOGGING=Y
@@ -293,7 +301,7 @@ disable_idle_states >> ${LOGS_CPU}
 disable_address_randomization >> ${LOGS_CPU}
 
 archives() {
-  tar czf ${WORKSPACE}/results-${BENCH_NUMBER}.tar.gz ${BENCH_NUMBER}/logs --transform "s+^${BENCH_NUMBER}/logs++"
+  tar czf ${WORKSPACE}/results-${BENCH_NAME}.tar.gz ${BENCH_NAME}/logs --transform "s+^${BENCH_NAME}/logs++"
 }
 
 trap archives EXIT KILL
@@ -301,7 +309,7 @@ trap archives EXIT KILL
 for file in $CONFIG_FILES; do
   if [ ! -f $file ]; then usage "ERROR: Config file $file not found."; fi
   CONFIG_BASE=$(basename ${file%.*})
-  LOGS_CONFIG=${LOGS}/${BENCH_NUMBER}-${CONFIG_BASE}
+  LOGS_CONFIG=${LOGS}/${BENCH_NAME}-${CONFIG_BASE}
   mkdir -p ${LOGS_CONFIG}
   CONFIG_FILE=${LOGS_CONFIG}/$(basename $file)
   cp $file $CONFIG_FILE
@@ -316,7 +324,7 @@ restore_scaling_governor >> ${LOGS_CPU}
 enable_idle_states >> ${LOGS_CPU}
 restore_address_randomization >> ${LOGS_CPU}
 
-VERSION_INFO=`$DB_DIR/bin/mysqld --version | cut -d' ' -f2-`
+VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
 UPTIME_HOUR=`uptime -p`
 SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
 MEM=`free -g | grep "Mem:" | awk '{print "Total:"$2"GB  Used:"$3"GB  Free:"$4"GB" }'`
@@ -329,8 +337,8 @@ if [ ! -f $LOGS/hw.info ];then
   KERNEL=`uname -r`
   echo "HW info | $RELEASE $KERNEL"  > $LOGS/hw.info
 fi
-echo "Build #$BENCH_NUMBER | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
-cat ${LOGS}/sysbench_*_perf_result_set.txt > ${LOGS}/sysbench_${BENCH_NUMBER}_full_result_set.txt
+echo "Build #$BENCH_NAME | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
+cat ${LOGS}/sysbench_*_perf_result_set.txt > ${LOGS}/sysbench_${BENCH_NAME}_full_result_set.txt
 cat ${LOGS}/sysbench_*_perf_result_set.txt
 
 archive_logs
