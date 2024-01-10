@@ -1,20 +1,22 @@
 #!/bin/bash
 # set -x
+
+# **********************************************************************************************
 # PS performance benchmark scripts
 # Sysbench suite will run performance tests
 # **********************************************************************************************
+
 # generic variables
-# **********************************************************************************************
-export ADDR="127.0.0.1"
 export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
-export SUSER=root
-export SPASS=
 export BIG_DIR=${WORKSPACE}
 export SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 export PS_START_TIMEOUT=100
-export MYSQL_DATABASE=test
 export MYSQL_NAME=PS
+# sysbench variables
+export MYSQL_DATABASE=test
+export SUSER=root
+export RAND_SEED=${RAND_SEED:-1111}
 SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/local/share}
 
 #MYEXTRA=${MYEXTRA:=--disable-log-bin}
@@ -110,7 +112,7 @@ function start_ps_node(){
   for X in $(seq 0 ${PS_START_TIMEOUT}); do
     sleep 1
     if ${DB_DIR}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1; then
-      echo "Started Percona Server. Socket : $MYSQL_SOCKET"
+      echo "Started Percona Server. Socket=$MYSQL_SOCKET Port=$RBASE"
       break
     fi
   done
@@ -217,7 +219,7 @@ function start_ps(){
   ps -ef | grep 'ps_socket' | grep ${BENCH_NUMBER} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
   BIN=`find ${DB_DIR} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
   NUM_ROWS=$(numfmt --from=si $DATASIZE)
-  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable"
+  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable --rand-seed=$RAND_SEED"
   WS_DATADIR="${BIG_DIR}/80_sysbench_data_template"
 
   drop_caches
