@@ -9,8 +9,7 @@
 # generic variables
 export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
-export BIG_DIR=${WORKSPACE}
-export SCRIPT_DIR=$(cd $(dirname $0) && pwd)
+export WORKSPACE=${WORKSPACE:-${PWD}}
 export PS_START_TIMEOUT=100
 export MYSQL_NAME=PS
 # sysbench variables
@@ -23,70 +22,57 @@ SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/local/share}
 #TASKSET_MYSQLD=${TASKSET_MYSQLD:=taskset -c 0}
 #TASKSET_SYSBENCH=${TASKSET_SYSBENCH:=taskset -c 1}
 
-# Check if workdir was set by Jenkins, otherwise this is presumably a local run
-if [ -z ${BIG_DIR} ]; then
-  export BIG_DIR=${PWD}
-fi
-
 command -v cpupower >/dev/null 2>&1 || { echo >&2 "cpupower is not installed. Aborting."; exit 1; }
 
 function usage(){
   echo $1
+  echo "Usage: $0 <BENCH_NAME> <BUILD_DIR> <MYSQL_CONFIG_FILE>"
+  echo "where:"
+  echo "<BENCH_NAME> - name of benchmark (a directory with this name will be created in \$WORKSPACE)"
+  echo "<BUILD_DIR> - relative path to MySQL or Percona Server binaries (inside \$WORKSPACE)"
+  echo "<MYSQL_CONFIG_FILE> - full path to Percona Server's configuration file"
   echo "Usage example:"
-  echo "$./ps.performance-test.sh 100 Percona-Server-8.0.34-26-Linux.x86_64.glibc2.35 [mysql_config_file]"
-  echo "This would lead to $BIG_DIR/100 being created, in which testing takes place and"
-  echo "$BIG_DIR/$1/Percona-Server-8.0.34-26-Linux.x86_64.glibc2.35 would be used to test."
+  echo "$0 100 Percona-Server-8.0.34-26-Linux.x86_64.glibc2.35 cnf/percona-innodb.cnf"
+  echo "This would lead to $WORKSPACE/100 being created, in which testing takes place and"
+  echo "$WORKSPACE/Percona-Server-8.0.34-26-Linux.x86_64.glibc2.35 would be used to test."
   exit 1
 }
 
-function create_mysql_cnf_file(){
-  # Creating default my.cnf file
-  if [ ! -f $1 ]; then
-    echo "[mysqld]" > $1
-    echo "sync_binlog=0" >> $1
-    echo "core-file" >> $1
-    echo "max-connections=1048" >> $1
-  fi
-}
-
-# make sure we have passed basedir parameter for this benchmark run
-if [ -z $2 ]; then usage "ERROR: No valid parameter passed.  Need relative workdir (1st option) and relative basedir (2nd option) settings. Retry."; fi
-
 export BENCH_NUMBER=$1
-export BENCH_DIR=$BIG_DIR/$1
+export BENCH_DIR=$WORKSPACE/$1
 export DB_DIR=$BENCH_DIR/$2
 export DATA_DIR=$BENCH_DIR/datadir
 export LOGS=$BENCH_DIR/logs
+
+# check parameters
+echo "Using WORKSPACE=$WORKSPACE"
+if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
+if [[ ! -d $WORKSPACE/$2 ]]; then usage "ERROR: Couldn't find binaries in $WORKSPACE/$2"; fi
+
 mkdir -p $LOGS
-cd $BIG_DIR
-if [ -z "$3" ]; then
-  export CONFIG_FILES=$BENCH_DIR/my.cnf
-  rm -rf $CONFIG_FILES
-  create_mysql_cnf_file $CONFIG_FILES
-else
-  export CONFIG_FILES="$3"
-fi
-echo "Copying server binaries from $BIG_DIR/$2 to $BENCH_DIR"
-cp -r $BIG_DIR/$2 $BENCH_DIR
+cd $WORKSPACE
+export CONFIG_FILES="$3"
+echo "Copying server binaries from $WORKSPACE/$2 to $BENCH_DIR/$2"
+cp -r $WORKSPACE/$2 $BENCH_DIR || usage "ERROR: Failed to copy binaries from $WORKSPACE/$2 to $BENCH_DIR/$2"
 
 export MYSQL_VERSION=`$DB_DIR/bin/mysqld --version | awk '{ print $3}'`
 
 archives() {
-  tar czf ${BIG_DIR}/results-${BENCH_NUMBER}.tar.gz ${BENCH_NUMBER}/logs --transform "s+^${BENCH_NUMBER}/logs++"
+  tar czf ${WORKSPACE}/results-${BENCH_NUMBER}.tar.gz ${BENCH_NUMBER}/logs --transform "s+^${BENCH_NUMBER}/logs++"
 }
 
 trap archives EXIT KILL
 
-if [ ! -d ${BIG_DIR}/backups ]; then
-  mkdir -p ${BIG_DIR}/backups
-  SCP_TARGET=${BIG_DIR}/backups
+if [ ! -d ${WORKSPACE}/backups ]; then
+  mkdir -p ${WORKSPACE}/backups
+  SCP_TARGET=${WORKSPACE}/backups
 else
-  SCP_TARGET=${BIG_DIR}/backups
+  SCP_TARGET=${WORKSPACE}/backups
 fi
 
 if [ -z $WORKSPACE ]; then
   echo "Assuming this is a local (i.e. non-Jenkins initiated) run."
-  export WORKSPACE=$BIG_DIR/backups
+  export WORKSPACE=$WORKSPACE/backups
 fi
 
 function start_ps_node(){
@@ -220,7 +206,7 @@ function start_ps(){
   BIN=`find ${DB_DIR} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
   NUM_ROWS=$(numfmt --from=si $DATASIZE)
   SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable --rand-seed=$RAND_SEED"
-  WS_DATADIR="${BIG_DIR}/80_sysbench_data_template"
+  WS_DATADIR="${WORKSPACE}/80_sysbench_data_template"
 
   drop_caches
   if [ ! -d ${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE} ]; then
@@ -345,7 +331,6 @@ restore_scaling_governor >> ${LOGS_CPU}
 enable_idle_states >> ${LOGS_CPU}
 restore_address_randomization >> ${LOGS_CPU}
 
-#Generate graph
 VERSION_INFO=`$DB_DIR/bin/mysqld --version | cut -d' ' -f2-`
 UPTIME_HOUR=`uptime -p`
 SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
@@ -360,7 +345,6 @@ if [ ! -f $LOGS/hw.info ];then
   echo "HW info | $RELEASE $KERNEL"  > $LOGS/hw.info
 fi
 echo "Build #$BENCH_NUMBER | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
-$SCRIPT_DIR/multibench_html_gen.sh $LOGS
 cat ${LOGS}/sysbench_*_perf_result_set.txt > ${LOGS}/sysbench_${BENCH_NUMBER}_full_result_set.txt
 cat ${LOGS}/sysbench_*_perf_result_set.txt
 
