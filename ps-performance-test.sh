@@ -43,6 +43,7 @@ export BENCH_DIR=$WORKSPACE/$1
 export DB_DIR=$BENCH_DIR/$2
 export DATA_DIR=$BENCH_DIR/datadir
 export LOGS=$BENCH_DIR/logs
+export CONFIG_FILES="$3"
 
 # check parameters
 echo "Using WORKSPACE=$WORKSPACE"
@@ -51,29 +52,10 @@ if [[ ! -d $WORKSPACE/$2 ]]; then usage "ERROR: Couldn't find binaries in $WORKS
 
 mkdir -p $LOGS
 cd $WORKSPACE
-export CONFIG_FILES="$3"
 echo "Copying server binaries from $WORKSPACE/$2 to $BENCH_DIR/$2"
 cp -r $WORKSPACE/$2 $BENCH_DIR || usage "ERROR: Failed to copy binaries from $WORKSPACE/$2 to $BENCH_DIR/$2"
 
 export MYSQL_VERSION=`$DB_DIR/bin/mysqld --version | awk '{ print $3}'`
-
-archives() {
-  tar czf ${WORKSPACE}/results-${BENCH_NUMBER}.tar.gz ${BENCH_NUMBER}/logs --transform "s+^${BENCH_NUMBER}/logs++"
-}
-
-trap archives EXIT KILL
-
-if [ ! -d ${WORKSPACE}/backups ]; then
-  mkdir -p ${WORKSPACE}/backups
-  SCP_TARGET=${WORKSPACE}/backups
-else
-  SCP_TARGET=${WORKSPACE}/backups
-fi
-
-if [ -z $WORKSPACE ]; then
-  echo "Assuming this is a local (i.e. non-Jenkins initiated) run."
-  export WORKSPACE=$WORKSPACE/backups
-fi
 
 function start_ps_node(){
   ps -ef | grep 'ps_socket.sock' | grep ${BENCH_NUMBER} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
@@ -277,9 +259,6 @@ function archive_logs(){
   tarFileName="sysbench_${BENCH_ID}_perf_result_set_${BENCH_NUMBER}_${DATE}.tar.gz"
   tar czvf ${tarFileName} ${BENCH_NUMBER}/logs --transform "s+^${BENCH_NUMBER}/logs++"
 
-  mkdir -p ${SCP_TARGET}/${BENCH_NUMBER}/${BENCH_SUITE}/${BENCH_ID}
-  BACKUP_FILES="${SCP_TARGET}/${BENCH_NUMBER}/${BENCH_SUITE}/${BENCH_ID}"
-  cp ${tarFileName} ${BACKUP_FILES}
   rm -rf ${DATA_DIR}
 }
 
@@ -312,6 +291,12 @@ disable_turbo_boost > ${LOGS_CPU}
 change_scaling_governor powersave >> ${LOGS_CPU}
 disable_idle_states >> ${LOGS_CPU}
 disable_address_randomization >> ${LOGS_CPU}
+
+archives() {
+  tar czf ${WORKSPACE}/results-${BENCH_NUMBER}.tar.gz ${BENCH_NUMBER}/logs --transform "s+^${BENCH_NUMBER}/logs++"
+}
+
+trap archives EXIT KILL
 
 for file in $CONFIG_FILES; do
   if [ ! -f $file ]; then usage "ERROR: Config file $file not found."; fi
