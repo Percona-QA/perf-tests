@@ -235,9 +235,9 @@ function start_ps(){
 
 function run_sysbench(){
   MEM_PID=()
-  if [ ${WARMUP} == "Y" ]; then
-    #warmup the cache, 64 threads for 10 minutes, don't bother logging
+  if [[ ${WARMUP_TIME_AT_START} > 0 ]]; then
     # *** REMEMBER *** warmmup is READ ONLY!
+    # warmup the cache, 64 threads for $WARMUP_TIME_AT_START seconds,
     num_threads=64
     echo "Warming up for $WARMUP_TIME_AT_START seconds"
     ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_read_only.lua --threads=$num_threads --time=$WARMUP_TIME_AT_START $SYSBENCH_OPTIONS --rand-type=$RAND_TYPE --mysql-socket=$MYSQL_SOCKET --percentile=99 run > ${LOGS_CONFIG}/sysbench_warmup.log 2>&1
@@ -302,7 +302,6 @@ function archive_logs(){
 # **********************************************************************************************
 export THREADS_LIST=${THREADS_LIST:="0001 0004 0016 0064 0128 0256 0512 1024"}
 export LUA_SCRIPTS=${LUA_SCRIPTS:="oltp_read_write.lua"}
-export WARMUP=Y
 export BENCHMARK_LOGGING=Y
 WARMUP_TIME_AT_START=${WARMUP_TIME_AT_START:-600}
 export WARMUP_TIME_SECONDS=${WARMUP_TIME_SECONDS:=30}
