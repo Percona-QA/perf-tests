@@ -147,8 +147,7 @@ function check_memory(){
 function start_ps_node(){
   ps -ef | grep 'ps_socket.sock' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
   BIN=`find ${BUILD_PATH} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
-  EXTRA_PARAMS=$MYEXTRA
-  EXTRA_PARAMS+=" --innodb-buffer-pool-size=$INNODB_CACHE"
+  EXTRA_PARAMS="$MYEXTRA --innodb-buffer-pool-size=$INNODB_CACHE"
   RBASE="$(( RBASE + 100 ))"
   if [ "$1" == "startup" ];then
     node="${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE}"
@@ -161,8 +160,8 @@ function start_ps_node(){
   fi
 
   MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --datadir=$node --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=${LOGS_CONFIG}/master.err --socket=$MYSQL_SOCKET --port=$RBASE"
-  echo "Starting Percona Server with options $MYSQLD_OPTIONS"
-  ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld $MYSQLD_OPTIONS > ${LOGS_CONFIG}/master.err 2>&1 &
+  echo "Starting Percona Server with options $MYSQLD_OPTIONS" | tee -a ${LOGS_CONFIG}/master.err
+  ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld $MYSQLD_OPTIONS >> ${LOGS_CONFIG}/master.err 2>&1 &
 
   for X in $(seq 0 ${PS_START_TIMEOUT}); do
     sleep 1
@@ -237,7 +236,9 @@ function run_sysbench(){
           (x=1; while [ $x -le $DSTAT_ROUNDS ]; do inxi -C -c 0 >> $LOG_NAME_INXI; sleep $DSTAT_INTERVAL; x=$(( $x + 1 )); done) &
           MEM_PID_INXI+=("$!")
       fi
-      ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/$lua_script --threads=$num_threads --events=$EVENTS_LIMIT --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run | tee $LOG_NAME
+      ALL_SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/$lua_script --threads=$num_threads --events=$EVENTS_LIMIT --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
+      echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
+      ${TASKSET_SYSBENCH} sysbench $ALL_SYSBENCH_OPTIONS | tee -a $LOG_NAME
       sleep 6
       result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
     done
