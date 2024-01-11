@@ -149,10 +149,10 @@ function start_ps_node(){
   BIN=`find ${BUILD_PATH} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
   EXTRA_PARAMS="$MYEXTRA --innodb-buffer-pool-size=$INNODB_CACHE"
   RBASE="$(( RBASE + 100 ))"
-  if [ "$1" == "startup" ];then
-    node="${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE}"
+  if [ "$1" == "startup" ]; then
+    node="${TEMPLATE_DIR}"
     if [ ! -d $node ]; then
-      ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=$node  > $LOGS/startup.err 2>&1
+      ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=$node > $LOGS/startup.err 2>&1
     fi
     EXTRA_PARAMS+=" --disable-log-bin"
   else
@@ -191,13 +191,14 @@ function start_ps(){
   WS_DATADIR="${WORKSPACE}/80_sysbench_data_template"
 
   drop_caches
-  if [ ! -d ${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE} ]; then
+  TEMPLATE_DIR=${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE}
+  if [ ! -d ${TEMPLATE_DIR} ]; then
     mkdir ${WS_DATADIR} > /dev/null 2>&1
     start_ps_node startup
   fi
-  echo "Copying data directory from ${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE} to ${DATA_DIR}"
+  echo "Copying data directory from ${TEMPLATE_DIR} to ${DATA_DIR}"
   rm -rf ${DATA_DIR}
-  cp -r ${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE} ${DATA_DIR}
+  cp -r ${TEMPLATE_DIR} ${DATA_DIR}
   start_ps_node
 }
 
