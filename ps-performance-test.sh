@@ -26,6 +26,7 @@ export RAND_SEED=${RAND_SEED:-1111}
 export THREADS_LIST=${THREADS_LIST:="0001 0004 0016 0064 0128 0256 0512 1024"}
 export LUA_SCRIPTS=${LUA_SCRIPTS:="oltp_read_write.lua"}
 SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/local/share}
+EVENTS_LIMIT=${EVENTS_LIMIT:-0}
 
 # time variables
 export PS_START_TIMEOUT=100
@@ -187,7 +188,7 @@ function start_ps(){
   ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
   BIN=`find ${BUILD_PATH} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
   NUM_ROWS=$(numfmt --from=si $DATASIZE)
-  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable --percentile=99 --rand-seed=$RAND_SEED --rand-type=$RAND_TYPE"
+  SYSBENCH_OPTIONS="$SYSBENCH_EXTRA --table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable --percentile=99 --rand-seed=$RAND_SEED --rand-type=$RAND_TYPE"
   WS_DATADIR="${WORKSPACE}/80_sysbench_data_template"
 
   drop_caches
@@ -225,7 +226,7 @@ function run_sysbench(){
       LOG_NAME_DSTAT_CSV=${LOG_NAME}.dstat.csv
       LOG_NAME_INXI=${LOG_NAME}.inxi
 
-      if [ ${BENCHMARK_LOGGING} == "Y" ]; then
+      if [[ ${BENCHMARK_LOGGING} == "Y" && ${RUN_TIME_SECONDS} > 0 ]]; then
           # verbose logging
           echo "*** verbose benchmark logging enabled ***"
           check_memory &
@@ -236,7 +237,7 @@ function run_sysbench(){
           (x=1; while [ $x -le $DSTAT_ROUNDS ]; do inxi -C -c 0 >> $LOG_NAME_INXI; sleep $DSTAT_INTERVAL; x=$(( $x + 1 )); done) &
           MEM_PID_INXI+=("$!")
       fi
-      ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/$lua_script --threads=$num_threads --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run | tee $LOG_NAME
+      ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/$lua_script --threads=$num_threads --events=$EVENTS_LIMIT --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run | tee $LOG_NAME
       sleep 6
       result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
     done
