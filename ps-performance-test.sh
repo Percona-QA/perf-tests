@@ -16,7 +16,6 @@ export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
 export WORKSPACE=${WORKSPACE:-${PWD}}
 export BENCHMARK_LOGGING=${BENCHMARK_LOGGING:-Y}
-export MYSQL_NAME=PS
 
 # sysbench variables
 export MYSQL_DATABASE=test
@@ -214,12 +213,12 @@ function run_sysbench(){
   fi
   echo "Storing Sysbench results in ${WORKSPACE}"
   for lua_script in ${LUA_SCRIPTS}; do
-    BENCH_ID=${lua_script%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+    BENCH_ID=${MYSQL_VERSION}-${lua_script%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
 
     for num_threads in ${THREADS_LIST}; do
       echo "Testing $lua_script with $num_threads threads"
       LOG_NAME_RESULTS=${LOGS_CONFIG}/results-QPS-${BENCH_ID}.txt
-      LOG_NAME=${LOGS_CONFIG}/${MYSQL_NAME}-${MYSQL_VERSION}-${BENCH_ID}-$num_threads.txt
+      LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}-$num_threads.txt
       LOG_NAME_MEMORY=${LOG_NAME}.memory
       LOG_NAME_IOSTAT=${LOG_NAME}.iostat
       LOG_NAME_DSTAT=${LOG_NAME}.dstat
@@ -277,7 +276,7 @@ function save_system_info(){
 }
 
 function archive_logs(){
-  BENCH_ID=${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+  BENCH_ID=${MYSQL_VERSION}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
   DATE=`date +"%Y%m%d%H%M%S"`
   tarFileName="sysbench_${BENCH_ID}_perf_result_set_${BENCH_NAME}_${DATE}.tar.gz"
   tar czvf ${tarFileName} ${BENCH_NAME}/logs --transform "s+^${BENCH_NAME}/logs++"
@@ -328,7 +327,10 @@ cd $WORKSPACE
 echo "Copying server binaries from $WORKSPACE/$BUILD_DIR to $BUILD_PATH"
 cp -r $WORKSPACE/$BUILD_DIR $BENCH_DIR || usage "ERROR: Failed to copy binaries from $WORKSPACE/$BUILD_DIR to $BUILD_PATH"
 
-export MYSQL_VERSION=`$BUILD_PATH/bin/mysqld --version | awk '{ print $3}'`
+MYSQL_VERSION=`$BUILD_PATH/bin/mysqld --version | awk '{ print $3}'`
+MYSQL_NAME=`$BUILD_PATH/bin/mysqld --version | awk '{for (i=2; i<NF; i++) printf $i " "; print $NF}'`
+if [[ $MYSQL_NAME == *"Percona Server"* ]]; then MYSQL_NAME=PS; else MYSQL_NAME=MS; fi
+export MYSQL_VERSION="$MYSQL_NAME${MYSQL_VERSION//./}"
 
 export INNODB_CACHE=${INNODB_CACHE:-32G}
 export NUM_TABLES=${NUM_TABLES:-16}
