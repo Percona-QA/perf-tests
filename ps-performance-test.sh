@@ -34,9 +34,7 @@ export WARMUP_TIME_SECONDS=${WARMUP_TIME_SECONDS:-30}
 export RUN_TIME_SECONDS=${RUN_TIME_SECONDS:-600}
 export REPORT_INTERVAL=10
 export IOSTAT_INTERVAL=10
-export IOSTAT_ROUNDS=$[(RUN_TIME_SECONDS+WARMUP_TIME_SECONDS)/IOSTAT_INTERVAL+1]
 export DSTAT_INTERVAL=10
-export DSTAT_ROUNDS=$[(RUN_TIME_SECONDS+WARMUP_TIME_SECONDS)/DSTAT_INTERVAL+1]
 
 #MYEXTRA=${MYEXTRA:=--disable-log-bin}
 #TASKSET_MYSQLD=${TASKSET_MYSQLD:=taskset -c 0}
@@ -130,16 +128,15 @@ function drop_caches(){
   ulimit -n 1000000
 }
 
-function check_memory(){
+function report_thread(){
   CHECK_PID=`ps -ef | grep ps_socket | grep -v grep | awk '{ print $2}'`
-  WAIT_TIME_SECONDS=10
-  RUN_TIME_SECONDS=$(($RUN_TIME_SECONDS + $WARMUP_TIME_SECONDS))
-  while [ ${RUN_TIME_SECONDS} -gt 0 ]; do
+  rm -f ${LOG_NAME_INXI} ${LOG_NAME_MEMORY}
+  while [ true ]; do
     DATE=`date +"%Y%m%d%H%M%S"`
     CURRENT_INFO=`ps -o rss,vsz,pcpu ${CHECK_PID} | tail -n 1`
     echo "${DATE} ${CURRENT_INFO}" >> ${LOG_NAME_MEMORY}
-    RUN_TIME_SECONDS=$(($RUN_TIME_SECONDS - $WAIT_TIME_SECONDS))
-    sleep ${WAIT_TIME_SECONDS}
+    inxi -C -c 0 >> ${LOG_NAME_INXI}
+    sleep ${REPORT_INTERVAL}
   done
 }
 
@@ -225,28 +222,24 @@ function run_sysbench(){
       LOG_NAME_DSTAT_CSV=${LOG_NAME}.dstat.csv
       LOG_NAME_INXI=${LOG_NAME}.inxi
 
-      if [[ ${BENCHMARK_LOGGING} == "Y" && ${RUN_TIME_SECONDS} > 0 ]]; then
+      if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
           # verbose logging
           echo "*** verbose benchmark logging enabled ***"
-          check_memory &
-          MEM_PID+=("$!")
-          iostat -dxm $IOSTAT_INTERVAL $IOSTAT_ROUNDS  > $LOG_NAME_IOSTAT &
-          dstat -t -v --nocolor --output $LOG_NAME_DSTAT_CSV $DSTAT_INTERVAL $DSTAT_ROUNDS > $LOG_NAME_DSTAT &
-          rm -f $LOG_NAME_INXI
-          (x=1; while [ $x -le $DSTAT_ROUNDS ]; do inxi -C -c 0 >> $LOG_NAME_INXI; sleep $DSTAT_INTERVAL; x=$(( $x + 1 )); done) &
-          MEM_PID_INXI+=("$!")
+          report_thread &
+          REPORT_THREAD_PID=$!
+          (iostat -dxm $IOSTAT_INTERVAL 1000000 | grep -v loop > $LOG_NAME_IOSTAT) &
+          dstat -t -v --nocolor --output $LOG_NAME_DSTAT_CSV $DSTAT_INTERVAL 1000000 > $LOG_NAME_DSTAT &
       fi
       ALL_SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/$lua_script --threads=$num_threads --events=$EVENTS_LIMIT --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
       echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
       ${TASKSET_SYSBENCH} sysbench $ALL_SYSBENCH_OPTIONS | tee -a $LOG_NAME
       sleep 6
+      pkill -f dstat
+      pkill -f iostat
+      kill -9 ${REPORT_THREAD_PID}
       result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
     done
 
-    pkill -f dstat
-    pkill -f iostat
-    kill -9 ${MEM_PID[@]}
-    kill -9 ${MEM_PID_INXI[@]}
     for i in {0..7}; do if [ -z ${result_set[i]} ]; then  result_set[i]='0,' ; fi; done
     echo "[ '${BENCH_NAME}_${CONFIG_BASE}_${BENCH_ID}', ${result_set[*]} ]," >> ${LOG_NAME_RESULTS}
     cat ${LOG_NAME_RESULTS} >> ${LOGS}/sysbench_${BENCH_ID}_${BENCH_NAME}_perf_result_set.txt
@@ -283,6 +276,8 @@ function archive_logs(){
 }
 
 function on_exit(){
+  pkill -f dstat
+  pkill -f iostat
   killall -9 mysqld
 
   echo "Restoring address randomization"
