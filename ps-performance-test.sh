@@ -26,6 +26,7 @@ export RAND_TYPE=${RAND_TYPE:-uniform}
 export RAND_SEED=${RAND_SEED:-1111}
 export THREADS_LIST=${THREADS_LIST:="0001 0004 0016 0064 0128 0256 0512 1024"}
 SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/local/share}
+export EVENTS_MULT=${EVENTS_MULT:-1}
 
 # time variables
 export PS_START_TIMEOUT=100
@@ -248,7 +249,7 @@ function run_sysbench(){
 
   for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
     WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
-    WORKLOAD_PARAMETERS=${WORKLOAD_PARAMS[num]}
+    WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
     echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
     BENCH_ID=${MYSQL_VERSION}-${WORKLOAD_NAME%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
 
@@ -360,7 +361,8 @@ if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD
 process_workload_config_file "$WORKLOAD_SCRIPT"
 echo "====="
 for i in $(seq 0 ${#WORKLOAD_NAMES[@]}); do
-  echo "${WORKLOAD_NAMES[i]}=${WORKLOAD_PARAMS[i]}"
+  WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[i]})
+  echo "${WORKLOAD_NAMES[i]}=${WORKLOAD_PARAMETERS}"
 done
 echo "====="
 
