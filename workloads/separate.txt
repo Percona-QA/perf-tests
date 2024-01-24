@@ -1,0 +1,34 @@
+# config file for ps-performance-test.sh
+#
+# sysbench options:
+#  --delete_inserts=N              Number of DELETE/INSERT combinations per transaction [1]
+#  --distinct_ranges=N             Number of SELECT DISTINCT queries per transaction [1]
+#  --index_updates=N               Number of UPDATE index queries per transaction [1]
+#  --non_index_updates=N           Number of UPDATE non-index queries per transaction [1]
+#  --order_ranges=N                Number of SELECT ORDER BY queries per transaction [1]
+#  --point_selects=N               Number of point SELECT queries per transaction [10]
+#  --range_selects[=on|off]        Enable/disable all range SELECT queries [on]
+#  --simple_ranges=N               Number of simple range SELECT queries per transaction [1]
+#  --skip_trx[=on|off]             Don't start explicit transactions and execute all queries in the AUTOCOMMIT mode [off]
+#  --sum_ranges=N                  Number of SELECT SUM() queries per transaction [1]
+#
+# Config from https://confluence.percona.com/pages/viewpage.action?pageId=76092550
+# POINT_SELECT  = "oltp_read_write.lua --point-selects=1 --simple-ranges=0 --sum-ranges=0 --order-ranges=0 --distinct-ranges=0 --skip-trx=on --index-updates=0 --non-index-updates=0 --delete_inserts=0"
+# UPDATE_NO_KEY = "oltp_read_write.lua --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=0 --distinct-ranges=0 --skip-trx=on --index-updates=0 --non-index-updates=1 --delete_inserts=0"
+# OLTP_RO       = "oltp_read_write.lua --index-updates=0 --non-index-updates=0 --delete_inserts=0"
+# OLTP_RW       = "oltp_read_write.lua"
+
+# reads
+OLTP_POINT_SELECT     = "oltp_point_select.lua"
+OLTP_RANGE_SELECTS    = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=1 --sum-ranges=1 --order-ranges=1 --distinct-ranges=1"
+OLTP_SIMPLE_RANGES    = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=1 --sum-ranges=0 --order-ranges=0 --distinct-ranges=0"
+OLTP_SUM_RANGES       = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=1 --order-ranges=0 --distinct-ranges=0"
+OLTP_ORDER_RANGES     = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=1 --distinct-ranges=0"
+OLTP_DISTINCT_RANGES  = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=0 --distinct-ranges=1"
+
+# writes
+OLTP_UPDATE_INDEX     = "oltp_update_index.lua"
+OLTP_UPDATE_NON_INDEX = "oltp_update_non_index.lua"
+OLTP_DELETE_INSERTS   = "oltp_write_only.lua --index-updates=0 --non-index-updates=0"
+OLTP_DELETE           = "oltp_delete.lua"
+OLTP_INSERT           = "oltp_insert.lua"

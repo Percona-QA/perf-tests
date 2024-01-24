@@ -16,6 +16,8 @@ export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
 export WORKSPACE=${WORKSPACE:-${PWD}}
 export BENCHMARK_LOGGING=${BENCHMARK_LOGGING:-Y}
+SCRIPT_DIR=$(cd $(dirname $0) && pwd)
+WORKLOAD_SCRIPT=${WORKLOAD_SCRIPT:-$SCRIPT_DIR/workloads/separate.txt}
 
 # sysbench variables
 export MYSQL_DATABASE=test
@@ -23,7 +25,6 @@ export SUSER=root
 export RAND_TYPE=${RAND_TYPE:-uniform}
 export RAND_SEED=${RAND_SEED:-1111}
 export THREADS_LIST=${THREADS_LIST:="0001 0004 0016 0064 0128 0256 0512 1024"}
-export LUA_SCRIPTS=${LUA_SCRIPTS:="oltp_read_write.lua"}
 SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/local/share}
 EVENTS_LIMIT=${EVENTS_LIMIT:-0}
 
@@ -120,6 +121,42 @@ function enable_idle_states(){
   sudo cpupower idle-info
 }
 
+# Function to process a configuration file and return WORKLOAD_NAMES[] and WORKLOAD_PARAMS[] arrays
+function process_workload_config_file() {
+  local filename="$1"
+  WORKLOAD_NAMES=()
+  WORKLOAD_PARAMS=()
+
+  while IFS= read -r line; do
+    # Ignore lines starting with '#' (comments) and empty lines
+    if [[ "$line" =~ ^\# ]] || [[ "$line" == "" ]]; then
+      continue
+    fi
+
+    # Concatenate lines ending with "\"
+    out_line="${line%\\}"
+    out_line=${out_line% } # Trim suffix (space)
+    while [[ $line =~ \\$ ]]; do
+      read -r line
+      out_line+=" ${line%\\}"
+      out_line=${out_line% } # Trim suffix (space)
+    done
+    line=$out_line
+
+    # Extract variable name and value
+    variable_name=$(echo "$line" | cut -d= -f1)
+    variable_value=$(echo "$line" | cut -d= -f2-)
+
+    # Trim leading and trailing whitespaces from variable value
+    variable_name=$(echo "$variable_name" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    variable_value=$(echo "$variable_value" | sed -e 's/^[[:space:]]*[" ]//' -e 's/[" ][[:space:]]*$//')
+
+    # Add the variable name and value to their respective arrays
+    WORKLOAD_NAMES+=("$variable_name")
+    WORKLOAD_PARAMS+=("$variable_value")
+  done < "$filename"
+}
+
 function drop_caches(){
   echo "Dropping caches"
   sync
@@ -209,11 +246,15 @@ function run_sysbench(){
     sleep $[WARMUP_TIME_AT_START/10]
   fi
   echo "Storing Sysbench results in ${WORKSPACE}"
-  for lua_script in ${LUA_SCRIPTS}; do
-    BENCH_ID=${MYSQL_VERSION}-${lua_script%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+
+  for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
+    WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
+    WORKLOAD_PARAMETERS=${WORKLOAD_PARAMS[num]}
+    echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
+    BENCH_ID=${MYSQL_VERSION}-${WORKLOAD_NAME%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
 
     for num_threads in ${THREADS_LIST}; do
-      echo "Testing $lua_script with $num_threads threads"
+      echo "Testing $WORKLOAD_NAME with $num_threads threads"
       LOG_NAME_RESULTS=${LOGS_CONFIG}/results-QPS-${BENCH_ID}.txt
       LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}-$num_threads.txt
       LOG_NAME_MEMORY=${LOG_NAME}.memory
@@ -230,7 +271,7 @@ function run_sysbench(){
           (iostat -dxm $IOSTAT_INTERVAL 1000000 | grep -v loop > $LOG_NAME_IOSTAT) &
           dstat -t -v --nocolor --output $LOG_NAME_DSTAT_CSV $DSTAT_INTERVAL 1000000 > $LOG_NAME_DSTAT &
       fi
-      ALL_SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/$lua_script --threads=$num_threads --events=$EVENTS_LIMIT --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
+      ALL_SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/$WORKLOAD_PARAMETERS --threads=$num_threads --events=$EVENTS_LIMIT --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
       echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
       ${TASKSET_SYSBENCH} sysbench $ALL_SYSBENCH_OPTIONS | tee -a $LOG_NAME
       sleep 6
@@ -240,7 +281,7 @@ function run_sysbench(){
       result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
     done
 
-    for i in {0..7}; do if [ -z ${result_set[i]} ]; then  result_set[i]='0,' ; fi; done
+    for ((i=0; i<${#result_set[@]}; i++)); do if [ -z ${result_set[i]} ]; then result_set[i]='0,'; fi; done
     echo "[ '${BENCH_NAME}_${CONFIG_BASE}_${BENCH_ID}', ${result_set[*]} ]," >> ${LOG_NAME_RESULTS}
     cat ${LOG_NAME_RESULTS} >> ${LOGS}/sysbench_${BENCH_ID}_${BENCH_NAME}_perf_result_set.txt
     unset result_set
@@ -312,9 +353,17 @@ export LOGS=$BENCH_DIR/logs
 LOGS_CPU=$LOGS/cpu-states.txt
 
 # check parameters
-echo "Using WORKSPACE=$WORKSPACE"
+echo "Using WORKSPACE=$WORKSPACE WORKLOAD_SCRIPT=$WORKLOAD_SCRIPT"
 if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
 if [[ ! -d $WORKSPACE/$BUILD_DIR ]]; then usage "ERROR: Couldn't find binaries in $WORKSPACE/$BUILD_DIR"; fi
+if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD_SCRIPT not found."; fi
+
+process_workload_config_file "$WORKLOAD_SCRIPT"
+echo "====="
+for i in $(seq 0 ${#WORKLOAD_NAMES[@]}); do
+  echo "${WORKLOAD_NAMES[i]}=${WORKLOAD_PARAMS[i]}"
+done
+echo "====="
 
 rm -rf ${LOGS}
 mkdir -p ${LOGS}
