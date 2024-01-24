@@ -26,7 +26,6 @@ export RAND_TYPE=${RAND_TYPE:-uniform}
 export RAND_SEED=${RAND_SEED:-1111}
 export THREADS_LIST=${THREADS_LIST:="0001 0004 0016 0064 0128 0256 0512 1024"}
 SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/local/share}
-EVENTS_LIMIT=${EVENTS_LIMIT:-0}
 
 # time variables
 export PS_START_TIMEOUT=100
@@ -271,7 +270,7 @@ function run_sysbench(){
           (iostat -dxm $IOSTAT_INTERVAL 1000000 | grep -v loop > $LOG_NAME_IOSTAT) &
           dstat -t -v --nocolor --output $LOG_NAME_DSTAT_CSV $DSTAT_INTERVAL 1000000 > $LOG_NAME_DSTAT &
       fi
-      ALL_SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/$WORKLOAD_PARAMETERS --threads=$num_threads --events=$EVENTS_LIMIT --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
+      ALL_SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/$WORKLOAD_PARAMETERS --threads=$num_threads --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
       echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
       ${TASKSET_SYSBENCH} sysbench $ALL_SYSBENCH_OPTIONS | tee -a $LOG_NAME
       sleep 6
