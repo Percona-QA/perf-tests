@@ -63,7 +63,7 @@ function disable_address_randomization(){
 }
 
 function restore_address_randomization(){
-    CURRENT_ASLR=`cat /proc/sys/kernel/randomize_va_space`
+    local CURRENT_ASLR=`cat /proc/sys/kernel/randomize_va_space`
     sudo sh -c "echo $PREVIOUS_ASLR > /proc/sys/kernel/randomize_va_space"
     echo "Resoring /proc/sys/kernel/randomize_va_space from $CURRENT_ASLR to `cat /proc/sys/kernel/randomize_va_space`"
 }
@@ -105,7 +105,7 @@ function change_scaling_governor(){
 }
 
 function restore_scaling_governor(){
-  CURRENT_GOVERNOR=`cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`
+  local CURRENT_GOVERNOR=`cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`
   sudo cpupower frequency-set -g $PREVIOUS_GOVERNOR
   echo "Restoring scaling governor from $CURRENT_GOVERNOR to `cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`"
   sudo cpupower frequency-info
@@ -122,26 +122,26 @@ function enable_idle_states(){
 }
 
 function save_system_info(){
-  VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
-  UPTIME_HOUR=`uptime -p`
-  SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
-  MEM=`free -g | grep "Mem:" | awk '{print "Total:"$2"GB  Used:"$3"GB  Free:"$4"GB" }'`
+  local VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
+  local UPTIME_HOUR=`uptime -p`
+  local SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
+  local MEM=`free -g | grep "Mem:" | awk '{print "Total:"$2"GB  Used:"$3"GB  Free:"$4"GB" }'`
   if [ ! -f $LOGS/hw.info ];then
     if [ -f /etc/redhat-release ]; then
       RELEASE=`cat /etc/redhat-release`
     else
       RELEASE=`cat /etc/issue`
     fi
-    KERNEL=`uname -r`
+    local KERNEL=`uname -r`
     echo "HW info | $RELEASE $KERNEL"  > $LOGS/hw.info
   fi
   echo "Build #$BENCH_NAME | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
 }
 
 function archive_logs(){
-  BENCH_ID=${MYSQL_VERSION}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
-  DATE=`date +"%Y%m%d%H%M%S"`
-  tarFileName="sysbench_${BENCH_ID}_perf_result_set_${BENCH_NAME}_${DATE}.tar.gz"
+  local BENCH_ID=${MYSQL_VERSION}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+  local DATE=`date +"%Y%m%d%H%M%S"`
+  local tarFileName="sysbench_${BENCH_ID}_perf_result_set_${BENCH_NAME}_${DATE}.tar.gz"
   tar czvf ${tarFileName} ${BENCH_NAME}/logs --transform "s+^${BENCH_NAME}/logs++"
 }
 
@@ -224,7 +224,7 @@ function drop_caches(){
 }
 
 function report_thread(){
-  CHECK_PID=`ps -ef | grep ps_socket | grep -v grep | awk '{ print $2}'`
+  local CHECK_PID=`ps -ef | grep ps_socket | grep -v grep | awk '{ print $2}'`
   rm -f ${LOG_NAME_INXI} ${LOG_NAME_MEMORY}
   while [ true ]; do
     DATE=`date +"%Y%m%d%H%M%S"`
@@ -235,21 +235,11 @@ function report_thread(){
   done
 }
 
-function start_ps_node(){
-  ps -ef | grep 'ps_socket.sock' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
-  EXTRA_PARAMS="$MYEXTRA --innodb-buffer-pool-size=$INNODB_CACHE"
+# start_mysqld $MORE_PARAMS
+function start_mysqld() {
+  local EXTRA_PARAMS="$MYEXTRA --innodb-buffer-pool-size=$INNODB_CACHE $1"
   RBASE="$(( RBASE + 100 ))"
-  if [ "$1" == "startup" ]; then
-    node="${TEMPLATE_DIR}"
-    if [ ! -d $node ]; then
-      ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=$node > $LOGS/startup.err 2>&1
-    fi
-    EXTRA_PARAMS+=" --disable-log-bin"
-  else
-    node="${DATA_DIR}"
-  fi
-
-  MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --datadir=$node --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=${LOGS_CONFIG}/master.err --socket=$MYSQL_SOCKET --port=$RBASE"
+  local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=${LOGS_CONFIG}/master.err --socket=$MYSQL_SOCKET --port=$RBASE"
   echo "Starting Percona Server with options $MYSQLD_OPTIONS" | tee -a ${LOGS_CONFIG}/master.err
   ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld $MYSQLD_OPTIONS >> ${LOGS_CONFIG}/master.err 2>&1 &
 
@@ -261,38 +251,37 @@ function start_ps_node(){
     fi
   done
   ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { echo “Couldn\'t connect $MYSQL_SOCKET” && exit 0; }
-
-  if [ "$1" == "startup" ];then
-    echo "Creating data directory in $node"
-    ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
-    time ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_insert.lua --threads=$NUM_TABLES $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare 2>&1 | tee $LOGS/sysbench_prepare.log
-    echo -e "Data directory in $node created\nShutting mysqld down"
-    time ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
-  fi
 }
 
-function start_ps(){
-  MYSQL_SOCKET=${LOGS}/ps_socket.sock
-  timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
-  ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
-  NUM_ROWS=$(numfmt --from=si $DATASIZE)
-  SYSBENCH_OPTIONS="$SYSBENCH_EXTRA --table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable --percentile=99 --rand-seed=$RAND_SEED --rand-type=$RAND_TYPE"
-  WS_DATADIR="${WORKSPACE}/80_sysbench_data_template"
+# shutdown_mysqld $TIMEOUT
+function shutdown_mysqld() {
+  local TIMEOUT=${1:-3600}
+  echo "Shutting mysqld down"
+  timeout --signal=9 ${TIMEOUT}s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
+}
 
-  drop_caches
-  TEMPLATE_DIR=${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE}
+function create_datadir() {
+  local NUM_ROWS=$(numfmt --from=si $DATASIZE)
+  SYSBENCH_OPTIONS="$SYSBENCH_EXTRA --table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable --percentile=99 --rand-seed=$RAND_SEED --rand-type=$RAND_TYPE"
+  local WS_DATADIR="${WORKSPACE}/80_sysbench_data_template"
+  local TEMPLATE_DIR=${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE}
   if [ ! -d ${TEMPLATE_DIR} ]; then
     mkdir ${WS_DATADIR} > /dev/null 2>&1
-    start_ps_node startup
+    ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=${TEMPLATE_DIR} > $LOGS/startup.err 2>&1
+
+    start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin"
+    echo "Creating template data directory in ${TEMPLATE_DIR}"
+    ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
+    time ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_insert.lua --threads=$NUM_TABLES $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare 2>&1 | tee $LOGS/sysbench_prepare.log
+    echo "Data directory in ${TEMPLATE_DIR} created"
+    shutdown_mysqld
   fi
   echo "Copying data directory from ${TEMPLATE_DIR} to ${DATA_DIR}"
   rm -rf ${DATA_DIR}
   cp -r ${TEMPLATE_DIR} ${DATA_DIR}
-  start_ps_node
 }
 
-function run_sysbench(){
-  MEM_PID=()
+function run_sysbench() {
   if [[ ${WARMUP_TIME_AT_START} > 0 ]]; then
     # *** REMEMBER *** warmmup is READ ONLY!
     # warmup the cache, 64 threads for $WARMUP_TIME_AT_START seconds,
@@ -304,10 +293,10 @@ function run_sysbench(){
   echo "Storing Sysbench results in ${WORKSPACE}"
 
   for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
-    WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
-    WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
+    local WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
+    local WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
+    local BENCH_ID=${MYSQL_VERSION}-${WORKLOAD_NAME%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
     echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
-    BENCH_ID=${MYSQL_VERSION}-${WORKLOAD_NAME%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
 
     for num_threads in ${THREADS_LIST}; do
       echo "Testing $WORKLOAD_NAME with $num_threads threads"
@@ -327,7 +316,7 @@ function run_sysbench(){
           (iostat -dxm $IOSTAT_INTERVAL 1000000 | grep -v loop > $LOG_NAME_IOSTAT) &
           dstat -t -v --nocolor --output $LOG_NAME_DSTAT_CSV $DSTAT_INTERVAL 1000000 > $LOG_NAME_DSTAT &
       fi
-      ALL_SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/$WORKLOAD_PARAMETERS --threads=$num_threads --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
+      local ALL_SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/$WORKLOAD_PARAMETERS --threads=$num_threads --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
       echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
       ${TASKSET_SYSBENCH} sysbench $ALL_SYSBENCH_OPTIONS | tee -a $LOG_NAME
       sleep 6
@@ -342,10 +331,6 @@ function run_sysbench(){
     cat ${LOG_NAME_RESULTS} >> ${LOGS}/sysbench_${BENCH_ID}_${BENCH_NAME}_perf_result_set.txt
     unset result_set
   done
-
-  echo "Shutting mysqld down"
-  timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
-  ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
 }
 
 
@@ -401,8 +386,17 @@ for file in $CONFIG_FILES; do
   cp $file $CONFIG_FILE
   echo "Using $CONFIG_FILE as mysqld config file"
 
-  start_ps
+
+  MYSQL_SOCKET=${LOGS}/ps_socket.sock
+  timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
+  ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
+
+  drop_caches
+  create_datadir
+  start_mysqld "--datadir=${DATA_DIR}"
   run_sysbench
+  shutdown_mysqld 30
+  ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
 done
 
 # "exit" calls on_exit()
