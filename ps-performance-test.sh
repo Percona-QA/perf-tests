@@ -121,6 +121,64 @@ function enable_idle_states(){
   sudo cpupower idle-info
 }
 
+function save_system_info(){
+  VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
+  UPTIME_HOUR=`uptime -p`
+  SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
+  MEM=`free -g | grep "Mem:" | awk '{print "Total:"$2"GB  Used:"$3"GB  Free:"$4"GB" }'`
+  if [ ! -f $LOGS/hw.info ];then
+    if [ -f /etc/redhat-release ]; then
+      RELEASE=`cat /etc/redhat-release`
+    else
+      RELEASE=`cat /etc/issue`
+    fi
+    KERNEL=`uname -r`
+    echo "HW info | $RELEASE $KERNEL"  > $LOGS/hw.info
+  fi
+  echo "Build #$BENCH_NAME | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
+}
+
+function archive_logs(){
+  BENCH_ID=${MYSQL_VERSION}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+  DATE=`date +"%Y%m%d%H%M%S"`
+  tarFileName="sysbench_${BENCH_ID}_perf_result_set_${BENCH_NAME}_${DATE}.tar.gz"
+  tar czvf ${tarFileName} ${BENCH_NAME}/logs --transform "s+^${BENCH_NAME}/logs++"
+}
+
+# depends on $LOGS, $LOGS_CPU, $BENCH_NAME, $DATA_DIR, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE
+function on_start(){
+  disable_address_randomization >> ${LOGS_CPU}
+  disable_turbo_boost > ${LOGS_CPU}
+  change_scaling_governor powersave >> ${LOGS_CPU}
+  disable_idle_states >> ${LOGS_CPU}
+
+  trap on_exit EXIT KILL
+}
+
+function on_exit(){
+  pkill -f dstat
+  pkill -f iostat
+  killall -9 mysqld
+
+  echo "Restoring address randomization"
+  restore_address_randomization >> ${LOGS_CPU}
+  echo "Restoring turbo boost"
+  restore_turbo_boost >> ${LOGS_CPU}
+  echo "Restoring scaling governor"
+  restore_scaling_governor >> ${LOGS_CPU}
+  echo "Enabling idle states"
+  enable_idle_states >> ${LOGS_CPU}
+
+  save_system_info
+
+  cat ${LOGS}/sysbench_*_perf_result_set.txt > ${LOGS}/sysbench_${BENCH_NAME}_full_result_set.txt
+  cat ${LOGS}/sysbench_*_perf_result_set.txt
+
+  archive_logs
+
+  rm -rf ${DATA_DIR}
+}
+
 # Function to process a configuration file and return WORKLOAD_NAMES[] and WORKLOAD_PARAMS[] arrays
 function process_workload_config_file() {
   local filename="$1"
@@ -292,54 +350,6 @@ function run_sysbench(){
   ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
 }
 
-function save_system_info(){
-  VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
-  UPTIME_HOUR=`uptime -p`
-  SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
-  MEM=`free -g | grep "Mem:" | awk '{print "Total:"$2"GB  Used:"$3"GB  Free:"$4"GB" }'`
-  if [ ! -f $LOGS/hw.info ];then
-    if [ -f /etc/redhat-release ]; then
-      RELEASE=`cat /etc/redhat-release`
-    else
-      RELEASE=`cat /etc/issue`
-    fi
-    KERNEL=`uname -r`
-    echo "HW info | $RELEASE $KERNEL"  > $LOGS/hw.info
-  fi
-  echo "Build #$BENCH_NAME | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
-}
-
-function archive_logs(){
-  BENCH_ID=${MYSQL_VERSION}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
-  DATE=`date +"%Y%m%d%H%M%S"`
-  tarFileName="sysbench_${BENCH_ID}_perf_result_set_${BENCH_NAME}_${DATE}.tar.gz"
-  tar czvf ${tarFileName} ${BENCH_NAME}/logs --transform "s+^${BENCH_NAME}/logs++"
-}
-
-function on_exit(){
-  pkill -f dstat
-  pkill -f iostat
-  killall -9 mysqld
-
-  echo "Restoring address randomization"
-  restore_address_randomization >> ${LOGS_CPU}
-  echo "Restoring turbo boost"
-  restore_turbo_boost >> ${LOGS_CPU}
-  echo "Restoring scaling governor"
-  restore_scaling_governor >> ${LOGS_CPU}
-  echo "Enabling idle states"
-  enable_idle_states >> ${LOGS_CPU}
-
-  save_system_info
-
-  cat ${LOGS}/sysbench_*_perf_result_set.txt > ${LOGS}/sysbench_${BENCH_NAME}_full_result_set.txt
-  cat ${LOGS}/sysbench_*_perf_result_set.txt
-
-  archive_logs
-
-  rm -rf ${DATA_DIR}
-}
-
 
 #**********************************************************************************************
 # main
@@ -360,7 +370,7 @@ if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD
 
 process_workload_config_file "$WORKLOAD_SCRIPT"
 echo "====="
-for i in $(seq 0 ${#WORKLOAD_NAMES[@]}); do
+for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
   WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[i]})
   echo "${WORKLOAD_NAMES[i]}=${WORKLOAD_PARAMETERS}"
 done
@@ -381,12 +391,7 @@ export INNODB_CACHE=${INNODB_CACHE:-32G}
 export NUM_TABLES=${NUM_TABLES:-16}
 export DATASIZE=${DATASIZE:-10M}
 
-disable_address_randomization >> ${LOGS_CPU}
-disable_turbo_boost > ${LOGS_CPU}
-change_scaling_governor powersave >> ${LOGS_CPU}
-disable_idle_states >> ${LOGS_CPU}
-
-trap on_exit EXIT KILL
+on_start
 
 for file in $CONFIG_FILES; do
   if [ ! -f $file ]; then usage "ERROR: Config file $file not found."; fi
