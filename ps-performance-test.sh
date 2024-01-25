@@ -237,7 +237,6 @@ function report_thread(){
 
 function start_ps_node(){
   ps -ef | grep 'ps_socket.sock' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
-  BIN=`find ${BUILD_PATH} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
   EXTRA_PARAMS="$MYEXTRA --innodb-buffer-pool-size=$INNODB_CACHE"
   RBASE="$(( RBASE + 100 ))"
   if [ "$1" == "startup" ]; then
@@ -276,7 +275,6 @@ function start_ps(){
   MYSQL_SOCKET=${LOGS}/ps_socket.sock
   timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
   ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
-  BIN=`find ${BUILD_PATH} -maxdepth 2 -name mysqld -type f -o -name mysqld-debug -type f | head -1`;if [ -z $BIN ]; then echo "Assert! mysqld binary '$BIN' could not be read";exit 1;fi
   NUM_ROWS=$(numfmt --from=si $DATASIZE)
   SYSBENCH_OPTIONS="$SYSBENCH_EXTRA --table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable --percentile=99 --rand-seed=$RAND_SEED --rand-type=$RAND_TYPE"
   WS_DATADIR="${WORKSPACE}/80_sysbench_data_template"
@@ -382,6 +380,7 @@ cd $WORKSPACE
 echo "Copying server binaries from $WORKSPACE/$BUILD_DIR to $BUILD_PATH"
 cp -r $WORKSPACE/$BUILD_DIR $BENCH_DIR || usage "ERROR: Failed to copy binaries from $WORKSPACE/$BUILD_DIR to $BUILD_PATH"
 
+if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
 MYSQL_VERSION=`$BUILD_PATH/bin/mysqld --version | awk '{ print $3}'`
 MYSQL_NAME=`$BUILD_PATH/bin/mysqld --version | awk '{for (i=2; i<NF; i++) printf $i " "; print $NF}'`
 if [[ $MYSQL_NAME == *"Percona Server"* ]]; then MYSQL_NAME=PS; else MYSQL_NAME=MS; fi
