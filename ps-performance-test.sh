@@ -287,12 +287,15 @@ function run_sysbench() {
     # warmup the cache, 64 threads for $WARMUP_TIME_AT_START seconds,
     num_threads=64
     echo "Warming up for $WARMUP_TIME_AT_START seconds"
+    start_mysqld "--datadir=${DATA_DIR}"
     ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_read_only.lua --threads=$num_threads --time=$WARMUP_TIME_AT_START $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run > ${LOGS_CONFIG}/sysbench_warmup.log 2>&1
+    shutdown_mysqld
     sleep $[WARMUP_TIME_AT_START/10]
   fi
   echo "Storing Sysbench results in ${WORKSPACE}"
 
   for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
+    start_mysqld "--datadir=${DATA_DIR}"
     local WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
     local WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
     local BENCH_ID=${MYSQL_VERSION}-${WORKLOAD_NAME%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
@@ -330,6 +333,8 @@ function run_sysbench() {
     echo "[ '${BENCH_NAME}_${CONFIG_BASE}_${BENCH_ID}', ${result_set[*]} ]," >> ${LOG_NAME_RESULTS}
     cat ${LOG_NAME_RESULTS} >> ${LOGS}/sysbench_${BENCH_ID}_${BENCH_NAME}_perf_result_set.txt
     unset result_set
+    shutdown_mysqld
+    ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
   done
 }
 
@@ -393,10 +398,7 @@ for file in $CONFIG_FILES; do
 
   drop_caches
   create_datadir
-  start_mysqld "--datadir=${DATA_DIR}"
   run_sysbench
-  shutdown_mysqld 30
-  ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
 done
 
 # "exit" calls on_exit()
