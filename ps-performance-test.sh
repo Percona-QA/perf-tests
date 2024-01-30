@@ -17,7 +17,7 @@ export RBASE="$(( RPORT*1000 ))"
 export WORKSPACE=${WORKSPACE:-${PWD}}
 export BENCHMARK_LOGGING=${BENCHMARK_LOGGING:-Y}
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
-WORKLOAD_SCRIPT=${WORKLOAD_SCRIPT:-$SCRIPT_DIR/workloads/separate.txt}
+WORKLOAD_SCRIPT=${WORKLOAD_SCRIPT:-$SCRIPT_DIR/workloads/read_write.txt}
 
 # sysbench variables
 export MYSQL_DATABASE=test

@@ -74,6 +74,7 @@ if len(sys.argv) == 2:
             else:
                 parse_table(table)
                 table = []
+                print()
         parse_table(table)
 else:
     data_file2 = sys.argv[2]
