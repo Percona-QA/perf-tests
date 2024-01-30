@@ -272,7 +272,7 @@ function create_datadir() {
     start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin"
     echo "Creating template data directory in ${TEMPLATE_DIR}"
     ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
-    time ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_insert.lua --threads=$NUM_TABLES $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare 2>&1 | tee $LOGS/sysbench_prepare.log
+    time ${TASKSET_SYSBENCH} sysbench $SYSBENCH_DIR/sysbench/oltp_write_only.lua --threads=$NUM_TABLES $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare 2>&1 | tee $LOGS/sysbench_prepare.log
     echo "Data directory in ${TEMPLATE_DIR} created"
     shutdown_mysqld
   fi
@@ -372,8 +372,8 @@ cp -r $WORKSPACE/$BUILD_DIR $BENCH_DIR || usage "ERROR: Failed to copy binaries 
 
 if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
 MYSQL_VERSION=`$BUILD_PATH/bin/mysqld --version | awk '{ print $3}'`
-MYSQL_NAME=`$BUILD_PATH/bin/mysqld --version | awk '{for (i=2; i<NF; i++) printf $i " "; print $NF}'`
-if [[ $MYSQL_NAME == *"Percona Server"* ]]; then MYSQL_NAME=PS; else MYSQL_NAME=MS; fi
+MYSQL_NAME=`$BUILD_PATH/bin/mysqld --help | grep Percona`
+if [[ $MYSQL_NAME == *"Percona"* ]]; then MYSQL_NAME=PS; else MYSQL_NAME=MS; fi
 export MYSQL_VERSION="$MYSQL_NAME${MYSQL_VERSION//./}"
 
 export INNODB_CACHE=${INNODB_CACHE:-32G}
