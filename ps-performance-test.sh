@@ -16,6 +16,7 @@ export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
 export WORKSPACE=${WORKSPACE:-${PWD}}
 export BENCHMARK_LOGGING=${BENCHMARK_LOGGING:-Y}
+export SMART_DEVICE=${SMART_DEVICE:-/dev/nvme0n1}
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 WORKLOAD_SCRIPT=${WORKLOAD_SCRIPT:-$SCRIPT_DIR/workloads/read_write.txt}
 
@@ -225,12 +226,15 @@ function drop_caches(){
 
 function report_thread(){
   local CHECK_PID=`ps -ef | grep ps_socket | grep -v grep | awk '{ print $2}'`
-  rm -f ${LOG_NAME_INXI} ${LOG_NAME_MEMORY}
+  rm -f ${LOG_NAME_INXI} ${LOG_NAME_MEMORY} ${LOG_NAME_SMART}
   while [ true ]; do
     DATE=`date +"%Y%m%d%H%M%S"`
     CURRENT_INFO=`ps -o rss,vsz,pcpu ${CHECK_PID} | tail -n 1`
     echo "${DATE} ${CURRENT_INFO}" >> ${LOG_NAME_MEMORY}
     inxi -C -c 0 >> ${LOG_NAME_INXI}
+    DATE=`date +"%Y-%m-%d %H:%M:%S"`
+    echo "${DATE}" >> ${LOG_NAME_SMART}
+    sudo nvme smart-log $SMART_DEVICE >> ${LOG_NAME_SMART}
     sleep ${REPORT_INTERVAL}
   done
 }
@@ -310,6 +314,7 @@ function run_sysbench() {
       LOG_NAME_DSTAT=${LOG_NAME}.dstat
       LOG_NAME_DSTAT_CSV=${LOG_NAME}.dstat.csv
       LOG_NAME_INXI=${LOG_NAME}.inxi
+      LOG_NAME_SMART=${LOG_NAME}.smart
 
       if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
           # verbose logging
