@@ -53,7 +53,11 @@ void test_sync(int rounds) {
 #ifdef USE_MSYNC
     printf("using %s + msync\n", alloc_name);
 #else
+#ifndef USE_MMAP
     printf("using %s + write + fsync\n", alloc_name);
+#else
+    printf("using %s + fsync\n", alloc_name);
+#endif
 #endif
 
     int written = 0;
@@ -62,6 +66,7 @@ void test_sync(int rounds) {
 #ifdef USE_MSYNC
         msync(buffer, BUFFER_SIZE, MS_SYNC);  // Synchronize changes to the file
 #else
+#ifndef USE_MMAP
         lseek(fd, 0, SEEK_SET);
         ssize_t res = write(fd, buffer, BUFFER_SIZE);
         if (res == -1) {
@@ -69,9 +74,10 @@ void test_sync(int rounds) {
             close(fd);
             exit(EXIT_FAILURE);
         }
-        fsync(fd);
         written += res;
-#endif
+#endif // USE_MMAP
+        fsync(fd);
+#endif // USE_MSYNC
     }
 
     printf("Written %d bytes\n", written);
