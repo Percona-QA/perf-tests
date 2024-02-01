@@ -30,17 +30,36 @@ void test_sync(int rounds) {
         exit(EXIT_FAILURE);
     }
 
+#ifdef USE_MMAP
+    const char* alloc_name="mmap";
     char *buffer = mmap(NULL, BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (buffer == MAP_FAILED) {
         perror("Error mapping file to memory");
         close(fd);
         exit(EXIT_FAILURE);
     }
+#else
+    // Allocate aligned buffer
+    const char* alloc_name="posix_memalign";
+    char *buffer;
+    if (posix_memalign((void**)&buffer, getpagesize(), BUFFER_SIZE) != 0) {
+        perror("Error allocating aligned buffer");
+        close(fd);
+        exit(EXIT_FAILURE);
+    }
+#endif
+    memset(buffer, 0, BUFFER_SIZE);
+
+#ifdef USE_MSYNC
+    printf("using %s + msync\n", alloc_name);
+#else
+    printf("using %s + write + fsync\n", alloc_name);
+#endif
 
     int written = 0;
     for (int i = 0; i < rounds; ++i) {
         buffer[i % BUFFER_SIZE] = rand() % 256;
-#if 0
+#ifdef USE_MSYNC
         msync(buffer, BUFFER_SIZE, MS_SYNC);  // Synchronize changes to the file
 #else
         lseek(fd, 0, SEEK_SET);
@@ -50,19 +69,23 @@ void test_sync(int rounds) {
             close(fd);
             exit(EXIT_FAILURE);
         }
-        written += res;
         fsync(fd);
+        written += res;
 #endif
     }
 
     printf("Written %d bytes\n", written);
 
+#ifdef USE_MMAP
     // Unmap the memory
     if (munmap(buffer, BUFFER_SIZE) == -1) {
         perror("Error unmapping file from memory");
         close(fd);
         exit(EXIT_FAILURE);
     }
+#else
+    free(buffer);
+#endif
 
     // Close opened file
     if (close(fd) == -1) {
