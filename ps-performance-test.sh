@@ -225,7 +225,7 @@ function drop_caches(){
 }
 
 function report_thread(){
-  local CHECK_PID=`ps -ef | grep ps_socket | grep -v grep | awk '{ print $2}'`
+  local CHECK_PID=`pgrep -f ${DATA_DIR}`
   rm -f ${LOG_NAME_CPUINFO} ${LOG_NAME_MEMORY} ${LOG_NAME_SMART}
   while [ true ]; do
     DATE=`date +"%Y%m%d%H%M%S"`
@@ -300,13 +300,13 @@ function run_sysbench() {
   echo "Storing Sysbench results in ${WORKSPACE}"
 
   for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
-    start_mysqld "--datadir=${DATA_DIR}"
     local WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
     local WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
     local BENCH_ID=${MYSQL_VERSION}-${WORKLOAD_NAME%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
     echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
 
     for num_threads in ${THREADS_LIST}; do
+      start_mysqld "--datadir=${DATA_DIR}"
       echo "Testing $WORKLOAD_NAME with $num_threads threads"
       LOG_NAME_RESULTS=${LOGS_CONFIG}/results-QPS-${BENCH_ID}.txt
       LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}-$num_threads.txt
@@ -337,14 +337,14 @@ function run_sysbench() {
       pkill -f iostat
       kill -9 ${REPORT_THREAD_PID}
       result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
+      shutdown_mysqld
+      kill -9 $(pgrep -f ${DATA_DIR})
     done
 
     for ((i=0; i<${#result_set[@]}; i++)); do if [ -z ${result_set[i]} ]; then result_set[i]='0,'; fi; done
     echo "[ '${BENCH_NAME}_${CONFIG_BASE}_${BENCH_ID}', ${result_set[*]} ]," >> ${LOG_NAME_RESULTS}
     cat ${LOG_NAME_RESULTS} >> ${LOGS}/sysbench_${BENCH_ID}_${BENCH_NAME}_perf_result_set.txt
     unset result_set
-    shutdown_mysqld
-    ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
   done
 }
 
