@@ -234,8 +234,8 @@ function report_thread(){
     DATE=`date +"%Y-%m-%d %H:%M:%S"`
     echo "${DATE}" >> ${LOG_NAME_CPUINFO}
     cat /proc/cpuinfo | grep "cpu MHz" >> ${LOG_NAME_CPUINFO}
-    echo "${DATE}" >> ${LOG_NAME_SMART}
-    sudo nvme smart-log $SMART_DEVICE >> ${LOG_NAME_SMART}
+    echo "${DATE} $SMART_DEVICE" >> ${LOG_NAME_SMART}
+    sudo smartctl -A $SMART_DEVICE >> ${LOG_NAME_SMART} 2>&1
     sleep ${REPORT_INTERVAL}
   done
 }
