@@ -322,7 +322,11 @@ function run_sysbench() {
           report_thread &
           REPORT_THREAD_PID=$!
           (iostat -dxm $IOSTAT_INTERVAL 1000000 | grep -v loop > $LOG_NAME_IOSTAT) &
-          dstat -t -v --nocolor --output $LOG_NAME_DSTAT_CSV $DSTAT_INTERVAL 1000000 > $LOG_NAME_DSTAT &
+          if [[ ${DSTAT_OUTPUT_NOT_SUPPORTED} == "1" ]]; then
+            dstat -t -v --nocolor $DSTAT_INTERVAL 1000000 > $LOG_NAME_DSTAT &
+          else
+            dstat -t -v --nocolor --output $LOG_NAME_DSTAT_CSV $DSTAT_INTERVAL 1000000 > $LOG_NAME_DSTAT &
+          fi
       fi
       local ALL_SYSBENCH_OPTIONS="$SYSBENCH_DIR/sysbench/$WORKLOAD_PARAMETERS --threads=$num_threads --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
       echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
@@ -347,7 +351,13 @@ function run_sysbench() {
 #**********************************************************************************************
 # main
 #**********************************************************************************************
-command -v cpupower >/dev/null 2>&1 || { echo >&2 "cpupower is not installed. Aborting."; exit 1; }
+if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
+  command -v cpupower >/dev/null 2>&1 || { echo >&2 "cpupower is not installed. Aborting."; exit 1; }
+  command -v dstat >/dev/null 2>&1 || { echo >&2 "dstat is not installed. Aborting."; exit 1; }
+  command -v iostat >/dev/null 2>&1 || { echo >&2 "iostat is not installed. Aborting."; exit 1; }
+  dstat -t -v --nocolor --output dstat.csv 1 1 >/dev/null 2>&1 || DSTAT_OUTPUT_NOT_SUPPORTED=1
+  rm dstat.csv
+fi
 
 export BENCH_DIR=$WORKSPACE/$BENCH_NAME
 export BUILD_PATH=$BENCH_DIR/$BUILD_DIR
