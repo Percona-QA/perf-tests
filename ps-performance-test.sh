@@ -8,13 +8,14 @@
 
 # script parameters
 export BENCH_NAME=$1
-export BUILD_DIR=$2
+export BUILD_PATH=$2
 export CONFIG_FILES="$3"
 
 # generic variables
 export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
 export WORKSPACE=${WORKSPACE:-${PWD}}
+export TEMPLATE_PATH=${TEMPLATE_PATH:-${WORKSPACE}}
 export BENCHMARK_LOGGING=${BENCHMARK_LOGGING:-Y}
 export SMART_DEVICE=${SMART_DEVICE:-/dev/nvme0n1}
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
@@ -45,10 +46,10 @@ export DSTAT_INTERVAL=10
 
 function usage(){
   echo $1
-  echo "Usage: $0 <BENCH_NAME> <BUILD_DIR> <MYSQL_CONFIG_FILE>"
+  echo "Usage: $0 <BENCH_NAME> <BUILD_PATH> <MYSQL_CONFIG_FILE>"
   echo "where:"
   echo "<BENCH_NAME> - name of benchmark (a directory with this name will be created in \$WORKSPACE)"
-  echo "<BUILD_DIR> - relative path to MySQL or Percona Server binaries (inside \$WORKSPACE)"
+  echo "<BUILD_PATH> - path to MySQL or Percona Server binaries"
   echo "<MYSQL_CONFIG_FILE> - full path to Percona Server's configuration file"
   echo "Usage example:"
   echo "$0 100 Percona-Server-8.0.34-26-Linux.x86_64.glibc2.35 cnf/percona-innodb.cnf"
@@ -268,7 +269,7 @@ function shutdown_mysqld() {
 function create_datadir() {
   local NUM_ROWS=$(numfmt --from=si $DATASIZE)
   SYSBENCH_OPTIONS="$SYSBENCH_EXTRA --table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable --percentile=99 --rand-seed=$RAND_SEED --rand-type=$RAND_TYPE"
-  local WS_DATADIR="${WORKSPACE}/80_sysbench_data_template"
+  local WS_DATADIR="${TEMPLATE_PATH}/80_sysbench_data_template"
   local TEMPLATE_DIR=${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE}
   if [ ! -d ${TEMPLATE_DIR} ]; then
     mkdir ${WS_DATADIR} > /dev/null 2>&1
@@ -361,7 +362,6 @@ if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
 fi
 
 export BENCH_DIR=$WORKSPACE/$BENCH_NAME
-export BUILD_PATH=$BENCH_DIR/$BUILD_DIR
 export DATA_DIR=$BENCH_DIR/datadir
 export LOGS=$BENCH_DIR/logs
 LOGS_CPU=$LOGS/cpu-states.txt
@@ -369,7 +369,6 @@ LOGS_CPU=$LOGS/cpu-states.txt
 # check parameters
 echo "Using WORKSPACE=$WORKSPACE WORKLOAD_SCRIPT=$WORKLOAD_SCRIPT"
 if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
-if [[ ! -d $WORKSPACE/$BUILD_DIR ]]; then usage "ERROR: Couldn't find binaries in $WORKSPACE/$BUILD_DIR"; fi
 if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD_SCRIPT not found."; fi
 
 process_workload_config_file "$WORKLOAD_SCRIPT"
@@ -383,8 +382,6 @@ echo "====="
 rm -rf ${LOGS}
 mkdir -p ${LOGS}
 cd $WORKSPACE
-echo "Copying server binaries from $WORKSPACE/$BUILD_DIR to $BUILD_PATH"
-cp -r $WORKSPACE/$BUILD_DIR $BENCH_DIR || usage "ERROR: Failed to copy binaries from $WORKSPACE/$BUILD_DIR to $BUILD_PATH"
 
 if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
 MYSQL_VERSION=`$BUILD_PATH/bin/mysqld --version | awk '{ print $3}'`
