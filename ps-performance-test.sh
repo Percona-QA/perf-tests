@@ -227,7 +227,7 @@ function drop_caches(){
 
 function report_thread(){
   local CHECK_PID=`pgrep -f ${DATA_DIR}`
-  rm -f ${LOG_NAME_CPUINFO} ${LOG_NAME_MEMORY} ${LOG_NAME_SMART}
+  rm -f ${LOG_NAME_CPUINFO} ${LOG_NAME_MEMORY} ${LOG_NAME_SMART} ${LOG_NAME_PS}
   while [ true ]; do
     DATE=`date +"%Y%m%d%H%M%S"`
     CURRENT_INFO=`ps -o rss,vsz,pcpu ${CHECK_PID} | tail -n 1`
@@ -235,6 +235,8 @@ function report_thread(){
     DATE=`date +"%Y-%m-%d %H:%M:%S"`
     echo "${DATE}" >> ${LOG_NAME_CPUINFO}
     cat /proc/cpuinfo | grep "cpu MHz" >> ${LOG_NAME_CPUINFO}
+    echo "${DATE}" >> ${LOG_NAME_PS}
+    ps aux | sort -rn -k +3 | head >> ${LOG_NAME_PS}
     echo "${DATE} $SMART_DEVICE" >> ${LOG_NAME_SMART}
     sudo smartctl -A $SMART_DEVICE >> ${LOG_NAME_SMART} 2>&1
     sleep ${REPORT_INTERVAL}
@@ -319,6 +321,7 @@ function run_sysbench() {
       LOG_NAME_DSTAT_CSV=${LOG_NAME}.dstat.csv
       LOG_NAME_CPUINFO=${LOG_NAME}.cpuinfo
       LOG_NAME_SMART=${LOG_NAME}.smart
+      LOG_NAME_PS=${LOG_NAME}.ps
 
       if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
           # verbose logging
