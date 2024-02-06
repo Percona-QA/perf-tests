@@ -243,20 +243,22 @@ function report_thread(){
 
 # start_mysqld $MORE_PARAMS
 function start_mysqld() {
-  local EXTRA_PARAMS="$MYEXTRA --innodb-buffer-pool-size=$INNODB_CACHE $1"
+  local EXTRA_PARAMS="--innodb-buffer-pool-size=$INNODB_CACHE $MYEXTRA $1"
   RBASE="$(( RBASE + 100 ))"
   local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=${LOGS_CONFIG}/master.err --socket=$MYSQL_SOCKET --port=$RBASE"
   echo "Starting Percona Server with options $MYSQLD_OPTIONS" | tee -a ${LOGS_CONFIG}/master.err
   ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld $MYSQLD_OPTIONS >> ${LOGS_CONFIG}/master.err 2>&1 &
 
+  echo "- Waiting for start of mysqld"
   for X in $(seq 0 ${PS_START_TIMEOUT}); do
     sleep 1
+    echo -n "."
     if ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1; then
       echo "Started Percona Server. Socket=$MYSQL_SOCKET Port=$RBASE"
       break
     fi
   done
-  ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { echo “Couldn\'t connect $MYSQL_SOCKET” && exit 0; }
+  ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { cat ${LOGS_CONFIG}/master.err; echo "Couldn't connect $MYSQL_SOCKET" && exit 0; }
 }
 
 # shutdown_mysqld $TIMEOUT
