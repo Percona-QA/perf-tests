@@ -144,7 +144,7 @@ function archive_logs(){
   local BENCH_ID=${MYSQL_VERSION}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
   local DATE=`date +"%Y%m%d%H%M%S"`
   local tarFileName="sysbench_${BENCH_ID}_perf_result_set_${BENCH_NAME}_${DATE}.tar.gz"
-  tar czvf ${tarFileName} ${BENCH_NAME}/logs --transform "s+^${BENCH_NAME}/logs++"
+  tar czvf ${tarFileName} ${BENCH_NAME} --transform "s+^${BENCH_NAME}++"
 }
 
 # depends on $LOGS, $LOGS_CPU, $BENCH_NAME, $DATA_DIR, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE
@@ -367,8 +367,8 @@ if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
 fi
 
 export BENCH_DIR=$WORKSPACE/$BENCH_NAME
-export DATA_DIR=$BENCH_DIR/datadir
-export LOGS=$BENCH_DIR/logs
+export DATA_DIR=$BENCH_DIR-datadir
+export LOGS=$BENCH_DIR
 LOGS_CPU=$LOGS/cpu-states.txt
 
 # check parameters
