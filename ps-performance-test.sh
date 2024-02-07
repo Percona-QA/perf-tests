@@ -26,7 +26,7 @@ export MYSQL_DATABASE=test
 export SUSER=root
 export RAND_TYPE=${RAND_TYPE:-uniform}
 export RAND_SEED=${RAND_SEED:-1111}
-export THREADS_LIST=${THREADS_LIST:="0001 0004 0016 0064 0128 0256 0512 1024"}
+export THREADS_LIST=${THREADS_LIST:-"1 4 16 64 128 256 512 1024"}
 SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/local/share}
 export EVENTS_MULT=${EVENTS_MULT:-1}
 
@@ -141,9 +141,9 @@ function save_system_info(){
 }
 
 function archive_logs(){
-  local BENCH_ID=${MYSQL_VERSION}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+  local BENCH_ID=$1
   local DATE=`date +"%Y%m%d%H%M%S"`
-  local tarFileName="sysbench_${BENCH_ID}_perf_result_set_${BENCH_NAME}_${DATE}.tar.gz"
+  local tarFileName="${BENCH_ID}_${BENCH_NAME}_${DATE}.tar.gz"
   tar czvf ${tarFileName} ${BENCH_NAME} --transform "s+^${BENCH_NAME}++"
 }
 
@@ -173,10 +173,15 @@ function on_exit(){
 
   save_system_info
 
-  cat ${LOGS}/sysbench_*_perf_result_set.txt > ${LOGS}/sysbench_${BENCH_NAME}_full_result_set.txt
-  cat ${LOGS}/sysbench_*_perf_result_set.txt
+  local BENCH_ID=${MYSQL_VERSION}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+  local LOG_NAME_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_results.txt
+  echo -n "WORKLOAD, " >> ${LOG_NAME_FULL_RESULTS}
+  for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_NAME_FULL_RESULTS}; done
+  echo ""  >> ${LOG_NAME_FULL_RESULTS}
+  cat ${LOGS}/*${BENCH_NAME}.txt >> ${LOG_NAME_FULL_RESULTS}
+  echo "-----" && cat ${LOG_NAME_FULL_RESULTS} && echo "-----"
 
-  archive_logs
+  archive_logs ${BENCH_ID}
 
   rm -rf ${DATA_DIR}
 }
@@ -347,9 +352,8 @@ function run_sysbench() {
       kill -9 $(pgrep -f ${DATA_DIR})
     done
 
-    for ((i=0; i<${#result_set[@]}; i++)); do if [ -z ${result_set[i]} ]; then result_set[i]='0,'; fi; done
-    echo "[ '${BENCH_NAME}_${CONFIG_BASE}_${BENCH_ID}', ${result_set[*]} ]," >> ${LOG_NAME_RESULTS}
-    cat ${LOG_NAME_RESULTS} >> ${LOGS}/sysbench_${BENCH_ID}_${BENCH_NAME}_perf_result_set.txt
+    echo "${BENCH_NAME}_${CONFIG_BASE}_${BENCH_ID}, ${result_set[*]}" >> ${LOG_NAME_RESULTS}
+    cat ${LOG_NAME_RESULTS} >> ${LOGS}/${BENCH_ID}_${BENCH_NAME}.txt
     unset result_set
   done
 }
