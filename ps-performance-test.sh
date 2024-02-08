@@ -227,12 +227,13 @@ function drop_caches(){
   sync
   sudo sh -c 'sysctl -q -w vm.drop_caches=3'
   sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
-  ulimit -n 1000000
+  ulimit -n 1000000  # open files
+  ulimit -l 524288   # max locked memory (kbytes)
 }
 
 function report_thread(){
   local CHECK_PID=`pgrep -f ${DATA_DIR}`
-  rm -f ${LOG_NAME_CPUINFO} ${LOG_NAME_MEMORY} ${LOG_NAME_SMART} ${LOG_NAME_PS}
+  rm -f ${LOG_NAME_CPUINFO} ${LOG_NAME_MEMORY} ${LOG_NAME_SMART} ${LOG_NAME_PS} ${LOG_NAME_ZONEINFO}
   while [ true ]; do
     DATE=`date +"%Y%m%d%H%M%S"`
     CURRENT_INFO=`ps -o rss,vsz,pcpu ${CHECK_PID} | tail -n 1`
@@ -240,6 +241,8 @@ function report_thread(){
     DATE=`date +"%Y-%m-%d %H:%M:%S"`
     echo "${DATE}" >> ${LOG_NAME_CPUINFO}
     cat /proc/cpuinfo | grep "cpu MHz" >> ${LOG_NAME_CPUINFO}
+    echo "${DATE}" >> ${LOG_NAME_ZONEINFO}
+    cat /proc/zoneinfo >> ${LOG_NAME_ZONEINFO}
     echo "${DATE}" >> ${LOG_NAME_PS}
     ps aux | sort -rn -k +3 | head >> ${LOG_NAME_PS}
     echo "${DATE} $SMART_DEVICE" >> ${LOG_NAME_SMART}
@@ -314,6 +317,7 @@ function run_sysbench() {
     local WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
     local BENCH_ID=${MYSQL_VERSION}-${WORKLOAD_NAME%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
     echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
+    drop_caches
 
     for num_threads in ${THREADS_LIST}; do
       start_mysqld "--datadir=${DATA_DIR}"
@@ -327,6 +331,7 @@ function run_sysbench() {
       LOG_NAME_CPUINFO=${LOG_NAME}.cpuinfo
       LOG_NAME_SMART=${LOG_NAME}.smart
       LOG_NAME_PS=${LOG_NAME}.ps
+      LOG_NAME_ZONEINFO=${LOG_NAME}.zoneinfo
 
       if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
           # verbose logging
