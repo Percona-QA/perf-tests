@@ -242,7 +242,7 @@ function drop_caches(){
 
 function report_thread(){
   local CHECK_PID=`pgrep -f ${DATA_DIR}`
-  rm -f ${LOG_NAME_CPUINFO} ${LOG_NAME_MEMORY} ${LOG_NAME_SMART} ${LOG_NAME_PS} ${LOG_NAME_ZONEINFO} ${LOG_NAME_VMSTAT}
+  rm -f ${LOG_NAME_CPUINFO} ${LOG_NAME_MEMORY} ${LOG_NAME_SMART} ${LOG_NAME_PS} ${LOG_NAME_ZONEINFO} ${LOG_NAME_VMSTAT} ${LOG_NAME_MYSQL}
   while [ true ]; do
     DATE=`date +"%Y%m%d%H%M%S"`
     CURRENT_INFO=`ps -o rss,vsz,pcpu ${CHECK_PID} | tail -n 1`
@@ -258,6 +258,8 @@ function report_thread(){
     ps aux | sort -rn -k +3 | head >> ${LOG_NAME_PS}
     echo "${DATE} $SMART_DEVICE" >> ${LOG_NAME_SMART}
     sudo smartctl -A $SMART_DEVICE >> ${LOG_NAME_SMART} 2>&1
+    echo "${DATE}" >> ${LOG_NAME_MYSQL}
+    ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G" >> ${LOG_NAME_MYSQL} 2>&1
     sleep ${REPORT_INTERVAL}
   done
 }
@@ -335,6 +337,7 @@ function run_sysbench() {
       echo "Testing $WORKLOAD_NAME with $num_threads threads"
       LOG_NAME_RESULTS=${LOGS_CONFIG}/results-QPS-${BENCH_ID}.txt
       LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}-$num_threads.txt
+      LOG_NAME_MYSQL=${LOG_NAME}.mysql
       LOG_NAME_MEMORY=${LOG_NAME}.memory
       LOG_NAME_IOSTAT=${LOG_NAME}.iostat
       LOG_NAME_VMSTAT=${LOG_NAME}.vmstat
@@ -431,7 +434,7 @@ for file in $CONFIG_FILES; do
   echo "Using $CONFIG_FILE as mysqld config file"
 
 
-  MYSQL_SOCKET=${LOGS}/ps_socket.sock
+  export MYSQL_SOCKET=${LOGS}/ps_socket.sock
   timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
   ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
 
