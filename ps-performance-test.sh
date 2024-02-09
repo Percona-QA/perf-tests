@@ -124,6 +124,7 @@ function enable_idle_states(){
 }
 
 function save_system_info(){
+  local LOG_SYS_INFO=$LOGS/sys_info.log
   local VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
   local UPTIME_HOUR=`uptime -p`
   local SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
@@ -138,6 +139,14 @@ function save_system_info(){
     echo "HW info | $RELEASE $KERNEL"  > $LOGS/hw.info
   fi
   echo "Build #$BENCH_NAME | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
+
+  uname -a >> $LOG_SYS_INFO
+  ulimit -a >> $LOG_SYS_INFO
+  sysctl -a 2>/dev/null | grep "\bvm." >> $LOG_SYS_INFO
+  free -m >> $LOG_SYS_INFO
+  df -Th >> $LOG_SYS_INFO
+  echo "===== nproc=$(nproc --all)" >> $LOG_SYS_INFO
+  cat /proc/cpuinfo >> $LOG_SYS_INFO
 }
 
 function archive_logs(){
