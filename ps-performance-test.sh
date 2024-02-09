@@ -242,7 +242,7 @@ function drop_caches(){
 
 function report_thread(){
   local CHECK_PID=`pgrep -f ${DATA_DIR}`
-  rm -f ${LOG_NAME_CPUINFO} ${LOG_NAME_MEMORY} ${LOG_NAME_SMART} ${LOG_NAME_PS} ${LOG_NAME_ZONEINFO}
+  rm -f ${LOG_NAME_CPUINFO} ${LOG_NAME_MEMORY} ${LOG_NAME_SMART} ${LOG_NAME_PS} ${LOG_NAME_ZONEINFO} ${LOG_NAME_VMSTAT}
   while [ true ]; do
     DATE=`date +"%Y%m%d%H%M%S"`
     CURRENT_INFO=`ps -o rss,vsz,pcpu ${CHECK_PID} | tail -n 1`
@@ -252,6 +252,8 @@ function report_thread(){
     cat /proc/cpuinfo | grep "cpu MHz" >> ${LOG_NAME_CPUINFO}
     echo "${DATE}" >> ${LOG_NAME_ZONEINFO}
     cat /proc/zoneinfo >> ${LOG_NAME_ZONEINFO}
+    echo "${DATE}" >> ${LOG_NAME_VMSTAT}
+    cat /proc/vmstat >> ${LOG_NAME_VMSTAT}
     echo "${DATE}" >> ${LOG_NAME_PS}
     ps aux | sort -rn -k +3 | head >> ${LOG_NAME_PS}
     echo "${DATE} $SMART_DEVICE" >> ${LOG_NAME_SMART}
@@ -335,6 +337,7 @@ function run_sysbench() {
       LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}-$num_threads.txt
       LOG_NAME_MEMORY=${LOG_NAME}.memory
       LOG_NAME_IOSTAT=${LOG_NAME}.iostat
+      LOG_NAME_VMSTAT=${LOG_NAME}.vmstat
       LOG_NAME_DSTAT=${LOG_NAME}.dstat
       LOG_NAME_DSTAT_CSV=${LOG_NAME}.dstat.csv
       LOG_NAME_CPUINFO=${LOG_NAME}.cpuinfo
