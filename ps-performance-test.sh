@@ -285,44 +285,50 @@ function start_mysqld() {
   ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { cat ${LOGS_CONFIG}/master.err; echo "Couldn't connect $MYSQL_SOCKET" && exit 0; }
 }
 
-# shutdown_mysqld $TIMEOUT
+# shutdown_mysqld
 function shutdown_mysqld() {
-  local TIMEOUT=${1:-3600}
   echo "Shutting mysqld down"
-  timeout --signal=9 ${TIMEOUT}s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
+  (time ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown) 2>&1
 }
 
-function create_datadir() {
+function init_perf_tests() {
   local NUM_ROWS=$(numfmt --from=si $DATASIZE)
   SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
+}
+
+function prepare_datadir() {
   local WS_DATADIR="${TEMPLATE_PATH}/80_sysbench_data_template"
   local TEMPLATE_DIR=${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE}
   if [ ! -d ${TEMPLATE_DIR} ]; then
+    echo "Creating template data directory in ${TEMPLATE_DIR}"
     mkdir ${WS_DATADIR} > /dev/null 2>&1
-    ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=${TEMPLATE_DIR} > $LOGS/startup.err 2>&1
+    ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=${TEMPLATE_DIR} 2>&1
 
     start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin"
-    echo "Creating template data directory in ${TEMPLATE_DIR}"
     ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
-    time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_DIR/oltp_write_only.lua --threads=$NUM_TABLES --rand-seed=$RAND_SEED $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare 2>&1 | tee $LOGS/sysbench_prepare.log
+    (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_DIR/oltp_write_only.lua --threads=$NUM_TABLES --rand-seed=$RAND_SEED $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare) 2>&1
     echo "Data directory in ${TEMPLATE_DIR} created"
     shutdown_mysqld
   fi
   echo "Copying data directory from ${TEMPLATE_DIR} to ${DATA_DIR}"
   rm -rf ${DATA_DIR}
-  cp -r ${TEMPLATE_DIR} ${DATA_DIR}
+  (time cp -r ${TEMPLATE_DIR} ${DATA_DIR}) 2>&1
+}
+
+function sysbench_warmup() {
+  # *** REMEMBER *** warmmup is READ ONLY!
+  # warmup the cache, 64 threads for $WARMUP_TIME_AT_START seconds,
+  num_threads=64
+  echo "Warming up for $WARMUP_TIME_AT_START seconds"
+  start_mysqld "--datadir=${DATA_DIR}"
+  ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_DIR/oltp_read_only.lua --threads=$num_threads --time=$WARMUP_TIME_AT_START $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run 2>&1
+  shutdown_mysqld
+  sleep $[WARMUP_TIME_AT_START/10]
 }
 
 function run_sysbench() {
   if [[ ${WARMUP_TIME_AT_START} > 0 ]]; then
-    # *** REMEMBER *** warmmup is READ ONLY!
-    # warmup the cache, 64 threads for $WARMUP_TIME_AT_START seconds,
-    num_threads=64
-    echo "Warming up for $WARMUP_TIME_AT_START seconds"
-    start_mysqld "--datadir=${DATA_DIR}"
-    ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_DIR/oltp_read_only.lua --threads=$num_threads --time=$WARMUP_TIME_AT_START $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run > ${LOGS_CONFIG}/sysbench_warmup.log 2>&1
-    shutdown_mysqld
-    sleep $[WARMUP_TIME_AT_START/10]
+    sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup.log
   fi
   echo "Storing Sysbench results in ${WORKSPACE}"
 
@@ -363,14 +369,14 @@ function run_sysbench() {
       fi
       local ALL_SYSBENCH_OPTIONS="$SYSBENCH_DIR/$WORKLOAD_PARAMETERS --threads=$num_threads --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
       echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
-      ${TASKSET_SYSBENCH} $SYSBENCH_BIN $ALL_SYSBENCH_OPTIONS | tee -a $LOG_NAME
+      (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $ALL_SYSBENCH_OPTIONS) 2>&1 | tee -a $LOG_NAME
       sleep 6
       pkill -f dstat
       pkill -f iostat
       kill -9 ${REPORT_THREAD_PID}
       result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
-      shutdown_mysqld
-      kill -9 $(pgrep -f ${DATA_DIR})
+      shutdown_mysqld | tee -a $LOG_NAME
+      kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     done
 
     echo "${BENCH_NAME}_${CONFIG_BASE}_${BENCH_ID}, ${result_set[*]}" >> ${LOG_NAME_RESULTS}
@@ -437,10 +443,11 @@ for file in $CONFIG_FILES; do
 
   export MYSQL_SOCKET=${LOGS}/ps_socket.sock
   timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
-  ps -ef | grep 'ps_socket' | grep ${BENCH_NAME} | grep -v grep | awk '{print $2}' | xargs kill -9 >/dev/null 2>&1 || true
+  kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
 
   drop_caches
-  create_datadir
+  init_perf_tests
+  prepare_datadir | tee $LOGS/prepare_datadir.log
   run_sysbench
 done
 
