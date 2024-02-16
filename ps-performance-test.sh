@@ -267,7 +267,7 @@ function report_thread(){
 
 # start_mysqld $MORE_PARAMS
 function start_mysqld() {
-  local EXTRA_PARAMS="--innodb-buffer-pool-size=$INNODB_CACHE $MYEXTRA $1"
+  local EXTRA_PARAMS="--user=root --innodb-buffer-pool-size=$INNODB_CACHE $MYEXTRA $1"
   RBASE="$(( RBASE + 100 ))"
   local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=${LOGS_CONFIG}/master.err --socket=$MYSQL_SOCKET --port=$RBASE"
   echo "Starting Percona Server with options $MYSQLD_OPTIONS" | tee -a ${LOGS_CONFIG}/master.err
@@ -327,9 +327,6 @@ function sysbench_warmup() {
 }
 
 function run_sysbench() {
-  if [[ ${WARMUP_TIME_AT_START} > 0 ]]; then
-    sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup.log
-  fi
   echo "Storing Sysbench results in ${WORKSPACE}"
 
   for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
@@ -337,7 +334,11 @@ function run_sysbench() {
     local WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
     local BENCH_ID=${MYSQL_VERSION}-${WORKLOAD_NAME%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
     echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
-    drop_caches
+
+    if [[ ${WARMUP_TIME_AT_START} > 0 ]]; then
+      drop_caches
+      sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log
+    fi
 
     for num_threads in ${THREADS_LIST}; do
       start_mysqld "--datadir=${DATA_DIR}"
