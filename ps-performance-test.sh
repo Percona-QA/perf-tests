@@ -243,7 +243,7 @@ function drop_caches(){
 
 function report_thread(){
   local CHECK_PID=`pgrep -f ${DATA_DIR}`
-  rm -f ${LOG_NAME_CPUINFO} ${LOG_NAME_MEMORY} ${LOG_NAME_SMART} ${LOG_NAME_PS} ${LOG_NAME_ZONEINFO} ${LOG_NAME_VMSTAT} ${LOG_NAME_MYSQL}
+  rm -f ${LOG_NAME_CPUINFO} ${LOG_NAME_MEMORY} ${LOG_NAME_SMART} ${LOG_NAME_PS} ${LOG_NAME_ZONEINFO} ${LOG_NAME_VMSTAT}
   while [ true ]; do
     DATE=`date +"%Y%m%d%H%M%S"`
     CURRENT_INFO=`ps -o rss,vsz,pcpu ${CHECK_PID} | tail -n 1`
@@ -252,15 +252,13 @@ function report_thread(){
     echo "${DATE}" >> ${LOG_NAME_CPUINFO}
     cat /proc/cpuinfo | grep "cpu MHz" >> ${LOG_NAME_CPUINFO}
     echo "${DATE}" >> ${LOG_NAME_ZONEINFO}
-    cat /proc/zoneinfo >> ${LOG_NAME_ZONEINFO}
+    grep -A64 "zone   Normal" /proc/zoneinfo >> ${LOG_NAME_ZONEINFO}
     echo "${DATE}" >> ${LOG_NAME_VMSTAT}
     cat /proc/vmstat >> ${LOG_NAME_VMSTAT}
     echo "${DATE}" >> ${LOG_NAME_PS}
     ps aux | sort -rn -k +3 | head >> ${LOG_NAME_PS}
     echo "${DATE} $SMART_DEVICE" >> ${LOG_NAME_SMART}
     sudo smartctl -A $SMART_DEVICE >> ${LOG_NAME_SMART} 2>&1
-    echo "${DATE}" >> ${LOG_NAME_MYSQL}
-    ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G" >> ${LOG_NAME_MYSQL} 2>&1
     sleep ${REPORT_INTERVAL}
   done
 }
@@ -376,6 +374,7 @@ function run_sysbench() {
       pkill -f iostat
       kill -9 ${REPORT_THREAD_PID}
       result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
+      ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G" >> ${LOG_NAME_MYSQL} 2>&1
       shutdown_mysqld | tee -a $LOG_NAME
       kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     done
@@ -442,7 +441,7 @@ for file in $CONFIG_FILES; do
   echo "Using $CONFIG_FILE as mysqld config file"
 
 
-  export MYSQL_SOCKET=${LOGS}/ps_socket.sock
+  MYSQL_SOCKET=${LOGS}/ps_socket.sock
   timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
   kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
 
