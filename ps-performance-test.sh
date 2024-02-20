@@ -283,10 +283,18 @@ function start_mysqld() {
   ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { cat ${LOGS_CONFIG}/master.err; echo "Couldn't connect $MYSQL_SOCKET" && exit 0; }
 }
 
+# print_database_size
+function print_database_size() {
+  local DATA_SIZE=`du -s $DATA_DIR | awk '{sum+=$1;} END {printf "%d\n", sum/1024;}'`
+  local FILE_COUNT=`ls -aR $DATA_DIR | wc -l`
+  echo "- Size of database is $DATA_SIZE MB in $FILE_COUNT files"
+}
+
 # shutdown_mysqld
 function shutdown_mysqld() {
   echo "Shutting mysqld down"
   (time ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown) 2>&1
+  print_database_size
 }
 
 function init_perf_tests() {
