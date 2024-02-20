@@ -318,7 +318,7 @@ function sysbench_warmup() {
   # warmup the cache, 64 threads for $WARMUP_TIME_AT_START seconds,
   num_threads=64
   echo "Warming up for $WARMUP_TIME_AT_START seconds"
-  start_mysqld "--datadir=${DATA_DIR}"
+  start_mysqld "--datadir=${DATA_DIR} --innodb_buffer_pool_load_at_startup=OFF"
   ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_DIR/oltp_read_only.lua --threads=$num_threads --time=$WARMUP_TIME_AT_START $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run 2>&1
   shutdown_mysqld
   sleep $[WARMUP_TIME_AT_START/10]
