@@ -411,10 +411,11 @@ export LOGS=$BENCH_DIR
 LOGS_CPU=$LOGS/cpu-states.txt
 
 # check parameters
-echo "Using WORKSPACE=$WORKSPACE WORKLOAD_SCRIPT=$WORKLOAD_SCRIPT"
 if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
 if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD_SCRIPT not found."; fi
 
+variables=("WORKSPACE" "BENCH_DIR" "BUILD_PATH" "MYEXTRA" "RUN_TIME_SECONDS" "CONFIG_FILES" "WORKLOAD_SCRIPT")
+for variable in "${variables[@]}"; do echo "$variable=${!variable}"; done
 process_workload_config_file "$WORKLOAD_SCRIPT"
 echo "====="
 for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
