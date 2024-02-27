@@ -1,7 +1,7 @@
 [mysqld]
 # binary log
 binlog_row_image=minimal
-binlog_space_limit=4G
+loose-binlog_space_limit=4G
 sync_binlog=1K
 # skip-log-bin
 
