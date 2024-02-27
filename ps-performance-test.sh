@@ -276,7 +276,7 @@ function start_mysqld() {
     sleep 1
     echo -n "."
     if ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1; then
-      echo "Started Percona Server. Socket=$MYSQL_SOCKET Port=$RBASE"
+      echo "Percona Server started in $(( X+1 )) seconds (socket=$MYSQL_SOCKET port=$RBASE)"
       break
     fi
   done
