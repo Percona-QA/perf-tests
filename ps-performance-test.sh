@@ -382,7 +382,7 @@ function run_sysbench() {
       pkill -f iostat
       kill -9 ${REPORT_THREAD_PID}
       result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
-      ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G" >> ${LOG_NAME_MYSQL} 2>&1
+      ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G" >> ${LOG_NAME_MYSQL} 2>&1
       shutdown_mysqld | tee -a $LOG_NAME
       kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     done
