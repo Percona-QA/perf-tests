@@ -265,7 +265,7 @@ function report_thread(){
 
 # start_mysqld $MORE_PARAMS
 function start_mysqld() {
-  local EXTRA_PARAMS="--user=root --innodb-buffer-pool-size=$INNODB_CACHE $MYEXTRA $1"
+  local EXTRA_PARAMS="--user=root --innodb-buffer-pool-size=$INNODB_CACHE --performance-schema-instrument='wait/synch/mutex/innodb/%=ON' $MYEXTRA $1"
   RBASE="$(( RBASE + 100 ))"
   local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=$LOG_NAME_MYSQLD --socket=$MYSQL_SOCKET --port=$RBASE"
   echo "Starting Percona Server with options $MYSQLD_OPTIONS" | tee -a $LOG_NAME_MYSQLD
@@ -386,6 +386,7 @@ function run_sysbench() {
       kill -9 ${REPORT_THREAD_PID}
       result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
       ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G; SHOW ENGINE INNODB MUTEX" >> ${LOG_NAME_MYSQL} 2>&1
+      ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT/1000000000 SUM_TIMER_WAIT_MS FROM performance_schema.events_waits_summary_global_by_event_name WHERE SUM_TIMER_WAIT > 0 AND EVENT_NAME LIKE 'wait/synch/mutex/innodb/%' ORDER BY COUNT_STAR DESC" >> ${LOG_NAME_MYSQL} 2>&1
       shutdown_mysqld | tee -a $LOG_NAME
       kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     done
