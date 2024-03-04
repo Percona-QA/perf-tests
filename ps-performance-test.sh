@@ -267,9 +267,9 @@ function report_thread(){
 function start_mysqld() {
   local EXTRA_PARAMS="--user=root --innodb-buffer-pool-size=$INNODB_CACHE $MYEXTRA $1"
   RBASE="$(( RBASE + 100 ))"
-  local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=${LOGS_CONFIG}/master.err --socket=$MYSQL_SOCKET --port=$RBASE"
-  echo "Starting Percona Server with options $MYSQLD_OPTIONS" | tee -a ${LOGS_CONFIG}/master.err
-  ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld $MYSQLD_OPTIONS >> ${LOGS_CONFIG}/master.err 2>&1 &
+  local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=$LOG_NAME_MYSQLD --socket=$MYSQL_SOCKET --port=$RBASE"
+  echo "Starting Percona Server with options $MYSQLD_OPTIONS" | tee -a $LOG_NAME_MYSQLD
+  ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld $MYSQLD_OPTIONS >> $LOG_NAME_MYSQLD 2>&1 &
 
   echo "- Waiting for start of mysqld"
   for X in $(seq 0 ${PS_START_TIMEOUT}); do
@@ -280,7 +280,7 @@ function start_mysqld() {
       break
     fi
   done
-  ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { cat ${LOGS_CONFIG}/master.err; echo "Couldn't connect $MYSQL_SOCKET" && exit 0; }
+  ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { cat $LOG_NAME_MYSQLD; echo "Couldn't connect $MYSQL_SOCKET" && exit 0; }
 }
 
 # print_database_size
@@ -310,6 +310,7 @@ function prepare_datadir() {
     mkdir ${WS_DATADIR} > /dev/null 2>&1
     ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=${TEMPLATE_DIR} 2>&1
 
+    LOG_NAME_MYSQLD=${LOGS_CONFIG}/prepare.mysqld
     start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin"
     ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
     (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_DIR/oltp_write_only.lua --threads=$NUM_TABLES --rand-seed=$RAND_SEED $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare) 2>&1
@@ -326,6 +327,7 @@ function sysbench_warmup() {
   # warmup the cache, 64 threads for $WARMUP_TIME_AT_START seconds,
   num_threads=64
   echo "Warming up for $WARMUP_TIME_AT_START seconds"
+  LOG_NAME_MYSQLD=${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.mysqld
   start_mysqld "--datadir=${DATA_DIR} --innodb_buffer_pool_load_at_startup=OFF"
   ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_DIR/oltp_read_only.lua --threads=$num_threads --time=$WARMUP_TIME_AT_START $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run 2>&1
   shutdown_mysqld
@@ -347,11 +349,11 @@ function run_sysbench() {
     fi
 
     for num_threads in ${THREADS_LIST}; do
-      start_mysqld "--datadir=${DATA_DIR}"
       echo "Testing $WORKLOAD_NAME with $num_threads threads"
       LOG_NAME_RESULTS=${LOGS_CONFIG}/results-QPS-${BENCH_ID}.txt
       LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}-$num_threads.txt
       LOG_NAME_MYSQL=${LOG_NAME}.mysql
+      LOG_NAME_MYSQLD=${LOG_NAME}.mysqld
       LOG_NAME_MEMORY=${LOG_NAME}.memory
       LOG_NAME_IOSTAT=${LOG_NAME}.iostat
       LOG_NAME_VMSTAT=${LOG_NAME}.vmstat
@@ -361,6 +363,7 @@ function run_sysbench() {
       LOG_NAME_SMART=${LOG_NAME}.smart
       LOG_NAME_PS=${LOG_NAME}.ps
       LOG_NAME_ZONEINFO=${LOG_NAME}.zoneinfo
+      start_mysqld "--datadir=${DATA_DIR}"
 
       if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
           # verbose logging
@@ -382,7 +385,7 @@ function run_sysbench() {
       pkill -f iostat
       kill -9 ${REPORT_THREAD_PID}
       result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
-      ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G" >> ${LOG_NAME_MYSQL} 2>&1
+      ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G; SHOW ENGINE INNODB MUTEX" >> ${LOG_NAME_MYSQL} 2>&1
       shutdown_mysqld | tee -a $LOG_NAME
       kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     done
