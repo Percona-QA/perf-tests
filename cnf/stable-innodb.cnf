@@ -16,7 +16,7 @@ table_open_cache_instances=64
 
 # InnoDB
 innodb_open_files=4K
-innodb_redo_log_capacity=8G
+innodb_redo_log_capacity=16G
 innodb_numa_interleave=1
 innodb_fast_shutdown=0
 innodb_flush_method=O_DIRECT
