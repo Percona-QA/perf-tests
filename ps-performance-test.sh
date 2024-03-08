@@ -159,7 +159,7 @@ function archive_logs(){
   tar czvf ${tarFileName} ${BENCH_NAME} --transform "s+^${BENCH_NAME}++"
 }
 
-# depends on $LOGS, $LOGS_CPU, $BENCH_NAME, $DATA_DIR, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE
+# depends on $LOGS, $LOGS_CPU, $BENCH_NAME, $DATA_DIR, $MYSQL_NAME, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE
 function on_start(){
   disable_address_randomization >> ${LOGS_CPU}
   disable_turbo_boost > ${LOGS_CPU}
@@ -185,7 +185,7 @@ function on_exit(){
 
   save_system_info
 
-  local BENCH_ID=${MYSQL_VERSION}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+  local BENCH_ID=${MYSQL_NAME}${MYSQL_VERSION}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
   local LOG_NAME_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_results.txt
   echo -n "WORKLOAD, " >> ${LOG_NAME_FULL_RESULTS}
   for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_NAME_FULL_RESULTS}; done
@@ -305,15 +305,15 @@ function init_perf_tests() {
 }
 
 function prepare_datadir() {
-  local WS_DATADIR="${TEMPLATE_PATH}/80_sysbench_data_template"
-  local TEMPLATE_DIR=${WS_DATADIR}/datadir_${NUM_TABLES}x${DATASIZE}
+  local WS_DATADIR="${TEMPLATE_PATH}/template_datadir"
+  local TEMPLATE_DIR=${WS_DATADIR}/datadir_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
   if [ ! -d ${TEMPLATE_DIR} ]; then
     echo "Creating template data directory in ${TEMPLATE_DIR}"
     mkdir ${WS_DATADIR} > /dev/null 2>&1
     ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=${TEMPLATE_DIR} 2>&1
 
     LOG_NAME_MYSQLD=${LOGS_CONFIG}/prepare.mysqld
-    start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin"
+    start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin --innodb_flush_log_at_trx_commit=0 --innodb_fast_shutdown=0"
     ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
     (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_DIR/oltp_write_only.lua --threads=$NUM_TABLES --rand-seed=$RAND_SEED $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare) 2>&1
     echo "Data directory in ${TEMPLATE_DIR} created"
@@ -342,7 +342,7 @@ function run_sysbench() {
   for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
     local WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
     local WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
-    local BENCH_ID=${MYSQL_VERSION}-${WORKLOAD_NAME%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+    local BENCH_ID=${MYSQL_NAME}${MYSQL_VERSION}-${WORKLOAD_NAME%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
     echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
 
     if [[ ${WARMUP_TIME_AT_START} > 0 ]]; then
@@ -440,7 +440,8 @@ if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bi
 MYSQL_VERSION=`$BUILD_PATH/bin/mysqld --version | awk '{ print $3}'`
 MYSQL_NAME=`$BUILD_PATH/bin/mysqld --help | grep Percona`
 if [[ $MYSQL_NAME == *"Percona"* ]]; then MYSQL_NAME=PS; else MYSQL_NAME=MS; fi
-export MYSQL_VERSION="$MYSQL_NAME${MYSQL_VERSION//./}"
+export MYSQL_NAME="${MYSQL_NAME}"
+export MYSQL_VERSION="${MYSQL_VERSION//./}"
 
 export INNODB_CACHE=${INNODB_CACHE:-32G}
 export NUM_TABLES=${NUM_TABLES:-16}
