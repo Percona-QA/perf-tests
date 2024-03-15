@@ -33,8 +33,8 @@ export EVENTS_MULT=${EVENTS_MULT:-1}
 
 # time variables
 export PS_START_TIMEOUT=${PS_START_TIMEOUT:-180}
-WARMUP_TIME_AT_START=${WARMUP_TIME_AT_START:-600}
-export WARMUP_TIME_SECONDS=${WARMUP_TIME_SECONDS:-30}
+WARMUP_TIME_AT_START=${WARMUP_TIME_AT_START:-0}
+export WARMUP_TIME_SECONDS=${WARMUP_TIME_SECONDS:-0}
 export RUN_TIME_SECONDS=${RUN_TIME_SECONDS:-600}
 export REPORT_INTERVAL=10
 export IOSTAT_INTERVAL=10
@@ -337,6 +337,13 @@ function sysbench_warmup() {
 }
 
 function run_sysbench() {
+  init_perf_tests
+
+  if [[ ${WARMUP_TIME_AT_START} == 0 ]]; then
+    drop_caches
+    prepare_datadir | tee $LOGS/prepare_datadir.log
+  fi
+
   echo "Storing Sysbench results in ${WORKSPACE}"
 
   for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
@@ -347,7 +354,8 @@ function run_sysbench() {
 
     if [[ ${WARMUP_TIME_AT_START} > 0 ]]; then
       drop_caches
-      sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log
+      prepare_datadir | tee $LOGS/prepare_datadir_${WORKLOAD_NAME}.log
+      # sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log
     fi
 
     for num_threads in ${THREADS_LIST}; do
@@ -422,7 +430,8 @@ LOGS_CPU=$LOGS/cpu-states.txt
 if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
 if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD_SCRIPT not found."; fi
 
-variables=("WORKSPACE" "BENCH_DIR" "BUILD_PATH" "MYEXTRA" "RUN_TIME_SECONDS" "CONFIG_FILES" "WORKLOAD_SCRIPT")
+variables=("INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS" "WARMUP_TIME_AT_START"
+           "WORKSPACE" "BENCH_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA"  "CONFIG_FILES" "WORKLOAD_SCRIPT")
 for variable in "${variables[@]}"; do echo "$variable=${!variable}"; done
 process_workload_config_file "$WORKLOAD_SCRIPT"
 echo "====="
@@ -463,9 +472,6 @@ for file in $CONFIG_FILES; do
   timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
   kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
 
-  drop_caches
-  init_perf_tests
-  prepare_datadir | tee $LOGS/prepare_datadir.log
   run_sysbench
 done
 
