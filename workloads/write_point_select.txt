@@ -12,9 +12,11 @@
 #  --skip_trx[=on|off]             Don't start explicit transactions and execute all queries in the AUTOCOMMIT mode [off]
 #  --sum_ranges=N                  Number of SELECT SUM() queries per transaction [1]
 
+OLTP_POINT_SELECT     = "oltp_point_select.lua"
+
 # writes
-OLTP_UPDATE_INDEX     = "oltp_update_index.lua --events=$((1600000*EVENTS_MULT))"
-OLTP_UPDATE_NON_INDEX = "oltp_update_non_index.lua --events=$((2300000*EVENTS_MULT))"
-OLTP_DELETE_INSERTS   = "oltp_write_only.lua --events=$((1200000*EVENTS_MULT)) --index-updates=0 --non-index-updates=0"
-OLTP_DELETE           = "oltp_delete.lua --events=$((3700000*EVENTS_MULT))"
-OLTP_INSERT           = "oltp_insert.lua --events=$((2300000*EVENTS_MULT))"
+OLTP_UPDATE_INDEX     = "oltp_update_index.lua"
+OLTP_UPDATE_NON_INDEX = "oltp_update_non_index.lua"
+OLTP_DELETE_INSERTS   = "oltp_write_only.lua --index-updates=0 --non-index-updates=0"
+OLTP_DELETE           = "oltp_delete.lua"
+OLTP_INSERT           = "oltp_insert.lua"
