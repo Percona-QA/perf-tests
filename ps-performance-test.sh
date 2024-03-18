@@ -33,7 +33,7 @@ export EVENTS_MULT=${EVENTS_MULT:-1}
 
 # time variables
 export PS_START_TIMEOUT=${PS_START_TIMEOUT:-180}
-WARMUP_TIME_AT_START=${WARMUP_TIME_AT_START:-0}
+WORKLOAD_WARMUP_TIME=${WORKLOAD_WARMUP_TIME:-0}
 export WARMUP_TIME_SECONDS=${WARMUP_TIME_SECONDS:-0}
 export RUN_TIME_SECONDS=${RUN_TIME_SECONDS:-600}
 export REPORT_INTERVAL=10
@@ -326,23 +326,18 @@ function prepare_datadir() {
 
 function sysbench_warmup() {
   # *** REMEMBER *** warmmup is READ ONLY!
-  # warmup the cache, 64 threads for $WARMUP_TIME_AT_START seconds,
+  # warmup the cache, 64 threads for $WORKLOAD_WARMUP_TIME seconds,
   num_threads=64
-  echo "Warming up for $WARMUP_TIME_AT_START seconds"
+  echo "Warming up for $WORKLOAD_WARMUP_TIME seconds"
   LOG_NAME_MYSQLD=${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.mysqld
   start_mysqld "--datadir=${DATA_DIR} --innodb_buffer_pool_load_at_startup=OFF"
-  ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_DIR/oltp_read_only.lua --threads=$num_threads --time=$WARMUP_TIME_AT_START $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run 2>&1
+  ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_DIR/oltp_read_only.lua --threads=$num_threads --time=$WORKLOAD_WARMUP_TIME $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run 2>&1
   shutdown_mysqld
-  sleep $[WARMUP_TIME_AT_START/10]
+  sleep $[WORKLOAD_WARMUP_TIME/10]
 }
 
 function run_sysbench() {
   init_perf_tests
-
-  if [[ ${WARMUP_TIME_AT_START} == 0 ]]; then
-    drop_caches
-    prepare_datadir | tee $LOGS/prepare_datadir.log
-  fi
 
   echo "Storing Sysbench results in ${WORKSPACE}"
 
@@ -350,12 +345,13 @@ function run_sysbench() {
     local WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
     local WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
     local BENCH_ID=${MYSQL_NAME}${MYSQL_VERSION}-${WORKLOAD_NAME%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
-    echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
 
-    if [[ ${WARMUP_TIME_AT_START} > 0 ]]; then
-      drop_caches
-      prepare_datadir | tee $LOGS/prepare_datadir_${WORKLOAD_NAME}.log
-      # sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log
+    echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
+    drop_caches
+    prepare_datadir | tee $LOGS/prepare_datadir_${WORKLOAD_NAME}.log
+
+    if [[ ${WORKLOAD_WARMUP_TIME} > 0 ]]; then
+      sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log
     fi
 
     for num_threads in ${THREADS_LIST}; do
@@ -430,7 +426,7 @@ LOGS_CPU=$LOGS/cpu-states.txt
 if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
 if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD_SCRIPT not found."; fi
 
-variables=("INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS" "WARMUP_TIME_AT_START"
+variables=("INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS" "WORKLOAD_WARMUP_TIME"
            "WORKSPACE" "BENCH_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA"  "CONFIG_FILES" "WORKLOAD_SCRIPT")
 for variable in "${variables[@]}"; do echo "$variable=${!variable}"; done
 process_workload_config_file "$WORKLOAD_SCRIPT"
