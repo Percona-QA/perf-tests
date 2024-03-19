@@ -28,7 +28,9 @@ export RAND_TYPE=${RAND_TYPE:-uniform}
 export RAND_SEED=${RAND_SEED:-1111}
 export THREADS_LIST=${THREADS_LIST:-"1 4 16 64 128 256 512 1024"}
 SYSBENCH_BIN=${SYSBENCH_BIN:-sysbench}
-SYSBENCH_DIR=${SYSBENCH_DIR:-/usr/local/share/sysbench}
+SYSBENCH_LUA=${SYSBENCH_LUA:-/usr/local/share/sysbench}
+SYSBENCH_WRITE=${SYSBENCH_WRITE:-oltp_write_only.lua}
+SYSBENCH_READ=${SYSBENCH_READ:-oltp_read_only.lua}
 export EVENTS_MULT=${EVENTS_MULT:-1}
 
 # time variables
@@ -309,13 +311,15 @@ function prepare_datadir() {
   local TEMPLATE_DIR=${WS_DATADIR}/datadir_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
   if [ ! -d ${TEMPLATE_DIR} ]; then
     echo "Creating template data directory in ${TEMPLATE_DIR}"
-    mkdir ${WS_DATADIR} > /dev/null 2>&1
+    mkdir -p ${WS_DATADIR} > /dev/null 2>&1
     ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=${TEMPLATE_DIR} 2>&1
 
     LOG_NAME_MYSQLD=${LOGS_CONFIG}/prepare.mysqld
     start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin --innodb_flush_log_at_trx_commit=0 --innodb_fast_shutdown=0"
     ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
-    (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_DIR/oltp_write_only.lua --threads=$NUM_TABLES --rand-seed=$RAND_SEED $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare) 2>&1
+    pushd $SYSBENCH_LUA
+    (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_WRITE --threads=$NUM_TABLES --rand-seed=$RAND_SEED $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare) 2>&1
+    popd
     echo "Data directory in ${TEMPLATE_DIR} created"
     shutdown_mysqld
   fi
@@ -331,7 +335,9 @@ function sysbench_warmup() {
   echo "Warming up for $WORKLOAD_WARMUP_TIME seconds"
   LOG_NAME_MYSQLD=${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.mysqld
   start_mysqld "--datadir=${DATA_DIR} --innodb_buffer_pool_load_at_startup=OFF"
-  ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_DIR/oltp_read_only.lua --threads=$num_threads --time=$WORKLOAD_WARMUP_TIME $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run 2>&1
+  pushd $SYSBENCH_LUA
+  ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_READ --threads=$num_threads --time=$WORKLOAD_WARMUP_TIME $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run 2>&1
+  popd
   shutdown_mysqld
   sleep $[WORKLOAD_WARMUP_TIME/10]
 }
@@ -383,9 +389,12 @@ function run_sysbench() {
             dstat -t -v --nocolor --output $LOG_NAME_DSTAT_CSV $DSTAT_INTERVAL 1000000 > $LOG_NAME_DSTAT &
           fi
       fi
-      local ALL_SYSBENCH_OPTIONS="$SYSBENCH_DIR/$WORKLOAD_PARAMETERS --threads=$num_threads --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
+      pushd $SYSBENCH_LUA
+      local ALL_SYSBENCH_OPTIONS="$WORKLOAD_PARAMETERS --threads=$num_threads --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
       echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
       (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $ALL_SYSBENCH_OPTIONS) 2>&1 | tee -a $LOG_NAME
+      popd
+
       sleep 6
       pkill -f dstat
       pkill -f iostat
