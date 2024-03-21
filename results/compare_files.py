@@ -2,12 +2,12 @@
 
 import sys
 
-if len(sys.argv) < 2:
-    print(f"Usage: python {sys.argv[0]} <data_file>")
-    print(f"or     python {sys.argv[0]} <data_file> <data_file2>")
+if len(sys.argv) < 3:
+    print(f"Usage: python {sys.argv[0]} <data_file> <data_file2>")
     sys.exit(1)
 
 data_file = sys.argv[1]
+data_file2 = sys.argv[2]
 
 def parse_line(line):
     # Remove leading and trailing spaces and the trailing comma
@@ -65,26 +65,13 @@ def compare_tables(table, table2):
 
 # Read data from the file
 table = []
-if len(sys.argv) == 2:
-    with open(data_file, "r") as file:
-        for line in file:
-            values=parse_line(line)
-            if values != "":
-                table.append(values)
-            else:
-                parse_table(table)
-                table = []
-                print()
-        parse_table(table)
-else:
-    data_file2 = sys.argv[2]
-    table2 = []
-    with open(data_file, "r") as file:
-        for line in file:
-            values=parse_line(line)
-            table.append(values)
-    with open(data_file2, "r") as file:
-        for line in file:
-            values=parse_line(line)
-            table2.append(values)
-    compare_tables(table, table2)
+table2 = []
+with open(data_file, "r") as file:
+    for line in file:
+        values=parse_line(line)
+        table.append(values)
+with open(data_file2, "r") as file:
+    for line in file:
+        values=parse_line(line)
+        table2.append(values)
+compare_tables(table, table2)
