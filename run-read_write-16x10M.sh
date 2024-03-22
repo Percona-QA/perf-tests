@@ -11,7 +11,7 @@ export MYEXTRA="--sync_binlog=1024 --innodb_flush_log_at_trx_commit=0"
 
 MAIN_DIR=/mnt/fast/username
 # path to template databases
-export TEMPLATE_PATH=$MAIN_DIR
+export TEMPLATE_PATH=$MAIN_DIR/template_datadir
 # path to work directory and results
 export WORKSPACE=$MAIN_DIR/perf-results
 

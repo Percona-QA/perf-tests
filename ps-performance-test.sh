@@ -15,7 +15,7 @@ export CONFIG_FILES="$3"
 export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
 export WORKSPACE=${WORKSPACE:-${PWD}}
-export TEMPLATE_PATH=${TEMPLATE_PATH:-${WORKSPACE}}
+export TEMPLATE_PATH=${TEMPLATE_PATH:-${WORKSPACE}/template_datadir}
 export BENCHMARK_LOGGING=${BENCHMARK_LOGGING:-Y}
 export SMART_DEVICE=${SMART_DEVICE:-/dev/nvme0n1}
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
@@ -307,11 +307,10 @@ function init_perf_tests() {
 }
 
 function prepare_datadir() {
-  local WS_DATADIR="${TEMPLATE_PATH}/template_datadir"
-  local TEMPLATE_DIR=${WS_DATADIR}/datadir_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
+  local TEMPLATE_DIR=${TEMPLATE_PATH}/datadir_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
   if [ ! -d ${TEMPLATE_DIR} ]; then
     echo "Creating template data directory in ${TEMPLATE_DIR}"
-    mkdir -p ${WS_DATADIR} > /dev/null 2>&1
+    mkdir -p ${TEMPLATE_PATH} > /dev/null 2>&1
     ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=${TEMPLATE_DIR} 2>&1
 
     LOG_NAME_MYSQLD=${LOGS_CONFIG}/prepare.mysqld
