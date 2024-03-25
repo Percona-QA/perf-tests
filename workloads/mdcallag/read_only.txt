@@ -1,0 +1,31 @@
+# config file for ps-performance-test.sh
+#
+# sysbench options:
+#  --delete_inserts=N              Number of DELETE/INSERT combinations per transaction [1]
+#  --distinct_ranges=N             Number of SELECT DISTINCT queries per transaction [1]
+#  --index_updates=N               Number of UPDATE index queries per transaction [1]
+#  --non_index_updates=N           Number of UPDATE non-index queries per transaction [1]
+#  --order_ranges=N                Number of SELECT ORDER BY queries per transaction [1]
+#  --point_selects=N               Number of point SELECT queries per transaction [10]
+#  --range_selects[=on|off]        Enable/disable all range SELECT queries [on]
+#  --simple_ranges=N               Number of simple range SELECT queries per transaction [1]
+#  --skip_trx[=on|off]             Don't start explicit transactions and execute all queries in the AUTOCOMMIT mode [off]
+#  --sum_ranges=N                  Number of SELECT SUM() queries per transaction [1]
+
+# reads
+POINT_SELECT         = "oltp_point_select.lua"
+SELECT_RANDOM_POINTS = "oltp_inlist_select.lua"
+SELECT_HOT_POINTS    = "oltp_inlist_select.lua --hot-points"
+POINTS_COVERED       = "oltp_points_covered.lua"
+POINTS_COVERED_SI    = "oltp_points_covered.lua --on-id=false"
+POINTS_NOTCOVERED    = "oltp_points_covered.lua --covered=false"
+POINTS_NOTCOVERED_SI = "oltp_points_covered.lua --on-id=false --covered=false"
+RANGE_COVERED        = "oltp_range_covered.lua"
+RANGE_COVERED_SI     = "oltp_range_covered.lua --on-id=false"
+RANGE_NOTCOVERED     = "oltp_range_covered.lua --covered=false"
+RANGE_NOTCOVERED_SI  = "oltp_range_covered.lua --on-id=false --covered=false"
+SIMPLE_RANGES        = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=1 --sum-ranges=0 --order-ranges=0 --distinct-ranges=0"
+SUM_RANGES           = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=1 --order-ranges=0 --distinct-ranges=0"
+ORDER_RANGES         = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=1 --distinct-ranges=0"
+DISTINCT_RANGES      = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=0 --distinct-ranges=1"
+COUNT_RANGES         = "oltp_read_only_count.lua --skip-trx=on"
