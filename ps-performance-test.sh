@@ -158,14 +158,17 @@ function archive_logs(){
   local BENCH_ID=$1
   local DATE=`date +"%Y%m%d%H%M%S"`
   local tarFileName="${BENCH_ID}_${BENCH_NAME}_${DATE}.tar.gz"
+
+  cd $WORKSPACE
   tar czvf ${tarFileName} ${BENCH_NAME} --transform "s+^${BENCH_NAME}++"
+
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
-    mutt -s "Perf benchmarking results ${BENCH_ID}_${BENCH_NAME}_${DATE} from $(uname -n)" -a ${tarFileName} -- ${RESULTS_EMAIL} < ${BENCH_NAME}/*_results.txt
+    mutt -s "Perf benchmarking results ${BENCH_ID}_${BENCH_NAME}_${DATE}" -a ${tarFileName} -- ${RESULTS_EMAIL} < ${BENCH_NAME}/*_results.txt
   fi
 }
 
-# depends on $LOGS, $LOGS_CPU, $BENCH_NAME, $DATA_DIR, $MYSQL_NAME, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE
+# depends on $LOGS, $LOGS_CPU, $BENCH_NAME, $DATA_DIR, $MYSQL_NAME, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE, $WORKSPACE, $THREADS_LIST, $RESULTS_EMAIL
 function on_start(){
   disable_address_randomization >> ${LOGS_CPU}
   disable_turbo_boost > ${LOGS_CPU}
@@ -193,6 +196,10 @@ function on_exit(){
 
   local BENCH_ID=${MYSQL_NAME}${MYSQL_VERSION}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
   local LOG_NAME_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_results.txt
+  local END_TIME=$(date +%s)
+  local DURATION=$((END_TIME - START_TIME))
+
+  echo "- Script executed in $DURATION seconds" | tee -a ${LOG_NAME_FULL_RESULTS}
   echo -n "WORKLOAD, " >> ${LOG_NAME_FULL_RESULTS}
   for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_NAME_FULL_RESULTS}; done
   echo ""  >> ${LOG_NAME_FULL_RESULTS}
@@ -429,6 +436,7 @@ if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
   rm dstat.csv
 fi
 
+export START_TIME=$(date +%s)
 export BENCH_DIR=$WORKSPACE/$BENCH_NAME
 export DATA_DIR=$BENCH_DIR-datadir
 export LOGS=$BENCH_DIR
