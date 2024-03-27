@@ -159,6 +159,10 @@ function archive_logs(){
   local DATE=`date +"%Y%m%d%H%M%S"`
   local tarFileName="${BENCH_ID}_${BENCH_NAME}_${DATE}.tar.gz"
   tar czvf ${tarFileName} ${BENCH_NAME} --transform "s+^${BENCH_NAME}++"
+  if [[ ${RESULTS_EMAIL} != "" ]]; then
+    echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
+    mutt -s "Perf benchmarking results ${BENCH_ID}_${BENCH_NAME}_${DATE} from $(uname -n)" -a ${tarFileName} -- ${RESULTS_EMAIL} < ${BENCH_NAME}/*_results.txt
+  fi
 }
 
 # depends on $LOGS, $LOGS_CPU, $BENCH_NAME, $DATA_DIR, $MYSQL_NAME, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE
@@ -434,8 +438,8 @@ LOGS_CPU=$LOGS/cpu-states.txt
 if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
 if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD_SCRIPT not found."; fi
 
-variables=("INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS" "WORKLOAD_WARMUP_TIME"
-           "WORKSPACE" "BENCH_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA"  "CONFIG_FILES" "WORKLOAD_SCRIPT")
+variables=("RESULTS_EMAIL" "INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS"
+           "WORKLOAD_WARMUP_TIME" "WORKSPACE" "BENCH_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA"  "CONFIG_FILES" "WORKLOAD_SCRIPT")
 for variable in "${variables[@]}"; do echo "$variable=${!variable}"; done
 process_workload_config_file "$WORKLOAD_SCRIPT"
 echo "====="
