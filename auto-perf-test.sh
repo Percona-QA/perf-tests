@@ -136,7 +136,7 @@ function run_perf_tests() {
 
     REPEAT_NUM=${REPEAT_NUM:-1}
     for i in $(seq $REPEAT_NUM); do
-        ${PERFTEST_PATH}/ps-performance-test.sh auto${i}_$(uname -n)_${PS_BRANCH}_${RUN_TIME_SECONDS}sec ${BUILD_PATH} "${PERFTEST_PATH}/cnf/${CNFFILE_NAME}"
+        ${PERFTEST_PATH}/ps-performance-test.sh ${PS_BRANCH}@${PS_GIT_HASH}_auto${i} ${BUILD_PATH} "${PERFTEST_PATH}/cnf/${CNFFILE_NAME}"
     done
 }
 
@@ -163,7 +163,11 @@ install_deps_debian | tee $PS_BUILD_DIR-install-deps.log
 setup_git_repo $PERF_TESTS_REPO_DIR $PERF_TESTS_BRANCH $PERF_TESTS_REPO_URL | tee $PS_BUILD_DIR-setup-perf-tests-repo.log
 setup_git_repo $SYSBENCH_REPO_DIR $SYSBENCH_BRANCH $SYSBENCH_REPO_URL | tee $PS_BUILD_DIR-setup-sysbench-repo.log
 setup_git_repo $PS_REPO_DIR $PS_BRANCH $PS_REPO_URL| tee $PS_BUILD_DIR-setup-ps-repo.log
+
+pushd $PS_REPO_DIR; PS_GIT_HASH=$(git rev-parse --short HEAD); popd
+echo "PS_GIT_HASH=$PS_GIT_HASH PS_REPO_URL=$PS_REPO_URL PS_BRANCH=$PS_BRANCH"
+
 build_sysbench $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR-sysbench-make.log
 call_cmake $PS_REPO_DIR $PS_BUILD_DIR | tee $PS_BUILD_DIR-cmake.log
 build_ps $PS_BUILD_DIR | tee $PS_BUILD_DIR-make.log
-run_perf_tests $ROOT_DIR $PS_BUILD_DIR $PERF_TESTS_REPO_DIR $SYSBENCH_REPO_DIR
+run_perf_tests $ROOT_DIR $PS_BUILD_DIR $PERF_TESTS_REPO_DIR $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR-perf-test.log

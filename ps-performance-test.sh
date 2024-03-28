@@ -378,8 +378,8 @@ function run_sysbench() {
 
     for num_threads in ${THREADS_LIST}; do
       echo "Testing $WORKLOAD_NAME with $num_threads threads"
-      LOG_NAME_RESULTS=${LOGS_CONFIG}/results-QPS-${BENCH_ID}.txt
-      LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}-$num_threads.txt
+      LOG_NAME_RESULTS=${LOGS_CONFIG}/results-QPS-${BENCH_ID}_${WORKLOAD_NAME}.txt
+      LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}-$num_threads.txt
       LOG_NAME_MYSQL=${LOG_NAME}.mysql
       LOG_NAME_MYSQLD=${LOG_NAME}.mysqld
       LOG_NAME_MEMORY=${LOG_NAME}.memory
@@ -424,8 +424,8 @@ function run_sysbench() {
       kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     done
 
-    echo "${BENCH_NAME}_${CONFIG_BASE}_${BENCH_ID}, ${result_set[*]}" >> ${LOG_NAME_RESULTS}
-    cat ${LOG_NAME_RESULTS} >> ${LOGS}/${BENCH_ID}_${BENCH_NAME}.txt
+    echo "${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}, ${result_set[*]}" >> ${LOG_NAME_RESULTS}
+    cat ${LOG_NAME_RESULTS} >> ${LOGS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}.txt
     unset result_set
   done
 }
