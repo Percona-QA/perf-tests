@@ -164,12 +164,19 @@ function archive_logs(){
 
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
-    mutt -s "Perf benchmarking results ${BENCH_ID}_${BENCH_NAME}_${DATE}" -a ${tarFileName} -- ${RESULTS_EMAIL} < ${BENCH_NAME}/*_results.txt
+    local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
+    mutt -s "$(uname -n): Perf benchmarking finished at ${NICE_DATE} for ${BENCH_ID}_${BENCH_NAME}" -a ${tarFileName} -- ${RESULTS_EMAIL} < ${BENCH_NAME}/*_results.txt
   fi
 }
 
 # depends on $LOGS, $LOGS_CPU, $BENCH_NAME, $DATA_DIR, $MYSQL_NAME, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE, $WORKSPACE, $THREADS_LIST, $RESULTS_EMAIL
 function on_start(){
+  if [[ ${RESULTS_EMAIL} != "" ]]; then
+    echo "- Sending e-mail to ${RESULTS_EMAIL}"
+    local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "" | mutt -s "$(uname -n): Perf benchmarking started at ${NICE_DATE} for ${BENCH_ID}_${BENCH_NAME}" -- ${RESULTS_EMAIL}
+  fi
+
   disable_address_randomization >> ${LOGS_CPU}
   disable_turbo_boost > ${LOGS_CPU}
   change_scaling_governor powersave >> ${LOGS_CPU}
@@ -194,12 +201,12 @@ function on_exit(){
 
   save_system_info
 
-  local BENCH_ID=${MYSQL_NAME}${MYSQL_VERSION}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
   local LOG_NAME_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_results.txt
   local END_TIME=$(date +%s)
   local DURATION=$((END_TIME - START_TIME))
+  local TIME_HMS=$(printf "%02d:%02d:%02d" $((DURATION / 3600)) $(((DURATION % 3600) / 60)) $((DURATION % 60)))
 
-  echo "- Script executed in $DURATION seconds" | tee -a ${LOG_NAME_FULL_RESULTS}
+  echo "- Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_NAME_FULL_RESULTS}
   echo -n "WORKLOAD, " >> ${LOG_NAME_FULL_RESULTS}
   for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_NAME_FULL_RESULTS}; done
   echo ""  >> ${LOG_NAME_FULL_RESULTS}
@@ -360,7 +367,6 @@ function run_sysbench() {
   for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
     local WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
     local WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
-    local BENCH_ID=${MYSQL_NAME}${MYSQL_VERSION}-${WORKLOAD_NAME%.*}-${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
 
     echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
     drop_caches
@@ -471,6 +477,7 @@ export MYSQL_VERSION="${MYSQL_VERSION//./}"
 export INNODB_CACHE=${INNODB_CACHE:-32G}
 export NUM_TABLES=${NUM_TABLES:-16}
 export DATASIZE=${DATASIZE:-10M}
+export BENCH_ID=$(uname -n)_${MYSQL_NAME}${MYSQL_VERSION}_${RUN_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
 
 on_start
 
