@@ -19,15 +19,15 @@
 # OLTP_RW       = "oltp_read_write.lua"
 
 # reads
-OLTP_POINT_SELECT     = "oltp_point_select.lua"
-OLTP_SIMPLE_RANGES    = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=1 --sum-ranges=0 --order-ranges=0 --distinct-ranges=0"
-OLTP_SUM_RANGES       = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=1 --order-ranges=0 --distinct-ranges=0"
-OLTP_ORDER_RANGES     = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=1 --distinct-ranges=0"
-OLTP_DISTINCT_RANGES  = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=0 --distinct-ranges=1"
+POINT_SELECT     = "oltp_point_select.lua"
+SIMPLE_RANGES    = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=1 --sum-ranges=0 --order-ranges=0 --distinct-ranges=0"
+SUM_RANGES       = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=1 --order-ranges=0 --distinct-ranges=0"
+ORDER_RANGES     = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=1 --distinct-ranges=0"
+DISTINCT_RANGES  = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=0 --distinct-ranges=1"
 
 # writes
-OLTP_UPDATE_INDEX     = "oltp_update_index.lua"
-OLTP_UPDATE_NON_INDEX = "oltp_update_non_index.lua"
-OLTP_DELETE_INSERTS   = "oltp_write_only.lua --index-updates=0 --non-index-updates=0"
-OLTP_DELETE           = "oltp_delete.lua"
-OLTP_INSERT           = "oltp_insert.lua"
+UPDATE_INDEX     = "oltp_update_index.lua"
+UPDATE_NON_INDEX = "oltp_update_non_index.lua"
+DELETE_INSERTS   = "oltp_write_only.lua --index-updates=0 --non-index-updates=0"
+DELETE           = "oltp_delete.lua"
+INSERT           = "oltp_insert.lua"

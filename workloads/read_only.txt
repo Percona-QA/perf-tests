@@ -13,8 +13,8 @@
 #  --sum_ranges=N                  Number of SELECT SUM() queries per transaction [1]
 
 # reads
-OLTP_POINT_SELECT     = "oltp_point_select.lua"
-OLTP_SIMPLE_RANGES    = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=1 --sum-ranges=0 --order-ranges=0 --distinct-ranges=0"
-OLTP_SUM_RANGES       = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=1 --order-ranges=0 --distinct-ranges=0"
-OLTP_ORDER_RANGES     = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=1 --distinct-ranges=0"
-OLTP_DISTINCT_RANGES  = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=0 --distinct-ranges=1"
+POINT_SELECT     = "oltp_point_select.lua"
+SIMPLE_RANGES    = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=1 --sum-ranges=0 --order-ranges=0 --distinct-ranges=0"
+SUM_RANGES       = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=1 --order-ranges=0 --distinct-ranges=0"
+ORDER_RANGES     = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=1 --distinct-ranges=0"
+DISTINCT_RANGES  = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=0 --distinct-ranges=1"
