@@ -16,6 +16,7 @@ export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
 export WORKSPACE=${WORKSPACE:-${PWD}}
 export TEMPLATE_PATH=${TEMPLATE_PATH:-${WORKSPACE}/template_datadir}
+export RESULTS_DIR=${RESULTS_DIR:-$WORKSPACE/results_to_compare}
 export BENCHMARK_LOGGING=${BENCHMARK_LOGGING:-Y}
 export SMART_DEVICE=${SMART_DEVICE:-/dev/nvme0n1}
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
@@ -426,6 +427,7 @@ function run_sysbench() {
 
     echo "${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}, ${result_set[*]}" >> ${LOG_NAME_RESULTS}
     cat ${LOG_NAME_RESULTS} >> ${LOGS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}.txt
+    cat ${LOG_NAME_RESULTS} >> ${RESULTS_DIR}/${BENCH_ID}_${WORKLOAD_NAME}.txt
     unset result_set
   done
 }
@@ -464,7 +466,7 @@ done
 echo "====="
 
 rm -rf ${LOGS}
-mkdir -p ${LOGS}
+mkdir -p ${LOGS} ${RESULTS_DIR}
 cd $WORKSPACE
 
 if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
