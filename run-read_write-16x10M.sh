@@ -23,9 +23,9 @@ PERFTEST_PATH=$MAIN_DIR/perf-tests
 CNFFILE_PATH=${PERFTEST_PATH}/cnf/stable-innodb.cnf
 export WORKLOAD_SCRIPT=${PERFTEST_PATH}/workloads/read_write.txt
 
-BENCH_PREFIX=nodesm-8036
-${PERFTEST_PATH}/ps-performance-test.sh ${BENCH_PREFIX}1_time${RUN_TIME_SECONDS} ${BUILD_PATH} "${CNFFILE_PATH}"
-${PERFTEST_PATH}/ps-performance-test.sh ${BENCH_PREFIX}2_time${RUN_TIME_SECONDS} ${BUILD_PATH} "${CNFFILE_PATH}"
-${PERFTEST_PATH}/ps-performance-test.sh ${BENCH_PREFIX}3_time${RUN_TIME_SECONDS} ${BUILD_PATH} "${CNFFILE_PATH}"
-${PERFTEST_PATH}/ps-performance-test.sh ${BENCH_PREFIX}4_time${RUN_TIME_SECONDS} ${BUILD_PATH} "${CNFFILE_PATH}"
-${PERFTEST_PATH}/ps-performance-test.sh ${BENCH_PREFIX}5_time${RUN_TIME_SECONDS} ${BUILD_PATH} "${CNFFILE_PATH}"
+BENCH_PREFIX=8036_
+${PERFTEST_PATH}/ps-performance-test.sh ${BENCH_PREFIX}1 ${BUILD_PATH} "${CNFFILE_PATH}"
+${PERFTEST_PATH}/ps-performance-test.sh ${BENCH_PREFIX}2 ${BUILD_PATH} "${CNFFILE_PATH}"
+${PERFTEST_PATH}/ps-performance-test.sh ${BENCH_PREFIX}3 ${BUILD_PATH} "${CNFFILE_PATH}"
+${PERFTEST_PATH}/ps-performance-test.sh ${BENCH_PREFIX}4 ${BUILD_PATH} "${CNFFILE_PATH}"
+${PERFTEST_PATH}/ps-performance-test.sh ${BENCH_PREFIX}5 ${BUILD_PATH} "${CNFFILE_PATH}"

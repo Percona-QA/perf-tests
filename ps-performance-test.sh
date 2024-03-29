@@ -370,7 +370,7 @@ function run_sysbench() {
 
     echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
     drop_caches
-    prepare_datadir | tee $LOGS/prepare_datadir_${WORKLOAD_NAME}.log
+    prepare_datadir | tee ${LOGS_CONFIG}/prepare_datadir_${WORKLOAD_NAME}.log
 
     if [[ ${WORKLOAD_WARMUP_TIME} > 0 ]]; then
       sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log

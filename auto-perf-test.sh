@@ -2,7 +2,7 @@
 # usage:
 #   sudo nice --adjustment=-10 env PS_BRANCH=8.0 RUN_TIME_SECONDS=30 THREADS_LIST="8" WORKLOAD_NAME=point_select.txt /mnt/optane/auto-perf-test/perf-tests/auto-perf-test.sh
 # or add with "crontab -e":
-# 0 22 * * * sudo nice --adjustment=-10 env PS_BRANCH=8.0 WORKLOAD_NAME=mdcallag/read_write.txt TEMPLATE_PATH=/mnt/fast/template_datadir ROOT_DIR=/mnt/fast/auto-perf-test /mnt/fast/przemek/perf-tests/auto-perf-test.sh
+# 0 18 * * * sudo nice --adjustment=-10 env PS_BRANCH=8.0 WORKLOAD_NAME=mdcallag/daily.txt TEMPLATE_PATH=/mnt/fast/template_datadir ROOT_DIR=/mnt/fast/auto-perf-test /mnt/fast/przemek/perf-tests/auto-perf-test.sh
 
 function install_deps_debian() {
     export DEBIAN_FRONTEND=noninteractive
@@ -98,6 +98,7 @@ function build_ps() {
     pushd $BUILD_DIR
     NPROC=`nproc --all`
     echo "Using $NPROC threads for compilation"
+    rm -f bin/mysqld
     make -j${NPROC}
     if [[ $? != 0 ]]; then echo make failed; exit -1; fi
     ccache --show-stats
