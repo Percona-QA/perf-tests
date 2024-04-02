@@ -155,18 +155,51 @@ function save_system_info(){
   cat /proc/cpuinfo >> $LOG_SYS_INFO
 }
 
+function diff_to_average() {
+    local csv_file="$1"
+    diff_output=$(awk -F ',' 'BEGIN {
+        for (i=2; i<=NF; i++) {
+            sum[i] = 0
+            count[i] = 0
+        }
+    }
+    {
+        if (FNR != total_rows) { # Process all rows except the last one
+            for (i=2; i<=NF; i++) {
+                if ($i != "") {
+                    count[i]++
+                    sum[i] += $i
+                }
+            }
+        } else { # Process the last row
+            for (i=2; i<=NF; i++) {
+                last_row_data[i] = $i
+            }
+        }
+    }
+    END {
+        NF--
+        for (i=2; i<=NF; i++) {
+          avg[i] = (count[i] > 0) ? sum[i] / count[i] : 0
+          printf ", %.2f%%", ((last_row_data[i] - avg[i]) / avg[i]) * 100
+        }
+        printf "\n"
+
+    }' total_rows=$(awk 'END{print NR}' "$csv_file") "$csv_file")
+    echo $diff_output
+}
+
 function archive_logs(){
   local BENCH_ID=$1
-  local DATE=`date +"%Y%m%d%H%M%S"`
-  local tarFileName="${BENCH_ID}_${BENCH_NAME}_${DATE}.tar.gz"
+  local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
 
   cd $WORKSPACE
-  tar czvf ${tarFileName} ${BENCH_NAME} --transform "s+^${BENCH_NAME}++"
+  tar czvf ${tarFileName} ${BENCH_NAME} --force-local --transform "s+^${BENCH_NAME}++"
 
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
     local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
-    mutt -s "$(uname -n): Perf benchmarking finished at ${NICE_DATE} for ${BENCH_ID}_${BENCH_NAME}" -a ${tarFileName} -- ${RESULTS_EMAIL} < ${BENCH_NAME}/*_results.txt
+    cat ${BENCH_NAME}/*${BENCH_NAME}_results.txt ${BENCH_NAME}/*${BENCH_NAME}_diff_res.txt | mutt -s "$(uname -n): Perf benchmarking finished at ${NICE_DATE} for ${BENCH_ID}_${BENCH_NAME}" -a ${tarFileName} -- ${RESULTS_EMAIL}
   fi
 }
 
@@ -203,6 +236,7 @@ function on_exit(){
   save_system_info
 
   local LOG_NAME_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_results.txt
+  local LOG_NAME_DIFF=${LOGS}/${BENCH_ID}_${BENCH_NAME}_diff_res.txt
   local END_TIME=$(date +%s)
   local DURATION=$((END_TIME - START_TIME))
   local TIME_HMS=$(printf "%02d:%02d:%02d" $((DURATION / 3600)) $(((DURATION % 3600) / 60)) $((DURATION % 60)))
@@ -212,7 +246,8 @@ function on_exit(){
   for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_NAME_FULL_RESULTS}; done
   echo ""  >> ${LOG_NAME_FULL_RESULTS}
   cat ${LOGS}/*${BENCH_NAME}.txt >> ${LOG_NAME_FULL_RESULTS}
-  echo "-----" && cat ${LOG_NAME_FULL_RESULTS} && echo "-----"
+  cat ${LOGS}/*${BENCH_NAME}_diff.txt >> ${LOG_NAME_DIFF}
+  echo "-----" && cat ${LOG_NAME_FULL_RESULTS} && echo "-----" && cat ${LOG_NAME_DIFF} && echo "-----"
 
   archive_logs ${BENCH_ID}
 
@@ -425,9 +460,12 @@ function run_sysbench() {
       kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     done
 
-    echo "${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}, ${result_set[*]}" >> ${LOG_NAME_RESULTS}
+    local LOG_RESULTS_CACHE="${RESULTS_DIR}/${BENCH_ID}_${WORKLOAD_NAME}_${THREADS_LIST// /_}.txt"
+    local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}"
+    echo "${BENCH_WITH_CONFIG}, ${result_set[*]}" >> ${LOG_NAME_RESULTS}
     cat ${LOG_NAME_RESULTS} >> ${LOGS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}.txt
-    cat ${LOG_NAME_RESULTS} >> ${RESULTS_DIR}/${BENCH_ID}_${WORKLOAD_NAME}.txt
+    cat ${LOG_NAME_RESULTS} >> ${LOG_RESULTS_CACHE}
+    echo "${BENCH_WITH_CONFIG}_diff$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_diff.txt
     unset result_set
   done
 }
