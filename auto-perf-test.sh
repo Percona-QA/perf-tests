@@ -1,8 +1,8 @@
 #!/bin/bash
 # usage:
-#   sudo nice --adjustment=-10 env PS_BRANCH=8.0 RUN_TIME_SECONDS=30 THREADS_LIST="8" WORKLOAD_NAME=point_select.txt /mnt/optane/auto-perf-test/perf-tests/auto-perf-test.sh
+#   sudo nice --adjustment=-10 env PS_BRANCH=8.0 RUN_TIME_SECONDS=30 THREADS_LIST="8" WORKLOAD_NAME=point_select.txt ROOT_DIR=/mnt/optane/auto-perf-test /mnt/optane/auto-perf-test/perf-tests/auto-perf-test.sh
 # or add with "crontab -e":
-# 0 18 * * * sudo nice --adjustment=-10 env PS_BRANCH=8.0 WORKLOAD_NAME=mdcallag/daily.txt TEMPLATE_PATH=/mnt/fast/template_datadir ROOT_DIR=/mnt/fast/auto-perf-test /mnt/fast/przemek/perf-tests/auto-perf-test.sh
+# 0 18 * * * sudo nice --adjustment=-10 env PS_BRANCH=8.0 WORKLOAD_NAME=mdcallag/daily.txt TEMPLATE_PATH=/mnt/fast/template_datadir /mnt/fast/przemek/perf-tests/auto-perf-test.sh
 
 function install_deps_debian() {
     export DEBIAN_FRONTEND=noninteractive
@@ -137,18 +137,19 @@ function run_perf_tests() {
 
     REPEAT_NUM=${REPEAT_NUM:-1}
     for i in $(seq $REPEAT_NUM); do
-        ${PERFTEST_PATH}/ps-performance-test.sh ${PS_BRANCH}@${PS_GIT_HASH}_auto${i} ${BUILD_PATH} "${PERFTEST_PATH}/cnf/${CNFFILE_NAME}"
+        local NICE_DATE=$(date +"%Y-%m-%d_%H:%M:%S")
+        ${PERFTEST_PATH}/ps-performance-test.sh ${PS_BRANCH}@${PS_GIT_HASH}_${NICE_DATE} ${BUILD_PATH} "${PERFTEST_PATH}/cnf/${CNFFILE_NAME}"
     done
 }
 
 SELECTED_CC=${SELECTED_CC:-gcc-10}
 SELECTED_CXX=${SELECTED_CXX:-g++-10}
-ROOT_DIR=${ROOT_DIR:-/mnt/optane/auto-perf-test}
+ROOT_DIR=${ROOT_DIR:-/mnt/fast/auto-perf-test}
 export RESULTS_EMAIL=${RESULTS_EMAIL:-przemyslaw.skibinski@percona.com}
 
 PS_REPO_DIR=${PS_REPO_DIR:-$ROOT_DIR/percona-server-8.0}
 PS_REPO_URL=${PS_REPO_URL:-https://github.com/percona/percona-server}
-PS_BRANCH=${PS_BRANCH:-release-8.0.36-28}
+PS_BRANCH=${PS_BRANCH:-8.0}
 PS_BUILD_DIR=${PS_BUILD_DIR:-$ROOT_DIR/$PS_BRANCH-rel-$SELECTED_CC}
 
 SYSBENCH_REPO_DIR=${SYSBENCH_REPO_DIR:-$ROOT_DIR/sysbench}
