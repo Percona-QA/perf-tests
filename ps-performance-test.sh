@@ -214,7 +214,6 @@ function diff_to_average() {
         }
     }
     END {
-        NF--
         for (i=2; i<=NF; i++) {
           avg[i] = (count[i] > 0) ? sum[i] / count[i] : 0
           printf ", %.2f%%", ((last_row_data[i] - avg[i]) / avg[i]) * 100
@@ -244,7 +243,6 @@ function standard_deviation_percent() {
         }
     }
     END {
-        NF--
         for (i=2; i<=NF; i++) {
            avg[i] = (count[i] > 0) ? sum[i] / count[i] : 0
            printf ", %.2f%%", (sqrt((sumsq[i]/count[i]) - (avg[i])**2) / avg[i]) * 100
@@ -258,20 +256,21 @@ function csv_to_html_table() {
     local INPUT_NAME=$1
     local USE_COLOR=$2
 
-    # html_table="<html><body><table border='1'>"
-    echo "<table border='0'>"
+    echo "<table>"
 
     while IFS=',' read -r -a fields; do
         echo "  <tr>"
         for ((i=0; i<${#fields[@]}; i++)); do
-            if [ $i -eq 0 ]; then
-                echo "    <td>${fields[i]}</td>"
-            else
-                if [ "$USE_COLOR" = "color" ] && (( $(echo "${fields[i]//%/} > 1.0 || ${fields[i]//%/} < -1.0" | bc -l) )); then
-                    echo "    <td style=\"text-align: right; color: red;\">${fields[i]}</td>"
-                else
-                    echo "    <td style=\"text-align: right;\">${fields[i]}</td>"
-                fi
+            if [ -n "${fields[i]}" ]; then
+              if [ $i -eq 0 ]; then
+                  echo "    <td>${fields[i]}</td>"
+              else
+                  if [ "$USE_COLOR" = "color" ] && (( $(echo "${fields[i]//%/} > 1.0 || ${fields[i]//%/} < -1.0" | bc -l) )); then
+                      echo "    <td style=\"text-align: right; color: red;\">${fields[i]}</td>"
+                  else
+                      echo "    <td style=\"text-align: right;\">${fields[i]}</td>"
+                  fi
+              fi
             fi
         done
         echo "  </tr>"
@@ -319,28 +318,32 @@ function on_exit(){
   local DURATION=$((END_TIME - START_TIME))
   local TIME_HMS=$(printf "%02d:%02d:%02d" $((DURATION / 3600)) $(((DURATION % 3600) / 60)) $((DURATION % 60)))
 
-  echo -n "WORKLOAD, " > ${LOG_BASE_FULL_RESULTS}.txt
-  for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_BASE_FULL_RESULTS}.txt; done
-  echo ""  >> ${LOG_BASE_FULL_RESULTS}.txt
-  cat ${LOGS}/*${BENCH_NAME}.txt >> ${LOG_BASE_FULL_RESULTS}.txt
+  HEADER="WORKLOAD"
+  for num_threads in ${THREADS_LIST}; do HEADER+=", ${num_threads} THREADS"; done
 
-  echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR><BR>QPS results:<BR>" > ${LOG_BASE_FULL_RESULTS}.html
+  # Create .txt files
+  echo "${HEADER}" >> ${LOG_BASE_FULL_RESULTS}.txt
+  cat ${LOGS}/*${BENCH_NAME}.txt >> ${LOG_BASE_FULL_RESULTS}.txt
+  echo "${HEADER}" >> ${LOG_BASE_DIFF}.txt
+  cat ${LOGS}/*${BENCH_NAME}_diff.txt >> ${LOG_BASE_DIFF}.txt
+  echo "${HEADER}" >> ${LOG_BASE_STDDEV}.txt
+  cat ${LOGS}/*${BENCH_NAME}_stddev.txt >> ${LOG_BASE_STDDEV}.txt
+
+  # Create .html files
+  echo "<style>" > ${LOG_BASE_FULL_RESULTS}.html
+  echo "table, th, td {" >> ${LOG_BASE_FULL_RESULTS}.html
+  echo "  border: 1px solid;" >> ${LOG_BASE_FULL_RESULTS}.html
+  echo "  border-collapse: collapse;" >> ${LOG_BASE_FULL_RESULTS}.html
+  echo "  border-color: #DDDDDD;" >> ${LOG_BASE_FULL_RESULTS}.html
+  echo "}" >> ${LOG_BASE_FULL_RESULTS}.html
+  echo "</style>" >> ${LOG_BASE_FULL_RESULTS}.html
+  echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR><BR>QPS results:<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
   csv_to_html_table ${LOG_BASE_FULL_RESULTS}.txt >> ${LOG_BASE_FULL_RESULTS}.html
   echo "<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
-
-  echo -n "WORKLOAD, " > ${LOG_BASE_DIFF}.txt
-  for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_BASE_DIFF}.txt; done
-  echo ""  >> ${LOG_BASE_DIFF}.txt
-  cat ${LOGS}/*${BENCH_NAME}_diff.txt >> ${LOG_BASE_DIFF}.txt
 
   echo -e "Difference in percentages to the average QPS:<BR>" > ${LOG_BASE_DIFF}.html
   csv_to_html_table ${LOG_BASE_DIFF}.txt "color" >> ${LOG_BASE_DIFF}.html
   echo "<BR>" >> ${LOG_BASE_DIFF}.html
-
-  echo -n "WORKLOAD, " > ${LOG_BASE_STDDEV}.txt
-  for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_BASE_STDDEV}.txt; done
-  echo ""  >> ${LOG_BASE_STDDEV}.txt
-  cat ${LOGS}/*${BENCH_NAME}_stddev.txt >> ${LOG_BASE_STDDEV}.txt
 
   echo -e "Standard deviation as a percentage of the average QPS:<BR>" > ${LOG_BASE_STDDEV}.html
   csv_to_html_table ${LOG_BASE_STDDEV}.txt "color" >> ${LOG_BASE_STDDEV}.html
@@ -524,7 +527,7 @@ function run_sysbench() {
       pkill -f dstat
       pkill -f iostat
       kill -9 ${REPORT_THREAD_PID}
-      result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1 ","}'`)
+      result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1}'`)
       ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G; SHOW ENGINE INNODB MUTEX" >> ${LOG_NAME_MYSQL} 2>&1
       if [[ ${PERF_EXTRA} != "" ]]; then
         ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT/1000000000 SUM_TIMER_WAIT_MS FROM performance_schema.events_waits_summary_global_by_event_name WHERE SUM_TIMER_WAIT > 0 AND EVENT_NAME LIKE 'wait/synch/mutex/innodb/%' ORDER BY COUNT_STAR DESC" >> ${LOG_NAME_MYSQL} 2>&1
@@ -535,7 +538,10 @@ function run_sysbench() {
 
     local LOG_RESULTS_CACHE="${RESULTS_DIR}/${BENCH_ID}_${WORKLOAD_NAME}_${THREADS_LIST// /_}.txt"
     local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}"
-    echo "${BENCH_WITH_CONFIG}, ${result_set[*]}" >> ${LOG_NAME_RESULTS}
+    local RESULTS_LINE="${BENCH_WITH_CONFIG}"
+    for number in "${result_set[@]}"; do RESULTS_LINE+=", ${number}"; done
+
+    echo "${RESULTS_LINE}" >> ${LOG_NAME_RESULTS}
     cat ${LOG_NAME_RESULTS} >> ${LOGS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}.txt
     cat ${LOG_NAME_RESULTS} >> ${LOG_RESULTS_CACHE}
     echo "${BENCH_WITH_CONFIG}_diff$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_diff.txt
