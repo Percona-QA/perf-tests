@@ -155,105 +155,6 @@ function save_system_info(){
   cat /proc/cpuinfo >> $LOG_SYS_INFO
 }
 
-function diff_to_average() {
-    local csv_file="$1"
-    diff_output=$(awk -F ',' 'BEGIN {
-        for (i=2; i<=NF; i++) {
-            sum[i] = 0
-            count[i] = 0
-        }
-    }
-    {
-        if (FNR != total_rows) { # Process all rows except the last one
-            for (i=2; i<=NF; i++) {
-                if ($i != "") {
-                    count[i]++
-                    sum[i] += $i
-                }
-            }
-        } else { # Process the last row
-            for (i=2; i<=NF; i++) {
-                last_row_data[i] = $i
-            }
-        }
-    }
-    END {
-        NF--
-        for (i=2; i<=NF; i++) {
-          avg[i] = (count[i] > 0) ? sum[i] / count[i] : 0
-          printf ", %.2f%%", ((last_row_data[i] - avg[i]) / avg[i]) * 100
-        }
-        printf "\n"
-
-    }' total_rows=$(awk 'END{print NR}' "$csv_file") "$csv_file")
-    echo $diff_output
-}
-
-function archive_logs(){
-  local BENCH_ID=$1
-  local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
-
-  cd $WORKSPACE
-  tar czvf ${tarFileName} ${BENCH_NAME} --force-local --transform "s+^${BENCH_NAME}++"
-
-  if [[ ${RESULTS_EMAIL} != "" ]]; then
-    echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
-    local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
-    cat ${BENCH_NAME}/*${BENCH_NAME}_results.txt ${BENCH_NAME}/*${BENCH_NAME}_diff_res.txt | mutt -s "$(uname -n): Perf benchmarking finished at ${NICE_DATE} for ${BENCH_ID}_${BENCH_NAME}" -a ${tarFileName} -- ${RESULTS_EMAIL}
-  fi
-}
-
-# depends on $LOGS, $LOGS_CPU, $BENCH_NAME, $DATA_DIR, $MYSQL_NAME, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE, $WORKSPACE, $THREADS_LIST, $RESULTS_EMAIL
-function on_start(){
-  if [[ ${RESULTS_EMAIL} != "" ]]; then
-    echo "- Sending e-mail to ${RESULTS_EMAIL}"
-    local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
-    echo "" | mutt -s "$(uname -n): Perf benchmarking started at ${NICE_DATE} for ${BENCH_ID}_${BENCH_NAME}" -- ${RESULTS_EMAIL}
-  fi
-
-  disable_address_randomization >> ${LOGS_CPU}
-  disable_turbo_boost > ${LOGS_CPU}
-  change_scaling_governor powersave >> ${LOGS_CPU}
-  disable_idle_states >> ${LOGS_CPU}
-
-  trap on_exit EXIT KILL
-}
-
-function on_exit(){
-  pkill -f dstat
-  pkill -f iostat
-  killall -9 mysqld
-
-  echo "Restoring address randomization"
-  restore_address_randomization >> ${LOGS_CPU}
-  echo "Restoring turbo boost"
-  restore_turbo_boost >> ${LOGS_CPU}
-  echo "Restoring scaling governor"
-  restore_scaling_governor >> ${LOGS_CPU}
-  echo "Enabling idle states"
-  enable_idle_states >> ${LOGS_CPU}
-
-  save_system_info
-
-  local LOG_NAME_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_results.txt
-  local LOG_NAME_DIFF=${LOGS}/${BENCH_ID}_${BENCH_NAME}_diff_res.txt
-  local END_TIME=$(date +%s)
-  local DURATION=$((END_TIME - START_TIME))
-  local TIME_HMS=$(printf "%02d:%02d:%02d" $((DURATION / 3600)) $(((DURATION % 3600) / 60)) $((DURATION % 60)))
-
-  echo "- Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_NAME_FULL_RESULTS}
-  echo -n "WORKLOAD, " >> ${LOG_NAME_FULL_RESULTS}
-  for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_NAME_FULL_RESULTS}; done
-  echo ""  >> ${LOG_NAME_FULL_RESULTS}
-  cat ${LOGS}/*${BENCH_NAME}.txt >> ${LOG_NAME_FULL_RESULTS}
-  cat ${LOGS}/*${BENCH_NAME}_diff.txt >> ${LOG_NAME_DIFF}
-  echo "-----" && cat ${LOG_NAME_FULL_RESULTS} && echo "-----" && cat ${LOG_NAME_DIFF} && echo "-----"
-
-  archive_logs ${BENCH_ID}
-
-  rm -rf ${DATA_DIR}
-}
-
 # Function to process a configuration file and return WORKLOAD_NAMES[] and WORKLOAD_PARAMS[] arrays
 function process_workload_config_file() {
   local filename="$1"
@@ -288,6 +189,132 @@ function process_workload_config_file() {
     WORKLOAD_NAMES+=("$variable_name")
     WORKLOAD_PARAMS+=("$variable_value")
   done < "$filename"
+}
+
+function diff_to_average() {
+    local csv_file="$1"
+    diff_output=$(awk -F ',' 'BEGIN {
+        for (i=2; i<=NF; i++) {
+            sum[i] = 0
+            count[i] = 0
+        }
+    }
+    {
+        if (FNR != total_rows) { # Process all rows except the last one
+            for (i=2; i<=NF; i++) {
+                if ($i != "") {
+                    count[i]++
+                    sum[i] += $i
+                }
+            }
+        } else { # Process the last row
+            for (i=2; i<=NF; i++) {
+                last_row_data[i] = $i
+            }
+        }
+    }
+    END {
+        NF--
+        for (i=2; i<=NF; i++) {
+          avg[i] = (count[i] > 0) ? sum[i] / count[i] : 0
+          printf ", %.2f%%", ((last_row_data[i] - avg[i]) / avg[i]) * 100
+        }
+        printf "\n"
+
+    }' total_rows=$(awk 'END{print NR}' "$csv_file") "$csv_file")
+    echo $diff_output
+}
+
+function csv_to_html_table() {
+    local INPUT_NAME=$1
+
+    # html_table="<html><body><table border='1'>"
+    echo "<table border='0'>"
+
+    while IFS=',' read -r -a fields; do
+        echo "  <tr>"
+        for ((i=0; i<${#fields[@]}; i++)); do
+            if [ $i -eq 0 ]; then
+                echo "    <td>${fields[i]}</td>"
+            else
+                echo "    <td style=\"text-align: right;\">${fields[i]}</td>"
+            fi
+        done
+        echo "  </tr>"
+    done < "$INPUT_NAME"
+
+    echo "</table>"
+}
+
+# depends on $LOGS, $LOGS_CPU, $BENCH_NAME, $DATA_DIR, $MYSQL_NAME, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE, $WORKSPACE, $THREADS_LIST, $RESULTS_EMAIL
+function on_start(){
+  if [[ ${RESULTS_EMAIL} != "" ]]; then
+    echo "- Sending e-mail to ${RESULTS_EMAIL}"
+    local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "" | mutt -s "$(uname -n): Perf benchmarking started for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
+  fi
+
+  disable_address_randomization >> ${LOGS_CPU}
+  disable_turbo_boost > ${LOGS_CPU}
+  change_scaling_governor powersave >> ${LOGS_CPU}
+  disable_idle_states >> ${LOGS_CPU}
+
+  trap on_exit EXIT KILL
+}
+
+function on_exit(){
+  pkill -f dstat
+  pkill -f iostat
+  killall -9 mysqld
+
+  echo "Restoring address randomization"
+  restore_address_randomization >> ${LOGS_CPU}
+  echo "Restoring turbo boost"
+  restore_turbo_boost >> ${LOGS_CPU}
+  echo "Restoring scaling governor"
+  restore_scaling_governor >> ${LOGS_CPU}
+  echo "Enabling idle states"
+  enable_idle_states >> ${LOGS_CPU}
+
+  save_system_info
+
+  local LOG_BASE_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_results
+  local LOG_BASE_DIFF=${LOGS}/${BENCH_ID}_${BENCH_NAME}_diff_res
+  local END_TIME=$(date +%s)
+  local DURATION=$((END_TIME - START_TIME))
+  local TIME_HMS=$(printf "%02d:%02d:%02d" $((DURATION / 3600)) $(((DURATION % 3600) / 60)) $((DURATION % 60)))
+
+  echo -n "WORKLOAD, " > ${LOG_BASE_FULL_RESULTS}.txt
+  for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_BASE_FULL_RESULTS}.txt; done
+  echo ""  >> ${LOG_BASE_FULL_RESULTS}.txt
+  cat ${LOGS}/*${BENCH_NAME}.txt >> ${LOG_BASE_FULL_RESULTS}.txt
+  csv_to_html_table ${LOG_BASE_FULL_RESULTS}.txt > ${LOG_BASE_FULL_RESULTS}.html
+
+  echo -n "WORKLOAD, " > ${LOG_BASE_DIFF}.txt
+  for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_BASE_DIFF}.txt; done
+  echo ""  >> ${LOG_BASE_DIFF}.txt
+  cat ${LOGS}/*${BENCH_NAME}_diff.txt >> ${LOG_BASE_DIFF}.txt
+  csv_to_html_table ${LOG_BASE_DIFF}.txt > ${LOG_BASE_DIFF}.html
+
+  echo "<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
+  echo "- Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_FULL_RESULTS}.txt | tee -a ${LOG_BASE_FULL_RESULTS}.html
+  echo "<BR><BR>" >> ${LOG_BASE_FULL_RESULTS}.html
+
+  echo "-----" && cat ${LOG_BASE_FULL_RESULTS}.txt && echo "-----" && cat ${LOG_BASE_DIFF}.txt && echo "-----"
+
+  local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
+
+  cd $WORKSPACE
+  tar czvf ${tarFileName} ${BENCH_NAME} --force-local --transform "s+^${BENCH_NAME}++"
+
+  if [[ ${RESULTS_EMAIL} != "" ]]; then
+    echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
+    local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
+    local SUBJECT="$(uname -n): Perf benchmarking finished for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
+    cat ${LOG_BASE_FULL_RESULTS}.html ${LOG_BASE_DIFF}.html | mutt -s "${SUBJECT}" -e "set content_type=text/html" -a ${tarFileName} -- ${RESULTS_EMAIL}
+  fi
+
+  rm -rf ${DATA_DIR}
 }
 
 function drop_caches(){
@@ -492,8 +519,8 @@ LOGS_CPU=$LOGS/cpu-states.txt
 if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
 if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD_SCRIPT not found."; fi
 
-variables=("RESULTS_EMAIL" "INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS"
-           "WORKLOAD_WARMUP_TIME" "WORKSPACE" "BENCH_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA"  "CONFIG_FILES" "WORKLOAD_SCRIPT")
+variables=("INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS" "WORKLOAD_WARMUP_TIME"
+           "RESULTS_EMAIL" "RESULTS_DIR" "WORKSPACE" "BENCH_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA" "CONFIG_FILES" "WORKLOAD_SCRIPT")
 for variable in "${variables[@]}"; do echo "$variable=${!variable}"; done
 process_workload_config_file "$WORKLOAD_SCRIPT"
 echo "====="
