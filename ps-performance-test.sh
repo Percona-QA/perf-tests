@@ -225,6 +225,35 @@ function diff_to_average() {
     echo $diff_output
 }
 
+function standard_deviation_percent() {
+    local csv_file="$1"
+    awk -F ',' 'BEGIN {
+        for (i=2; i<=NF; i++) {
+            sum[i] = 0
+            count[i] = 0
+            sumsq[i] = 0
+        }
+    }
+    {
+        for (i=2; i<=NF; i++) {
+            if ($i != "") {
+                count[i]++
+                sum[i] += $i
+                sumsq[i] += $i^2
+            }
+        }
+    }
+    END {
+        NF--
+        for (i=2; i<=NF; i++) {
+           avg[i] = (count[i] > 0) ? sum[i] / count[i] : 0
+           printf ", %.2f%%", (sqrt((sumsq[i]/count[i]) - (avg[i])**2) / avg[i]) * 100
+        }
+        printf "\n"
+
+    }' "$csv_file"
+}
+
 function csv_to_html_table() {
     local INPUT_NAME=$1
     local USE_COLOR=$2
@@ -285,6 +314,7 @@ function on_exit(){
 
   local LOG_BASE_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_results
   local LOG_BASE_DIFF=${LOGS}/${BENCH_ID}_${BENCH_NAME}_diff_res
+  local LOG_BASE_STDDEV=${LOGS}/${BENCH_ID}_${BENCH_NAME}_stddev_res
   local END_TIME=$(date +%s)
   local DURATION=$((END_TIME - START_TIME))
   local TIME_HMS=$(printf "%02d:%02d:%02d" $((DURATION / 3600)) $(((DURATION % 3600) / 60)) $((DURATION % 60)))
@@ -293,19 +323,30 @@ function on_exit(){
   for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_BASE_FULL_RESULTS}.txt; done
   echo ""  >> ${LOG_BASE_FULL_RESULTS}.txt
   cat ${LOGS}/*${BENCH_NAME}.txt >> ${LOG_BASE_FULL_RESULTS}.txt
-  csv_to_html_table ${LOG_BASE_FULL_RESULTS}.txt > ${LOG_BASE_FULL_RESULTS}.html
+
+  echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR><BR>QPS results:<BR>" > ${LOG_BASE_FULL_RESULTS}.html
+  csv_to_html_table ${LOG_BASE_FULL_RESULTS}.txt >> ${LOG_BASE_FULL_RESULTS}.html
+  echo "<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
 
   echo -n "WORKLOAD, " > ${LOG_BASE_DIFF}.txt
   for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_BASE_DIFF}.txt; done
   echo ""  >> ${LOG_BASE_DIFF}.txt
   cat ${LOGS}/*${BENCH_NAME}_diff.txt >> ${LOG_BASE_DIFF}.txt
-  csv_to_html_table ${LOG_BASE_DIFF}.txt "color" > ${LOG_BASE_DIFF}.html
 
-  echo "<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
-  echo "- Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_FULL_RESULTS}.txt | tee -a ${LOG_BASE_FULL_RESULTS}.html
-  echo "<BR><BR>" >> ${LOG_BASE_FULL_RESULTS}.html
+  echo -e "Difference in percentages to the average QPS:<BR>" > ${LOG_BASE_DIFF}.html
+  csv_to_html_table ${LOG_BASE_DIFF}.txt "color" >> ${LOG_BASE_DIFF}.html
+  echo "<BR>" >> ${LOG_BASE_DIFF}.html
 
-  echo "-----" && cat ${LOG_BASE_FULL_RESULTS}.txt && echo "-----" && cat ${LOG_BASE_DIFF}.txt && echo "-----"
+  echo -n "WORKLOAD, " > ${LOG_BASE_STDDEV}.txt
+  for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_BASE_STDDEV}.txt; done
+  echo ""  >> ${LOG_BASE_STDDEV}.txt
+  cat ${LOGS}/*${BENCH_NAME}_stddev.txt >> ${LOG_BASE_STDDEV}.txt
+
+  echo -e "Standard deviation as a percentage of the average QPS:<BR>" > ${LOG_BASE_STDDEV}.html
+  csv_to_html_table ${LOG_BASE_STDDEV}.txt "color" >> ${LOG_BASE_STDDEV}.html
+
+  echo "Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_FULL_RESULTS}.txt
+  echo "-----" && cat ${LOG_BASE_FULL_RESULTS}.txt && echo "-----" && cat ${LOG_BASE_DIFF}.txt && echo "-----" && cat ${LOG_BASE_STDDEV}.txt && echo "-----"
 
   local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
 
@@ -316,7 +357,7 @@ function on_exit(){
     echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
     local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
     local SUBJECT="$(uname -n): Perf benchmarking finished for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
-    cat ${LOG_BASE_FULL_RESULTS}.html ${LOG_BASE_DIFF}.html | mutt -s "${SUBJECT}" -e "set content_type=text/html" -a ${tarFileName} -- ${RESULTS_EMAIL}
+    cat ${LOG_BASE_FULL_RESULTS}.html ${LOG_BASE_DIFF}.html ${LOG_BASE_STDDEV}.html | mutt -s "${SUBJECT}" -e "set content_type=text/html" -a ${tarFileName} -- ${RESULTS_EMAIL}
   fi
 
   rm -rf ${DATA_DIR}
@@ -498,6 +539,7 @@ function run_sysbench() {
     cat ${LOG_NAME_RESULTS} >> ${LOGS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}.txt
     cat ${LOG_NAME_RESULTS} >> ${LOG_RESULTS_CACHE}
     echo "${BENCH_WITH_CONFIG}_diff$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_diff.txt
+    echo "${BENCH_WITH_CONFIG}_stddev$(standard_deviation_percent "${LOG_RESULTS_CACHE}")" >> ${LOGS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_stddev.txt
     unset result_set
   done
 }
