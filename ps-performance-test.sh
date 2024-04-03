@@ -295,6 +295,28 @@ function on_start(){
   trap on_exit EXIT KILL
 }
 
+function create_html_page() {
+  echo "<!DOCTYPE html>"
+  echo "<html>"
+  echo "<head>"
+  echo "<style>"
+  echo "table, th, td {"
+  echo "  border: 1px solid;"
+  echo "  border-collapse: collapse;"
+  echo "  border-color: #DDDDDD;"
+  echo "}"
+  echo "</style>"
+  echo "</head>"
+  echo "<body>"
+  cat $1
+  echo "<BR>"
+  cat $2
+  echo "<BR>"
+  cat $3
+  echo "</body>"
+  echo "</html>"
+}
+
 function on_exit(){
   pkill -f dstat
   pkill -f iostat
@@ -322,30 +344,19 @@ function on_exit(){
   for num_threads in ${THREADS_LIST}; do HEADER+=", ${num_threads} THREADS"; done
 
   # Create .txt files
-  echo "${HEADER}" >> ${LOG_BASE_FULL_RESULTS}.txt
+  echo "${HEADER}" > ${LOG_BASE_FULL_RESULTS}.txt
   cat ${LOGS}/*${BENCH_NAME}.txt >> ${LOG_BASE_FULL_RESULTS}.txt
-  echo "${HEADER}" >> ${LOG_BASE_DIFF}.txt
+  echo "${HEADER}" > ${LOG_BASE_DIFF}.txt
   cat ${LOGS}/*${BENCH_NAME}_diff.txt >> ${LOG_BASE_DIFF}.txt
-  echo "${HEADER}" >> ${LOG_BASE_STDDEV}.txt
+  echo "${HEADER}" > ${LOG_BASE_STDDEV}.txt
   cat ${LOGS}/*${BENCH_NAME}_stddev.txt >> ${LOG_BASE_STDDEV}.txt
 
   # Create .html files
-  echo "<style>" > ${LOG_BASE_FULL_RESULTS}.html
-  echo "table, th, td {" >> ${LOG_BASE_FULL_RESULTS}.html
-  echo "  border: 1px solid;" >> ${LOG_BASE_FULL_RESULTS}.html
-  echo "  border-collapse: collapse;" >> ${LOG_BASE_FULL_RESULTS}.html
-  echo "  border-color: #DDDDDD;" >> ${LOG_BASE_FULL_RESULTS}.html
-  echo "}" >> ${LOG_BASE_FULL_RESULTS}.html
-  echo "</style>" >> ${LOG_BASE_FULL_RESULTS}.html
-  echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR><BR>QPS results:<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
+  echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR>\n<BR>\nQPS results:<BR>" > ${LOG_BASE_FULL_RESULTS}.html
   csv_to_html_table ${LOG_BASE_FULL_RESULTS}.txt >> ${LOG_BASE_FULL_RESULTS}.html
-  echo "<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
-
-  echo -e "Difference in percentages to the average QPS:<BR>" > ${LOG_BASE_DIFF}.html
+  echo "Difference in percentages to the average QPS:<BR>" > ${LOG_BASE_DIFF}.html
   csv_to_html_table ${LOG_BASE_DIFF}.txt "color" >> ${LOG_BASE_DIFF}.html
-  echo "<BR>" >> ${LOG_BASE_DIFF}.html
-
-  echo -e "Standard deviation as a percentage of the average QPS:<BR>" > ${LOG_BASE_STDDEV}.html
+  echo "Standard deviation as a percentage of the average QPS:<BR>" > ${LOG_BASE_STDDEV}.html
   csv_to_html_table ${LOG_BASE_STDDEV}.txt "color" >> ${LOG_BASE_STDDEV}.html
 
   echo "Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_FULL_RESULTS}.txt
@@ -360,7 +371,7 @@ function on_exit(){
     echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
     local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
     local SUBJECT="$(uname -n): Perf benchmarking finished for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
-    cat ${LOG_BASE_FULL_RESULTS}.html ${LOG_BASE_DIFF}.html ${LOG_BASE_STDDEV}.html | mutt -s "${SUBJECT}" -e "set content_type=text/html" -a ${tarFileName} -- ${RESULTS_EMAIL}
+    create_html_page ${LOG_BASE_FULL_RESULTS}.html ${LOG_BASE_DIFF}.html ${LOG_BASE_STDDEV}.html | mutt -s "${SUBJECT}" -e "set content_type=text/html" -a ${tarFileName} -- ${RESULTS_EMAIL}
   fi
 
   rm -rf ${DATA_DIR}
