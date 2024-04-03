@@ -227,6 +227,7 @@ function diff_to_average() {
 
 function csv_to_html_table() {
     local INPUT_NAME=$1
+    local USE_COLOR=$2
 
     # html_table="<html><body><table border='1'>"
     echo "<table border='0'>"
@@ -237,7 +238,11 @@ function csv_to_html_table() {
             if [ $i -eq 0 ]; then
                 echo "    <td>${fields[i]}</td>"
             else
-                echo "    <td style=\"text-align: right;\">${fields[i]}</td>"
+                if [ "$USE_COLOR" = "color" ] && (( $(echo "${fields[i]//%/} > 1.0 || ${fields[i]//%/} < -1.0" | bc -l) )); then
+                    echo "    <td style=\"text-align: right; color: red;\">${fields[i]}</td>"
+                else
+                    echo "    <td style=\"text-align: right;\">${fields[i]}</td>"
+                fi
             fi
         done
         echo "  </tr>"
@@ -294,7 +299,7 @@ function on_exit(){
   for num_threads in ${THREADS_LIST}; do echo -n "${num_threads} THREADS, " >> ${LOG_BASE_DIFF}.txt; done
   echo ""  >> ${LOG_BASE_DIFF}.txt
   cat ${LOGS}/*${BENCH_NAME}_diff.txt >> ${LOG_BASE_DIFF}.txt
-  csv_to_html_table ${LOG_BASE_DIFF}.txt > ${LOG_BASE_DIFF}.html
+  csv_to_html_table ${LOG_BASE_DIFF}.txt "color" > ${LOG_BASE_DIFF}.html
 
   echo "<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
   echo "- Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_FULL_RESULTS}.txt | tee -a ${LOG_BASE_FULL_RESULTS}.html
