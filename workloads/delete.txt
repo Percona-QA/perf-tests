@@ -12,4 +12,4 @@
 #  --skip_trx[=on|off]             Don't start explicit transactions and execute all queries in the AUTOCOMMIT mode [off]
 #  --sum_ranges=N                  Number of SELECT SUM() queries per transaction [1]
 
-OLTP_DELETE           = "oltp_delete.lua"
+WR_DELETE           = "oltp_delete.lua"

@@ -12,12 +12,12 @@
 #  --skip_trx[=on|off]             Don't start explicit transactions and execute all queries in the AUTOCOMMIT mode [off]
 #  --sum_ranges=N                  Number of SELECT SUM() queries per transaction [1]
 
-OLTP_POINT_SELECT     = "windmills/oltp_point_select.lua"
-OLTP_INLIST_SELECT    = "windmills/oltp_inlist_select.lua"
+POINT_SELECT     = "windmills/oltp_point_select.lua"
+INLIST_SELECT    = "windmills/oltp_inlist_select.lua"
 
 # writes
-OLTP_INLIST_UPDATE    = "windmills/oltp_inlist_update.lua"
-OLTP_UPDATE_INDEX     = "windmills/oltp_update_index.lua"
-OLTP_UPDATE_NON_INDEX = "windmills/oltp_update_non_index.lua"
-OLTP_DELETE_INSERTS   = "windmills/oltp_delete_insert.lua --skip-trx=on"
-OLTP_INSERT           = "windmills/oltp_insert.lua --skip-trx=on"
+WR_INLIST_UPDATE    = "windmills/oltp_inlist_update.lua"
+WR_UPDATE_INDEX     = "windmills/oltp_update_index.lua"
+WR_UPDATE_NON_INDEX = "windmills/oltp_update_non_index.lua"
+WR_DELETE_INSERTS   = "windmills/oltp_delete_insert.lua --skip-trx=on"
+WR_INSERT           = "windmills/oltp_insert.lua --skip-trx=on"

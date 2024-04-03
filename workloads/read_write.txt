@@ -26,8 +26,8 @@ ORDER_RANGES     = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-
 DISTINCT_RANGES  = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=0 --distinct-ranges=1"
 
 # writes
-UPDATE_INDEX     = "oltp_update_index.lua"
-UPDATE_NON_INDEX = "oltp_update_non_index.lua"
-DELETE_INSERTS   = "oltp_write_only.lua --index-updates=0 --non-index-updates=0"
-DELETE           = "oltp_delete.lua"
-INSERT           = "oltp_insert.lua"
+WR_UPDATE_INDEX     = "oltp_update_index.lua"
+WR_UPDATE_NON_INDEX = "oltp_update_non_index.lua"
+WR_DELETE_INSERTS   = "oltp_write_only.lua --index-updates=0 --non-index-updates=0"
+WR_DELETE           = "oltp_delete.lua"
+WR_INSERT           = "oltp_insert.lua"
