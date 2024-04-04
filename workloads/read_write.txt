@@ -25,7 +25,7 @@ SUM_RANGES       = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-
 ORDER_RANGES     = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=1 --distinct-ranges=0"
 DISTINCT_RANGES  = "oltp_read_only.lua --skip-trx=on --point-selects=0 --simple-ranges=0 --sum-ranges=0 --order-ranges=0 --distinct-ranges=1"
 
-# writes
+# writes (write workloads should start with the "WR_" prefix to reset the database to its original state after writes have been made)
 WR_UPDATE_INDEX     = "oltp_update_index.lua"
 WR_UPDATE_NON_INDEX = "oltp_update_non_index.lua"
 WR_DELETE_INSERTS   = "oltp_write_only.lua --index-updates=0 --non-index-updates=0"

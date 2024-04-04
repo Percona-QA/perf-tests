@@ -15,7 +15,7 @@
 POINT_SELECT     = "windmills/oltp_point_select.lua"
 INLIST_SELECT    = "windmills/oltp_inlist_select.lua"
 
-# writes
+# writes (write workloads should start with the "WR_" prefix to reset the database to its original state after writes have been made)
 WR_INLIST_UPDATE    = "windmills/oltp_inlist_update.lua"
 WR_UPDATE_INDEX     = "windmills/oltp_update_index.lua"
 WR_UPDATE_NON_INDEX = "windmills/oltp_update_non_index.lua"

@@ -492,8 +492,11 @@ function run_sysbench() {
     local WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
 
     echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
-    drop_caches
-    prepare_datadir | tee ${LOGS_CONFIG}/prepare_datadir_${WORKLOAD_NAME}.log
+    if [[ $num -eq 0 || ${PREV_WORKLOAD_NAME:0:3} == "WR_" ]]; then
+      drop_caches
+      prepare_datadir | tee ${LOGS_CONFIG}/prepare_datadir_${WORKLOAD_NAME}.log
+    fi
+    PREV_WORKLOAD_NAME=${WORKLOAD_NAME}
 
     if [[ ${WORKLOAD_WARMUP_TIME} > 0 ]]; then
       sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log
