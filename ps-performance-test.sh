@@ -333,9 +333,9 @@ function on_exit(){
 
   save_system_info
 
-  local LOG_BASE_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_results
-  local LOG_BASE_DIFF=${LOGS}/${BENCH_ID}_${BENCH_NAME}_diff_res
-  local LOG_BASE_STDDEV=${LOGS}/${BENCH_ID}_${BENCH_NAME}_stddev_res
+  local LOG_BASE_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_qps
+  local LOG_BASE_DIFF=${LOGS}/${BENCH_ID}_${BENCH_NAME}_diff
+  local LOG_BASE_STDDEV=${LOGS}/${BENCH_ID}_${BENCH_NAME}_stddev
   local END_TIME=$(date +%s)
   local DURATION=$((END_TIME - START_TIME))
   local TIME_HMS=$(printf "%02d:%02d:%02d" $((DURATION / 3600)) $(((DURATION % 3600) / 60)) $((DURATION % 60)))
@@ -343,24 +343,24 @@ function on_exit(){
   HEADER="WORKLOAD"
   for num_threads in ${THREADS_LIST}; do HEADER+=", ${num_threads} THREADS"; done
 
-  # Create .txt files
-  echo "${HEADER}" > ${LOG_BASE_FULL_RESULTS}.txt
-  cat ${LOGS}/*${BENCH_NAME}.txt >> ${LOG_BASE_FULL_RESULTS}.txt
-  echo "${HEADER}" > ${LOG_BASE_DIFF}.txt
-  cat ${LOGS}/*${BENCH_NAME}_diff.txt >> ${LOG_BASE_DIFF}.txt
-  echo "${HEADER}" > ${LOG_BASE_STDDEV}.txt
-  cat ${LOGS}/*${BENCH_NAME}_stddev.txt >> ${LOG_BASE_STDDEV}.txt
+  # Create .csv files
+  echo "${HEADER}" > ${LOG_BASE_FULL_RESULTS}.csv
+  cat ${LOGS_QPS}/*${BENCH_NAME}_qps.csv >> ${LOG_BASE_FULL_RESULTS}.csv
+  echo "${HEADER}" > ${LOG_BASE_DIFF}.csv
+  cat ${LOGS_DIFF}/*${BENCH_NAME}_diff.csv >> ${LOG_BASE_DIFF}.csv
+  echo "${HEADER}" > ${LOG_BASE_STDDEV}.csv
+  cat ${LOGS_STDDEV}/*${BENCH_NAME}_stddev.csv >> ${LOG_BASE_STDDEV}.csv
 
   # Create .html files
   echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR>\n<BR>\nQPS results:<BR>" > ${LOG_BASE_FULL_RESULTS}.html
-  csv_to_html_table ${LOG_BASE_FULL_RESULTS}.txt >> ${LOG_BASE_FULL_RESULTS}.html
+  csv_to_html_table ${LOG_BASE_FULL_RESULTS}.csv >> ${LOG_BASE_FULL_RESULTS}.html
   echo "Difference in percentages to the average QPS:<BR>" > ${LOG_BASE_DIFF}.html
-  csv_to_html_table ${LOG_BASE_DIFF}.txt "color" >> ${LOG_BASE_DIFF}.html
+  csv_to_html_table ${LOG_BASE_DIFF}.csv "color" >> ${LOG_BASE_DIFF}.html
   echo "Standard deviation as a percentage of the average QPS:<BR>" > ${LOG_BASE_STDDEV}.html
-  csv_to_html_table ${LOG_BASE_STDDEV}.txt "color" >> ${LOG_BASE_STDDEV}.html
+  csv_to_html_table ${LOG_BASE_STDDEV}.csv "color" >> ${LOG_BASE_STDDEV}.html
 
-  echo "Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_FULL_RESULTS}.txt
-  echo "-----" && cat ${LOG_BASE_FULL_RESULTS}.txt && echo "-----" && cat ${LOG_BASE_DIFF}.txt && echo "-----" && cat ${LOG_BASE_STDDEV}.txt && echo "-----"
+  echo "Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_FULL_RESULTS}.csv
+  echo "-----" && cat ${LOG_BASE_FULL_RESULTS}.csv && echo "-----" && cat ${LOG_BASE_DIFF}.csv && echo "-----" && cat ${LOG_BASE_STDDEV}.csv && echo "-----"
 
   local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
 
@@ -504,7 +504,7 @@ function run_sysbench() {
 
     for num_threads in ${THREADS_LIST}; do
       echo "Testing $WORKLOAD_NAME with $num_threads threads"
-      LOG_NAME_RESULTS=${LOGS_CONFIG}/results-QPS-${BENCH_ID}_${WORKLOAD_NAME}.txt
+      LOG_NAME_RESULTS=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}_results_qps.csv
       LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}-$num_threads.txt
       LOG_NAME_MYSQL=${LOG_NAME}.mysql
       LOG_NAME_MYSQLD=${LOG_NAME}.mysqld
@@ -550,16 +550,16 @@ function run_sysbench() {
       kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     done
 
-    local LOG_RESULTS_CACHE="${RESULTS_DIR}/${BENCH_ID}_${WORKLOAD_NAME}_${THREADS_LIST// /_}.txt"
+    local LOG_RESULTS_CACHE="${RESULTS_DIR}/${BENCH_ID}_${WORKLOAD_NAME}_${THREADS_LIST// /_}.csv"
     local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}"
-    local RESULTS_LINE="${BENCH_WITH_CONFIG}"
+    local RESULTS_LINE="${BENCH_WITH_CONFIG}_qps"
     for number in "${result_set[@]}"; do RESULTS_LINE+=", ${number}"; done
 
     echo "${RESULTS_LINE}" >> ${LOG_NAME_RESULTS}
-    cat ${LOG_NAME_RESULTS} >> ${LOGS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}.txt
     cat ${LOG_NAME_RESULTS} >> ${LOG_RESULTS_CACHE}
-    echo "${BENCH_WITH_CONFIG}_diff$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_diff.txt
-    echo "${BENCH_WITH_CONFIG}_stddev$(standard_deviation_percent "${LOG_RESULTS_CACHE}")" >> ${LOGS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_stddev.txt
+    cat ${LOG_NAME_RESULTS} >> ${LOGS_QPS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_qps.csv
+    echo "${BENCH_WITH_CONFIG}_diff$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS_DIFF}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_diff.csv
+    echo "${BENCH_WITH_CONFIG}_stddev$(standard_deviation_percent "${LOG_RESULTS_CACHE}")" >> ${LOGS_STDDEV}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_stddev.csv
     unset result_set
   done
 }
@@ -580,6 +580,9 @@ export START_TIME=$(date +%s)
 export BENCH_DIR=$WORKSPACE/$BENCH_NAME
 export DATA_DIR=$BENCH_DIR-datadir
 export LOGS=$BENCH_DIR
+export LOGS_STDDEV=${LOGS}/${BENCH_NAME}-stddev
+export LOGS_DIFF=${LOGS}/${BENCH_NAME}-diff
+export LOGS_QPS=${LOGS}/${BENCH_NAME}-qps
 LOGS_CPU=$LOGS/cpu-states.txt
 
 # check parameters
@@ -598,7 +601,7 @@ done
 echo "====="
 
 rm -rf ${LOGS}
-mkdir -p ${LOGS} ${RESULTS_DIR}
+mkdir -p ${LOGS} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${RESULTS_DIR}
 cd $WORKSPACE
 
 if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
