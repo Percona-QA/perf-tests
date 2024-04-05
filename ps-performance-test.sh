@@ -265,7 +265,8 @@ function csv_to_html_table() {
               if [ $i -eq 0 ]; then
                   echo "    <td>${fields[i]}</td>"
               else
-                  if [ "$USE_COLOR" = "color" ] && (( $(echo "${fields[i]//%/} > 1.0 || ${fields[i]//%/} < -1.0" | bc -l) )); then
+                  local FIELD="${fields[i]//[% ]/}"
+                  if [ "$USE_COLOR" = "color" ] && [[ "${FIELD}" =~ ^-?[0-9]+(\.[0-9]+)?$ ]] && (( $(echo "${FIELD} > 1.0 || ${FIELD} < -1.0" | bc -l) )); then
                       echo "    <td style=\"text-align: right; color: red;\">${fields[i]}</td>"
                   else
                       echo "    <td style=\"text-align: right;\">${fields[i]}</td>"
@@ -343,7 +344,7 @@ function on_exit(){
   HEADER="WORKLOAD"
   for num_threads in ${THREADS_LIST}; do HEADER+=", ${num_threads} THREADS"; done
 
-  # Create .csv files
+  echo "Create .csv files"
   echo "${HEADER}" > ${LOG_BASE_FULL_RESULTS}.csv
   cat ${LOGS_QPS}/*${BENCH_NAME}_qps.csv >> ${LOG_BASE_FULL_RESULTS}.csv
   echo "${HEADER}" > ${LOG_BASE_DIFF}.csv
@@ -351,7 +352,7 @@ function on_exit(){
   echo "${HEADER}" > ${LOG_BASE_STDDEV}.csv
   cat ${LOGS_STDDEV}/*${BENCH_NAME}_stddev.csv >> ${LOG_BASE_STDDEV}.csv
 
-  # Create .html files
+  echo "Create .html files"
   echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR>\n<BR>\nQPS results:<BR>" > ${LOG_BASE_FULL_RESULTS}.html
   csv_to_html_table ${LOG_BASE_FULL_RESULTS}.csv >> ${LOG_BASE_FULL_RESULTS}.html
   echo "Difference in percentages to the average QPS:<BR>" > ${LOG_BASE_DIFF}.html
@@ -359,18 +360,23 @@ function on_exit(){
   echo "Standard deviation as a percentage of the average QPS:<BR>" > ${LOG_BASE_STDDEV}.html
   csv_to_html_table ${LOG_BASE_STDDEV}.csv "color" >> ${LOG_BASE_STDDEV}.html
 
+  local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
+  local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
+  local SUBJECT="$(uname -n): Perf benchmarking finished for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
+
+  if [[ ${SLACK_WEBHOOK_URL} != "" ]]; then
+    echo "- Sending slack message"
+    SLACK_MESSAGE="${SUBJECT}\nScript executed in $TIME_HMS ($DURATION seconds)" ${SCRIPT_DIR}/publish_to_slack.py ${LOG_BASE_FULL_RESULTS}.csv ${LOG_BASE_DIFF}.csv ${LOG_BASE_STDDEV}.csv
+  fi
+
   echo "Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_FULL_RESULTS}.csv
   echo "-----" && cat ${LOG_BASE_FULL_RESULTS}.csv && echo "-----" && cat ${LOG_BASE_DIFF}.csv && echo "-----" && cat ${LOG_BASE_STDDEV}.csv && echo "-----"
-
-  local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
 
   cd $WORKSPACE
   tar czvf ${tarFileName} ${BENCH_NAME} --force-local --transform "s+^${BENCH_NAME}++"
 
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
-    local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
-    local SUBJECT="$(uname -n): Perf benchmarking finished for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
     create_html_page ${LOG_BASE_FULL_RESULTS}.html ${LOG_BASE_DIFF}.html ${LOG_BASE_STDDEV}.html | mutt -s "${SUBJECT}" -e "set content_type=text/html" -a ${tarFileName} -- ${RESULTS_EMAIL}
   fi
 

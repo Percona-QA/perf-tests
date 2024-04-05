@@ -11,6 +11,7 @@ function install_deps_debian() {
     local PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
     sudo apt update
     sudo apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $PACKAGES_LIBS $PACKAGES_PROTOBUF $SELECTED_CXX
+    pip install requests pandas tabulate
 }
 
 function setup_git_repo() {
