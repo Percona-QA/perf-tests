@@ -18,24 +18,28 @@ def csv_to_markdown(file_path):
     markdown = df.to_markdown(index=False)
     return markdown
 
+def send_to_slack(webhook_url, payload):
+    response = requests.post(webhook_url, json=payload)
+    if response.status_code != 200:
+        print("Failed to publish to Slack. Status code: {}".format(response.status_code))
+    else:
+        print("Published successfully to Slack.")
+
 def publish_to_slack(webhook_url, message, files):
+    if message:
+        payload = {
+            "text": message
+        }
+        send_to_slack(webhook_url, payload)
+
+    # Send each file as a separate message
     for file_path, header in zip(files, HEADERS):
         markdown_content = csv_to_markdown(file_path)
-        if message and files.index(file_path) == 0:
-            code_block = message
-        else:
-            code_block = ""
-        code_block += "\n\n{}\n```{}```".format(header, markdown_content)
-
+        code_block = "{}```{}```".format(header, markdown_content)
         payload = {
             "text": code_block
         }
-
-        response = requests.post(webhook_url, json=payload)
-        if response.status_code != 200:
-            print("Failed to publish to Slack. Status code: %d" % response.status_code)
-        else:
-            print("Published successfully to Slack.")
+        send_to_slack(webhook_url, payload)
 
 if __name__ == "__main__":
     webhook_url = os.getenv("SLACK_WEBHOOK_URL")
