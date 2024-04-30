@@ -6,7 +6,6 @@ sync_binlog=1K
 # skip-log-bin
 
 # connections
-ssl=0
 connect_timeout=120
 back_log=4K
 max_connections=4K
