@@ -224,6 +224,32 @@ function diff_to_average() {
     echo $diff_output
 }
 
+function average() {
+    local csv_file="$1"
+    awk -F ',' 'BEGIN {
+        for (i=2; i<=NF; i++) {
+            sum[i] = 0
+            count[i] = 0
+        }
+    }
+    {
+        for (i=2; i<=NF; i++) {
+            if ($i != "") {
+                count[i]++
+                sum[i] += $i
+            }
+        }
+    }
+    END {
+        for (i=2; i<=NF; i++) {
+           avg[i] = (count[i] > 0) ? sum[i] / count[i] : 0
+           printf ", %.2f", avg[i]
+        }
+        printf "\n"
+
+    }' "$csv_file"
+}
+
 function standard_deviation_percent() {
     local csv_file="$1"
     awk -F ',' 'BEGIN {
@@ -337,6 +363,7 @@ function on_exit(){
   local LOG_BASE_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_qps
   local LOG_BASE_DIFF=${LOGS}/${BENCH_ID}_${BENCH_NAME}_diff
   local LOG_BASE_STDDEV=${LOGS}/${BENCH_ID}_${BENCH_NAME}_stddev
+  local LOG_BASE_AVG=${LOGS}/${BENCH_ID}_${BENCH_NAME}_avg
   local END_TIME=$(date +%s)
   local DURATION=$((END_TIME - START_TIME))
   local TIME_HMS=$(printf "%02d:%02d:%02d" $((DURATION / 3600)) $(((DURATION % 3600) / 60)) $((DURATION % 60)))
@@ -351,6 +378,8 @@ function on_exit(){
   cat ${LOGS_DIFF}/*${BENCH_NAME}_diff.csv >> ${LOG_BASE_DIFF}.csv
   echo "${HEADER}" > ${LOG_BASE_STDDEV}.csv
   cat ${LOGS_STDDEV}/*${BENCH_NAME}_stddev.csv >> ${LOG_BASE_STDDEV}.csv
+  echo "${HEADER}" > ${LOG_BASE_AVG}.csv
+  cat ${LOGS_AVG}/*${BENCH_NAME}_avg.csv >> ${LOG_BASE_AVG}.csv
 
   echo "Create .html files"
   echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR>\n<BR>\nQPS results:<BR>" > ${LOG_BASE_FULL_RESULTS}.html
@@ -566,6 +595,7 @@ function run_sysbench() {
     cat ${LOG_NAME_RESULTS} >> ${LOGS_QPS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_qps.csv
     echo "${BENCH_WITH_CONFIG}_diff$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS_DIFF}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_diff.csv
     echo "${BENCH_WITH_CONFIG}_stddev$(standard_deviation_percent "${LOG_RESULTS_CACHE}")" >> ${LOGS_STDDEV}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_stddev.csv
+    echo "${BENCH_WITH_CONFIG}_avg$(average "${LOG_RESULTS_CACHE}")" >> ${LOGS_AVG}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_avg.csv
     unset result_set
   done
 }
@@ -586,6 +616,7 @@ export START_TIME=$(date +%s)
 export BENCH_DIR=$WORKSPACE/$BENCH_NAME
 export DATA_DIR=$BENCH_DIR-datadir
 export LOGS=$BENCH_DIR
+export LOGS_AVG=${LOGS}/${BENCH_NAME}-avg
 export LOGS_STDDEV=${LOGS}/${BENCH_NAME}-stddev
 export LOGS_DIFF=${LOGS}/${BENCH_NAME}-diff
 export LOGS_QPS=${LOGS}/${BENCH_NAME}-qps
@@ -607,7 +638,7 @@ done
 echo "====="
 
 rm -rf ${LOGS}
-mkdir -p ${LOGS} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${RESULTS_DIR}
+mkdir -p ${LOGS} ${LOGS_AVG} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${RESULTS_DIR}
 cd $WORKSPACE
 
 if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
