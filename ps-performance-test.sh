@@ -196,12 +196,11 @@ function print_parameters() {
   variables=("INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS" "WORKLOAD_WARMUP_TIME"
              "RESULTS_EMAIL" "RESULTS_DIR" "WORKSPACE" "BENCH_DIR" "BACKUP_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA" "CONFIG_FILES" "WORKLOAD_SCRIPT")
   for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
-  echo "=====${ENDLINE}"
+  echo "==========${ENDLINE}"
   for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
     WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[i]})
     echo "${WORKLOAD_NAMES[i]}=${WORKLOAD_PARAMETERS}${ENDLINE}"
   done
-  echo "=====${ENDLINE}"
 }
 
 function diff_to_average() {
@@ -324,7 +323,7 @@ function on_start(){
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL}"
     local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
-    echo "" | mutt -s "$(uname -n): Perf benchmarking started for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
+    print_parameters "" | mutt -s "$(uname -n): Perf benchmarking started for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
   fi
 
   disable_address_randomization >> ${LOGS_CPU}
@@ -397,7 +396,7 @@ function on_exit(){
   echo "Create .html files"
   echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR>\n<BR>\n" > ${LOG_BASE_FULL_RESULTS}.html
   print_parameters "<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
-  echo -e "QPS results:<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
+  echo -e "<BR>QPS results:<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
   csv_to_html_table ${LOG_BASE_FULL_RESULTS}.csv >> ${LOG_BASE_FULL_RESULTS}.html
   echo "Difference in percentages to the average QPS:<BR>" > ${LOG_BASE_DIFF}.html
   csv_to_html_table ${LOG_BASE_DIFF}.csv "color" >> ${LOG_BASE_DIFF}.html
@@ -648,6 +647,7 @@ if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD
 
 process_workload_config_file "$WORKLOAD_SCRIPT"
 print_parameters ""
+echo "=========="
 
 rm -rf ${LOGS}
 mkdir -p ${LOGS} ${LOGS_AVG} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${RESULTS_DIR}
