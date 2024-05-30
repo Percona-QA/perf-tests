@@ -194,7 +194,7 @@ function process_workload_config_file() {
 function print_parameters() {
   local ENDLINE=$1
   variables=("INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS" "WORKLOAD_WARMUP_TIME"
-             "RESULTS_EMAIL" "RESULTS_DIR" "WORKSPACE" "BENCH_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA" "CONFIG_FILES" "WORKLOAD_SCRIPT")
+             "RESULTS_EMAIL" "RESULTS_DIR" "WORKSPACE" "BENCH_DIR" "BACKUP_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA" "CONFIG_FILES" "WORKLOAD_SCRIPT")
   for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
   echo "=====${ENDLINE}"
   for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
@@ -418,6 +418,11 @@ function on_exit(){
 
   cd $WORKSPACE
   tar czvf ${tarFileName} ${BENCH_NAME} --force-local --transform "s+^${BENCH_NAME}++"
+
+  if [[ ${BACKUP_DIR} != "" ]]; then
+    echo "- Copying ${tarFileName} to ${BACKUP_DIR}"
+    cp ${tarFileName} ${BACKUP_DIR}/
+  fi
 
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
