@@ -191,6 +191,19 @@ function process_workload_config_file() {
   done < "$filename"
 }
 
+function print_parameters() {
+  local ENDLINE=$1
+  variables=("INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS" "WORKLOAD_WARMUP_TIME"
+             "RESULTS_EMAIL" "RESULTS_DIR" "WORKSPACE" "BENCH_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA" "CONFIG_FILES" "WORKLOAD_SCRIPT")
+  for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
+  echo "=====${ENDLINE}"
+  for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
+    WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[i]})
+    echo "${WORKLOAD_NAMES[i]}=${WORKLOAD_PARAMETERS}${ENDLINE}"
+  done
+  echo "=====${ENDLINE}"
+}
+
 function diff_to_average() {
     local csv_file="$1"
     diff_output=$(awk -F ',' 'BEGIN {
@@ -382,7 +395,9 @@ function on_exit(){
   cat ${LOGS_AVG}/*${BENCH_NAME}_avg.csv >> ${LOG_BASE_AVG}.csv
 
   echo "Create .html files"
-  echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR>\n<BR>\nQPS results:<BR>" > ${LOG_BASE_FULL_RESULTS}.html
+  echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR>\n<BR>\n" > ${LOG_BASE_FULL_RESULTS}.html
+  print_parameters "<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
+  echo -e "QPS results:<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
   csv_to_html_table ${LOG_BASE_FULL_RESULTS}.csv >> ${LOG_BASE_FULL_RESULTS}.html
   echo "Difference in percentages to the average QPS:<BR>" > ${LOG_BASE_DIFF}.html
   csv_to_html_table ${LOG_BASE_DIFF}.csv "color" >> ${LOG_BASE_DIFF}.html
@@ -626,16 +641,8 @@ LOGS_CPU=$LOGS/cpu-states.txt
 if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
 if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD_SCRIPT not found."; fi
 
-variables=("INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS" "WORKLOAD_WARMUP_TIME"
-           "RESULTS_EMAIL" "RESULTS_DIR" "WORKSPACE" "BENCH_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA" "CONFIG_FILES" "WORKLOAD_SCRIPT")
-for variable in "${variables[@]}"; do echo "$variable=${!variable}"; done
 process_workload_config_file "$WORKLOAD_SCRIPT"
-echo "====="
-for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
-  WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[i]})
-  echo "${WORKLOAD_NAMES[i]}=${WORKLOAD_PARAMETERS}"
-done
-echo "====="
+print_parameters ""
 
 rm -rf ${LOGS}
 mkdir -p ${LOGS} ${LOGS_AVG} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${RESULTS_DIR}
