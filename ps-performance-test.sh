@@ -129,34 +129,6 @@ function enable_idle_states(){
   sudo cpupower idle-info
 }
 
-function save_system_info() {
-  local VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
-  local UPTIME_HOUR=`uptime -p`
-  local SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
-  local MEM=`free -g | grep "Mem:" | awk '{print "Total:"$2"GB  Used:"$3"GB  Free:"$4"GB" }'`
-
-  if [ ! -f $LOGS/hw.info ];then
-    if [ -f /etc/redhat-release ]; then
-      RELEASE=`cat /etc/redhat-release`
-    else
-      RELEASE=`cat /etc/issue`
-    fi
-    local KERNEL=`uname -r`
-    #echo "HW info | $RELEASE $KERNEL"  > $LOGS/hw.info
-  fi
-  #echo "Build #$BENCH_NAME | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
-  echo -e "Date: `date +'%d-%m-%Y %H:%M'`\nBuild: $BENCH_NAME\n$VERSION_INFO\n`uname -a`\n$RELEASE\n"
-  free -m; echo
-  df -Th
-  echo -e "\n$SYSTEM_LOAD\n$UPTIME_HOUR\n\nUSER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND"
-  ps aux | sort -rn -k +3 | head
-  sudo systemctl --type=service --state=running
-  ulimit -a
-  sysctl -a 2>/dev/null | grep "\bvm."
-  echo "===== nproc=$(nproc --all)"
-  cat /proc/cpuinfo
-}
-
 # Function to process a configuration file and return WORKLOAD_NAMES[] and WORKLOAD_PARAMS[] arrays
 function process_workload_config_file() {
   local filename="$1"
@@ -193,16 +165,53 @@ function process_workload_config_file() {
   done < "$filename"
 }
 
+function print_system_info() {
+  local VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
+  local UPTIME_HOUR=`uptime -p`
+  local SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
+  local MEM=`free -g | grep "Mem:" | awk '{print "Total:"$2"GB  Used:"$3"GB  Free:"$4"GB" }'`
+
+  if [ ! -f $LOGS/hw.info ];then
+    if [ -f /etc/redhat-release ]; then
+      RELEASE=`cat /etc/redhat-release`
+    else
+      RELEASE=`cat /etc/issue`
+    fi
+    local KERNEL=`uname -r`
+    #echo "HW info | $RELEASE $KERNEL"  > $LOGS/hw.info
+  fi
+  #echo "Build #$BENCH_NAME | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
+  echo -e "Date: `date +'%d-%m-%Y %H:%M'`\n`uname -a`\n$RELEASE\n"
+  free -m; echo
+  df -Th
+  echo -e "\n$SYSTEM_LOAD\n$UPTIME_HOUR\n\nUSER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND"
+  ps aux | sort -rn -k +3 | head
+  sudo systemctl --type=service --state=running
+  ulimit -a
+  sysctl -a 2>/dev/null | grep "\bvm."
+  echo "===== nproc=$(nproc --all)"
+  cat /proc/cpuinfo
+}
+
 function print_parameters() {
   local ENDLINE=$1
-  variables=("INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS" "WORKLOAD_WARMUP_TIME"
-             "RESULTS_EMAIL" "CACHE_DIR" "WORKSPACE" "BENCH_DIR" "BACKUP_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA" "CONFIG_FILES" "WORKLOAD_SCRIPT")
+  variables=("BENCH_NAME" "BUILD_PATH" "CONFIG_FILES" "INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS"
+             "WORKLOAD_WARMUP_TIME" "WORKSPACE" "CACHE_DIR" "BENCH_DIR" "BACKUP_DIR" "MYEXTRA" "SYSBENCH_EXTRA" "RESULTS_EMAIL" "WORKLOAD_SCRIPT")
   for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
   echo "==========${ENDLINE}"
   for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
     WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[i]})
     echo "${WORKLOAD_NAMES[i]}=${WORKLOAD_PARAMETERS}${ENDLINE}"
   done
+}
+
+function get_build_info() {
+  MYSQL_VERSION_LONG=`$BUILD_PATH/bin/mysqld --version`
+  MYSQL_VERSION=`echo ${MYSQL_VERSION_LONG} | awk '{ print $3}'`
+  MYSQL_NAME=`$BUILD_PATH/bin/mysqld --help | grep Percona`
+  if [[ $MYSQL_NAME == *"Percona"* ]]; then MYSQL_NAME=PS; else MYSQL_NAME=MS; fi
+  export MYSQL_NAME="${MYSQL_NAME}"
+  export MYSQL_VERSION="${MYSQL_VERSION//./}"
 }
 
 function diff_to_average() {
@@ -329,7 +338,7 @@ function on_start(){
   fi
 
   local LOG_SYS_INFO=$LOGS/sys_info_start.txt
-  save_system_info >> ${LOG_SYS_INFO}
+  print_system_info >> ${LOG_SYS_INFO}
 
   disable_address_randomization >> ${LOG_SYS_INFO}
   disable_turbo_boost >> ${LOG_SYS_INFO}
@@ -367,7 +376,7 @@ function on_exit(){
   killall -9 mysqld
 
   local LOG_SYS_INFO=$LOGS/sys_info_end.txt
-  save_system_info >> ${LOG_SYS_INFO}
+  print_system_info >> ${LOG_SYS_INFO}
 
   echo "Restoring address randomization"
   restore_address_randomization >> ${LOG_SYS_INFO}
@@ -645,25 +654,22 @@ export LOGS_AVG=${LOGS}/${BENCH_NAME}-avg
 export LOGS_STDDEV=${LOGS}/${BENCH_NAME}-stddev
 export LOGS_DIFF=${LOGS}/${BENCH_NAME}-diff
 export LOGS_QPS=${LOGS}/${BENCH_NAME}-qps
+LOGS_BUILD_INFO=${LOGS}/build_info.txt
 
 # check parameters
 if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
 if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD_SCRIPT not found."; fi
-
-process_workload_config_file "$WORKLOAD_SCRIPT"
-print_parameters ""
-echo "=========="
+if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
 
 rm -rf ${LOGS}
 mkdir -p ${LOGS} ${LOGS_AVG} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${CACHE_DIR}
 cd $WORKSPACE
 
-if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
-MYSQL_VERSION=`$BUILD_PATH/bin/mysqld --version | awk '{ print $3}'`
-MYSQL_NAME=`$BUILD_PATH/bin/mysqld --help | grep Percona`
-if [[ $MYSQL_NAME == *"Percona"* ]]; then MYSQL_NAME=PS; else MYSQL_NAME=MS; fi
-export MYSQL_NAME="${MYSQL_NAME}"
-export MYSQL_VERSION="${MYSQL_VERSION//./}"
+process_workload_config_file "$WORKLOAD_SCRIPT"
+get_build_info
+echo -e "Date: `date +'%d-%m-%Y %H:%M'`\nNode: $(uname -n)\nMySQL version: ${MYSQL_NAME}${MYSQL_VERSION} = ${MYSQL_VERSION_LONG}\n" | tee ${LOGS_BUILD_INFO}
+print_parameters "" | tee -a ${LOGS_BUILD_INFO}
+echo "=========="
 
 export INNODB_CACHE=${INNODB_CACHE:-32G}
 export NUM_TABLES=${NUM_TABLES:-16}
