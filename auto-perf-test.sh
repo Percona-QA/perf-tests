@@ -141,7 +141,7 @@ function run_perf_tests() {
 
     REPEAT_NUM=${REPEAT_NUM:-1}
     for i in $(seq $REPEAT_NUM); do
-        local NICE_DATE=$(date +"%Y-%m-%d_%H:%M:%S")
+        local NICE_DATE=$(date +"%Y-%m-%d_%H:%M")
         ${PERFTEST_PATH}/ps-performance-test.sh ${PS_BRANCH}@${PS_GIT_HASH}_${NICE_DATE} ${BUILD_PATH} "${PERFTEST_PATH}/cnf/${CNFFILE_NAME}"
     done
 }

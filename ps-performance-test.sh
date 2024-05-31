@@ -16,7 +16,7 @@ export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
 export WORKSPACE=${WORKSPACE:-${PWD}}
 export TEMPLATE_PATH=${TEMPLATE_PATH:-${WORKSPACE}/template_datadir}
-export RESULTS_DIR=${RESULTS_DIR:-$WORKSPACE/results_to_compare}
+export CACHE_DIR=${CACHE_DIR:-$WORKSPACE/results_to_compare}
 export BENCHMARK_LOGGING=${BENCHMARK_LOGGING:-Y}
 export SMART_DEVICE=${SMART_DEVICE:-/dev/nvme0n1}
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
@@ -194,7 +194,7 @@ function process_workload_config_file() {
 function print_parameters() {
   local ENDLINE=$1
   variables=("INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS" "WORKLOAD_WARMUP_TIME"
-             "RESULTS_EMAIL" "RESULTS_DIR" "WORKSPACE" "BENCH_DIR" "BACKUP_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA" "CONFIG_FILES" "WORKLOAD_SCRIPT")
+             "RESULTS_EMAIL" "CACHE_DIR" "WORKSPACE" "BENCH_DIR" "BACKUP_DIR" "BUILD_PATH" "MYEXTRA" "SYSBENCH_EXTRA" "CONFIG_FILES" "WORKLOAD_SCRIPT")
   for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
   echo "==========${ENDLINE}"
   for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
@@ -322,7 +322,7 @@ function csv_to_html_table() {
 function on_start(){
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL}"
-    local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
+    local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
     print_parameters "" | mutt -s "$(uname -n): Perf benchmarking started for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
   fi
 
@@ -404,7 +404,7 @@ function on_exit(){
   csv_to_html_table ${LOG_BASE_STDDEV}.csv "color" >> ${LOG_BASE_STDDEV}.html
 
   local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
-  local NICE_DATE=$(date +"%Y-%m-%d %H:%M:%S")
+  local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
   local SUBJECT="$(uname -n): Perf benchmarking finished for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
 
   if [[ ${SLACK_WEBHOOK_URL} != "" ]]; then
@@ -604,7 +604,7 @@ function run_sysbench() {
       kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     done
 
-    local LOG_RESULTS_CACHE="${RESULTS_DIR}/${BENCH_ID}_${WORKLOAD_NAME}_${THREADS_LIST// /_}.csv"
+    local LOG_RESULTS_CACHE="${CACHE_DIR}/${BENCH_ID}_${WORKLOAD_NAME}_${THREADS_LIST// /_}.csv"
     local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}"
     local RESULTS_LINE="${BENCH_WITH_CONFIG}_qps"
     for number in "${result_set[@]}"; do RESULTS_LINE+=", ${number}"; done
@@ -650,7 +650,7 @@ print_parameters ""
 echo "=========="
 
 rm -rf ${LOGS}
-mkdir -p ${LOGS} ${LOGS_AVG} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${RESULTS_DIR}
+mkdir -p ${LOGS} ${LOGS_AVG} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${CACHE_DIR}
 cd $WORKSPACE
 
 if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
