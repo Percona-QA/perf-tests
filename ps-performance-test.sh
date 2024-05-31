@@ -129,12 +129,12 @@ function enable_idle_states(){
   sudo cpupower idle-info
 }
 
-function save_system_info(){
-  local LOG_SYS_INFO=$LOGS/sys_info.log
+function save_system_info() {
   local VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
   local UPTIME_HOUR=`uptime -p`
   local SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
   local MEM=`free -g | grep "Mem:" | awk '{print "Total:"$2"GB  Used:"$3"GB  Free:"$4"GB" }'`
+
   if [ ! -f $LOGS/hw.info ];then
     if [ -f /etc/redhat-release ]; then
       RELEASE=`cat /etc/redhat-release`
@@ -142,17 +142,19 @@ function save_system_info(){
       RELEASE=`cat /etc/issue`
     fi
     local KERNEL=`uname -r`
-    echo "HW info | $RELEASE $KERNEL"  > $LOGS/hw.info
+    #echo "HW info | $RELEASE $KERNEL"  > $LOGS/hw.info
   fi
-  echo "Build #$BENCH_NAME | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
-
-  uname -a >> $LOG_SYS_INFO
-  ulimit -a >> $LOG_SYS_INFO
-  sysctl -a 2>/dev/null | grep "\bvm." >> $LOG_SYS_INFO
-  free -m >> $LOG_SYS_INFO
-  df -Th >> $LOG_SYS_INFO
-  echo "===== nproc=$(nproc --all)" >> $LOG_SYS_INFO
-  cat /proc/cpuinfo >> $LOG_SYS_INFO
+  #echo "Build #$BENCH_NAME | `date +'%d-%m-%Y | %H:%M'` | $VERSION_INFO | $UPTIME_HOUR | $SYSTEM_LOAD | Memory: $MEM " >> $LOGS/build_info.log
+  echo -e "Date: `date +'%d-%m-%Y %H:%M'`\nBuild: $BENCH_NAME\n$VERSION_INFO\n`uname -a`\n$RELEASE\n"
+  free -m; echo
+  df -Th
+  echo -e "\n$SYSTEM_LOAD\n$UPTIME_HOUR\n\nUSER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND"
+  ps aux | sort -rn -k +3 | head
+  sudo systemctl --type=service --state=running
+  ulimit -a
+  sysctl -a 2>/dev/null | grep "\bvm."
+  echo "===== nproc=$(nproc --all)"
+  cat /proc/cpuinfo
 }
 
 # Function to process a configuration file and return WORKLOAD_NAMES[] and WORKLOAD_PARAMS[] arrays
@@ -318,7 +320,7 @@ function csv_to_html_table() {
     echo "</table>"
 }
 
-# depends on $LOGS, $LOGS_CPU, $BENCH_NAME, $DATA_DIR, $MYSQL_NAME, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE, $WORKSPACE, $THREADS_LIST, $RESULTS_EMAIL
+# depends on $LOGS, $BENCH_NAME, $DATA_DIR, $MYSQL_NAME, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE, $WORKSPACE, $THREADS_LIST, $RESULTS_EMAIL
 function on_start(){
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL}"
@@ -326,10 +328,13 @@ function on_start(){
     print_parameters "" | mutt -s "$(uname -n): Perf benchmarking started for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
   fi
 
-  disable_address_randomization >> ${LOGS_CPU}
-  disable_turbo_boost > ${LOGS_CPU}
-  change_scaling_governor powersave >> ${LOGS_CPU}
-  disable_idle_states >> ${LOGS_CPU}
+  local LOG_SYS_INFO=$LOGS/sys_info_start.txt
+  save_system_info >> ${LOG_SYS_INFO}
+
+  disable_address_randomization >> ${LOG_SYS_INFO}
+  disable_turbo_boost >> ${LOG_SYS_INFO}
+  change_scaling_governor powersave >> ${LOG_SYS_INFO}
+  disable_idle_states >> ${LOG_SYS_INFO}
 
   trap on_exit EXIT KILL
 }
@@ -361,16 +366,17 @@ function on_exit(){
   pkill -f iostat
   killall -9 mysqld
 
-  echo "Restoring address randomization"
-  restore_address_randomization >> ${LOGS_CPU}
-  echo "Restoring turbo boost"
-  restore_turbo_boost >> ${LOGS_CPU}
-  echo "Restoring scaling governor"
-  restore_scaling_governor >> ${LOGS_CPU}
-  echo "Enabling idle states"
-  enable_idle_states >> ${LOGS_CPU}
+  local LOG_SYS_INFO=$LOGS/sys_info_end.txt
+  save_system_info >> ${LOG_SYS_INFO}
 
-  save_system_info
+  echo "Restoring address randomization"
+  restore_address_randomization >> ${LOG_SYS_INFO}
+  echo "Restoring turbo boost"
+  restore_turbo_boost >> ${LOG_SYS_INFO}
+  echo "Restoring scaling governor"
+  restore_scaling_governor >> ${LOG_SYS_INFO}
+  echo "Enabling idle states"
+  enable_idle_states >> ${LOG_SYS_INFO}
 
   local LOG_BASE_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_qps
   local LOG_BASE_DIFF=${LOGS}/${BENCH_ID}_${BENCH_NAME}_diff
@@ -639,7 +645,6 @@ export LOGS_AVG=${LOGS}/${BENCH_NAME}-avg
 export LOGS_STDDEV=${LOGS}/${BENCH_NAME}-stddev
 export LOGS_DIFF=${LOGS}/${BENCH_NAME}-diff
 export LOGS_QPS=${LOGS}/${BENCH_NAME}-qps
-LOGS_CPU=$LOGS/cpu-states.txt
 
 # check parameters
 if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
