@@ -21,7 +21,7 @@ function setup_git_repo() {
     if [ $# -lt 1 ]; then echo "Usage: setup_git_repo <REPO_DIR> [GIT_BRANCH] [GIT_REPO]"; return 1; fi
     local REPO_DIR=$1
     local GIT_BRANCH=$2
-    local GIT_REPO=${3:-https://github.com/percona/percona-server}
+    local GIT_REPO=$3
 
     if [ ! -d "${REPO_DIR}" ]; then
         git clone "${GIT_REPO}" "${REPO_DIR}"
@@ -146,12 +146,12 @@ function run_perf_tests() {
     done
 }
 
-SELECTED_CC=${SELECTED_CC:-gcc-10}
-SELECTED_CXX=${SELECTED_CXX:-g++-10}
+SELECTED_CC=${SELECTED_CC:-gcc-13}
+SELECTED_CXX=${SELECTED_CXX:-g++-13}
 ROOT_DIR=${ROOT_DIR:-/mnt/fast/auto-perf-test}
 export RESULTS_EMAIL=${RESULTS_EMAIL:-przemyslaw.skibinski@percona.com}
 
-PS_REPO_DIR=${PS_REPO_DIR:-$ROOT_DIR/percona-server-8.0}
+PS_REPO_DIR=${PS_REPO_DIR:-$ROOT_DIR/sources}
 PS_REPO_URL=${PS_REPO_URL:-https://github.com/percona/percona-server}
 PS_BRANCH=${PS_BRANCH:-8.0}
 PS_BUILD_DIR=${PS_BUILD_DIR:-$ROOT_DIR/$PS_BRANCH-rel-$SELECTED_CC}
