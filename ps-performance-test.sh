@@ -196,7 +196,7 @@ function print_system_info() {
 function print_parameters() {
   local ENDLINE=$1
   variables=("BENCH_NAME" "BUILD_PATH" "CONFIG_FILES" "INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS"
-             "WORKLOAD_WARMUP_TIME" "WORKSPACE" "CACHE_DIR" "BENCH_DIR" "BACKUP_DIR" "MYEXTRA" "SYSBENCH_EXTRA" "RESULTS_EMAIL" "WORKLOAD_SCRIPT")
+             "WORKLOAD_WARMUP_TIME" "WORKSPACE" "CACHE_DIR" "BENCH_DIR" "BACKUP_DIR" "MYEXTRA" "SYSBENCH_EXTRA" "SCALING_GOVERNOR" "RESULTS_EMAIL" "WORKLOAD_SCRIPT")
   for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
   echo "==========${ENDLINE}"
   for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
@@ -340,10 +340,13 @@ function on_start(){
   local LOG_SYS_INFO=$LOGS/sys_info_start.txt
   print_system_info >> ${LOG_SYS_INFO}
 
-  disable_address_randomization >> ${LOG_SYS_INFO}
-  disable_turbo_boost >> ${LOG_SYS_INFO}
-  change_scaling_governor powersave >> ${LOG_SYS_INFO}
-  disable_idle_states >> ${LOG_SYS_INFO}
+
+  if [[ ${SCALING_GOVERNOR} != "" ]]; then
+    disable_address_randomization >> ${LOG_SYS_INFO}
+    disable_turbo_boost >> ${LOG_SYS_INFO}
+    change_scaling_governor ${SCALING_GOVERNOR} >> ${LOG_SYS_INFO}
+    disable_idle_states >> ${LOG_SYS_INFO}
+  fi
 
   trap on_exit EXIT KILL
 }
@@ -378,14 +381,16 @@ function on_exit(){
   local LOG_SYS_INFO=$LOGS/sys_info_end.txt
   print_system_info >> ${LOG_SYS_INFO}
 
-  echo "Restoring address randomization"
-  restore_address_randomization >> ${LOG_SYS_INFO}
-  echo "Restoring turbo boost"
-  restore_turbo_boost >> ${LOG_SYS_INFO}
-  echo "Restoring scaling governor"
-  restore_scaling_governor >> ${LOG_SYS_INFO}
-  echo "Enabling idle states"
-  enable_idle_states >> ${LOG_SYS_INFO}
+  if [[ ${SCALING_GOVERNOR} != "" ]]; then
+    echo "Restoring address randomization"
+    restore_address_randomization >> ${LOG_SYS_INFO}
+    echo "Restoring turbo boost"
+    restore_turbo_boost >> ${LOG_SYS_INFO}
+    echo "Restoring scaling governor"
+    restore_scaling_governor >> ${LOG_SYS_INFO}
+    echo "Enabling idle states"
+    enable_idle_states >> ${LOG_SYS_INFO}
+  fi
 
   local LOG_BASE_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_qps
   local LOG_BASE_DIFF=${LOGS}/${BENCH_ID}_${BENCH_NAME}_diff
@@ -424,7 +429,7 @@ function on_exit(){
 
   if [[ ${SLACK_WEBHOOK_URL} != "" ]]; then
     echo "- Sending slack message"
-    SLACK_MESSAGE="${SUBJECT}\nScript executed in $TIME_HMS ($DURATION seconds)\nWORKLOAD_SCRIPT=${WORKLOAD_SCRIPT}\nMYEXTRA=${MYEXTRA}" ${SCRIPT_DIR}/publish_to_slack.py ${LOG_BASE_FULL_RESULTS}.csv ${LOG_BASE_DIFF}.csv ${LOG_BASE_STDDEV}.csv
+    SLACK_MESSAGE="${SUBJECT}\nScript executed in $TIME_HMS ($DURATION seconds)\nWORKLOAD_SCRIPT=${WORKLOAD_SCRIPT}\nMYEXTRA=${MYEXTRA}\nSCALING_GOVERNOR=${SCALING_GOVERNOR}" ${SCRIPT_DIR}/publish_to_slack.py ${LOG_BASE_FULL_RESULTS}.csv ${LOG_BASE_DIFF}.csv ${LOG_BASE_STDDEV}.csv
   fi
 
   echo "Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_FULL_RESULTS}.csv
@@ -619,7 +624,7 @@ function run_sysbench() {
       kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     done
 
-    local LOG_RESULTS_CACHE="${CACHE_DIR}/${BENCH_ID}_$(basename "${WORKLOAD_SCRIPT}" .txt)_${WORKLOAD_NAME}_${THREADS_LIST// /_}.csv"
+    local LOG_RESULTS_CACHE="${CACHE_DIR}/${BENCH_ID}_$(basename "${WORKLOAD_SCRIPT}" .txt)_${WORKLOAD_NAME}_${SCALING_GOVERNOR}_${THREADS_LIST// /_}.csv"
     local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}"
     local RESULTS_LINE="${BENCH_WITH_CONFIG}_qps"
     for number in "${result_set[@]}"; do RESULTS_LINE+=", ${number}"; done
