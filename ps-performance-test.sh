@@ -345,7 +345,9 @@ function on_start(){
     disable_turbo_boost >> ${LOG_SYS_INFO}2
     change_scaling_governor ${SCALING_GOVERNOR} >> ${LOG_SYS_INFO}2
     cat ${LOG_SYS_INFO}2 | tee -a ${LOG_SYS_INFO}; rm ${LOG_SYS_INFO}2
-    disable_idle_states >> ${LOG_SYS_INFO}
+    if [[ ${DISABLE_IDLE_STATES} == "yes" ]]; then
+      disable_idle_states >> ${LOG_SYS_INFO}
+    fi
   fi
 
   local LOGS_BUILD_INFO=${LOGS}/build_info.txt
@@ -394,7 +396,9 @@ function on_exit(){
     echo "Restoring scaling governor"
     restore_scaling_governor >> ${LOG_SYS_INFO}
     echo "Enabling idle states"
-    enable_idle_states >> ${LOG_SYS_INFO}
+    if [[ ${DISABLE_IDLE_STATES} == "yes" ]]; then
+      enable_idle_states >> ${LOG_SYS_INFO}
+    fi
   fi
 
   local LOG_BASE_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_qps
