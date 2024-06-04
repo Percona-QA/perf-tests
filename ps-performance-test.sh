@@ -340,13 +340,18 @@ function on_start(){
   local LOG_SYS_INFO=$LOGS/sys_info_start.txt
   print_system_info >> ${LOG_SYS_INFO}
 
-
   if [[ ${SCALING_GOVERNOR} != "" ]]; then
-    disable_address_randomization >> ${LOG_SYS_INFO}
-    disable_turbo_boost >> ${LOG_SYS_INFO}
-    change_scaling_governor ${SCALING_GOVERNOR} >> ${LOG_SYS_INFO}
+    disable_address_randomization > ${LOG_SYS_INFO}2
+    disable_turbo_boost >> ${LOG_SYS_INFO}2
+    change_scaling_governor ${SCALING_GOVERNOR} >> ${LOG_SYS_INFO}2
+    cat ${LOG_SYS_INFO}2 | tee -a ${LOG_SYS_INFO}; rm ${LOG_SYS_INFO}2
     disable_idle_states >> ${LOG_SYS_INFO}
   fi
+
+  local LOGS_BUILD_INFO=${LOGS}/build_info.txt
+  echo -e "Date: `date +'%d-%m-%Y %H:%M'`\nNode: $(uname -n)\nMySQL version: ${MYSQL_NAME}${MYSQL_VERSION} = ${MYSQL_VERSION_LONG}\n" | tee ${LOGS_BUILD_INFO}
+  print_parameters "" | tee -a ${LOGS_BUILD_INFO}
+  echo "=========="
 
   trap on_exit EXIT KILL
 }
@@ -659,7 +664,6 @@ export LOGS_AVG=${LOGS}/${BENCH_NAME}-avg
 export LOGS_STDDEV=${LOGS}/${BENCH_NAME}-stddev
 export LOGS_DIFF=${LOGS}/${BENCH_NAME}-diff
 export LOGS_QPS=${LOGS}/${BENCH_NAME}-qps
-LOGS_BUILD_INFO=${LOGS}/build_info.txt
 
 # check parameters
 if [ $# -lt 3 ]; then usage "ERROR: Too little parameters passed"; fi
@@ -672,9 +676,6 @@ cd $WORKSPACE
 
 process_workload_config_file "$WORKLOAD_SCRIPT"
 get_build_info
-echo -e "Date: `date +'%d-%m-%Y %H:%M'`\nNode: $(uname -n)\nMySQL version: ${MYSQL_NAME}${MYSQL_VERSION} = ${MYSQL_VERSION_LONG}\n" | tee ${LOGS_BUILD_INFO}
-print_parameters "" | tee -a ${LOGS_BUILD_INFO}
-echo "=========="
 
 export INNODB_CACHE=${INNODB_CACHE:-32G}
 export NUM_TABLES=${NUM_TABLES:-16}
