@@ -634,7 +634,7 @@ function run_sysbench() {
       kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     done
 
-    local LOG_RESULTS_CACHE="${CACHE_DIR}/${BENCH_ID}_$(basename "${WORKLOAD_SCRIPT}" .txt)_${WORKLOAD_NAME}_${SCALING_GOVERNOR}_${THREADS_LIST// /_}.csv"
+    local LOG_RESULTS_CACHE="${CACHE_DIR}/${BENCH_ID}_${CONFIG_BASE^^}_$(basename "${WORKLOAD_SCRIPT}" .txt)_${WORKLOAD_NAME}_${SCALING_GOVERNOR}_${THREADS_LIST// /_}.csv"
     local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}"
     local RESULTS_LINE="${BENCH_WITH_CONFIG}_qps"
     for number in "${result_set[@]}"; do RESULTS_LINE+=", ${number}"; done
