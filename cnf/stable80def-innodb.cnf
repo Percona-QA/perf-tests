@@ -1,0 +1,38 @@
+[mysqld]
+# binary log
+binlog_row_image=minimal
+loose-binlog_space_limit=4G
+
+# connections
+connect_timeout=120
+back_log=4K
+max_connections=4K
+max_prepared_stmt_count=4M
+
+# general
+table_open_cache=256K
+table_open_cache_instances=64
+
+# InnoDB
+innodb_open_files=4K
+innodb_redo_log_capacity=16G
+innodb_numa_interleave=1
+innodb_fast_shutdown=0
+innodb_flush_method=O_DIRECT
+innodb_adaptive_hash_index=OFF
+innodb_io_capacity=2000
+innodb_io_capacity_max=4000
+
+# Defaults from MySQL 8.0
+innodb_doublewrite_files=16
+innodb_doublewrite_pages=4
+innodb_page_cleaners=4
+innodb_parallel_read_threads=4
+innodb_read_io_threads=4
+innodb_log_buffer_size=16M
+innodb_use_fdatasync=OFF
+innodb_buffer_pool_instances=8
+innodb_change_buffering=all
+#temptable_max_ram=1G
+#temptable_max_mmap=1G
+#temptable_use_mmap=ON

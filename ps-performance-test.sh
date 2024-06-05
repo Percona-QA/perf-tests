@@ -184,6 +184,7 @@ function print_system_info() {
   echo -e "Date: `date +'%d-%m-%Y %H:%M'`\n`uname -a`\n$RELEASE\n"
   free -m; echo
   df -Th
+  mount | grep /mnt
   echo -e "\n$SYSTEM_LOAD\n$UPTIME_HOUR\n\nUSER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND"
   ps aux | sort -rn -k +3 | head
   sudo systemctl --type=service --state=running
