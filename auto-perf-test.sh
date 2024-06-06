@@ -135,7 +135,7 @@ function run_perf_tests() {
     export SYSBENCH_LUA=$SYSBENCH_REPO_DIR/src/lua
 
     # path to files from https://github.com/Percona-QA/perf-tests
-    CNFFILE_NAME=${CNFFILE_NAME:-stable-innodb.cnf}
+    CNFFILE_NAME=${CNFFILE_NAME:-stable8x-innodb.cnf}
     WORKLOAD_NAME=${WORKLOAD_NAME:-read_write.txt}
     export WORKLOAD_SCRIPT=${WORKLOAD_SCRIPT:-${PERFTEST_PATH}/workloads/${WORKLOAD_NAME}}
 
