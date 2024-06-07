@@ -16,9 +16,11 @@ table_open_cache_instances=64
 # InnoDB
 innodb_open_files=4K
 innodb_redo_log_capacity=16G
-innodb_numa_interleave=1
 innodb_fast_shutdown=0
+innodb_io_capacity=4000
+
+# Defaults from MySQL 8.4
+innodb_change_buffering=none
 innodb_flush_method=O_DIRECT
 innodb_adaptive_hash_index=OFF
-innodb_io_capacity=2000
-innodb_io_capacity_max=4000
+innodb_numa_interleave=1
