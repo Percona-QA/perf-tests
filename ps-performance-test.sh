@@ -377,6 +377,8 @@ function create_html_page() {
   cat $2
   echo "<BR>"
   cat $3
+  echo "<BR>"
+  cat $4
   echo "</body>"
   echo "</html>"
 }
@@ -428,6 +430,8 @@ function on_exit(){
   print_parameters "<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
   echo -e "<BR>QPS results:<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
   csv_to_html_table ${LOG_BASE_FULL_RESULTS}.csv >> ${LOG_BASE_FULL_RESULTS}.html
+  echo "Average QPS:<BR>" > ${LOG_BASE_AVG}.html
+  csv_to_html_table ${LOG_BASE_AVG}.csv >> ${LOG_BASE_AVG}.html
   echo "Difference in percentages to the average QPS:<BR>" > ${LOG_BASE_DIFF}.html
   csv_to_html_table ${LOG_BASE_DIFF}.csv "color" >> ${LOG_BASE_DIFF}.html
   echo "Standard deviation as a percentage of the average QPS:<BR>" > ${LOG_BASE_STDDEV}.html
@@ -443,7 +447,7 @@ function on_exit(){
   fi
 
   echo "Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_FULL_RESULTS}.csv
-  echo "-----" && cat ${LOG_BASE_FULL_RESULTS}.csv && echo "-----" && cat ${LOG_BASE_DIFF}.csv && echo "-----" && cat ${LOG_BASE_STDDEV}.csv && echo "-----"
+  echo "-----" && cat ${LOG_BASE_FULL_RESULTS}.csv && echo "-----" && cat ${LOG_BASE_AVG}.csv && echo "-----" && cat ${LOG_BASE_DIFF}.csv && echo "-----" && cat ${LOG_BASE_STDDEV}.csv && echo "-----"
 
   cd $WORKSPACE
   tar czvf ${tarFileName} ${BENCH_NAME} --force-local --transform "s+^${BENCH_NAME}++"
@@ -455,7 +459,7 @@ function on_exit(){
 
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
-    create_html_page ${LOG_BASE_FULL_RESULTS}.html ${LOG_BASE_DIFF}.html ${LOG_BASE_STDDEV}.html | mutt -s "${SUBJECT}" -e "set content_type=text/html" -a ${tarFileName} -- ${RESULTS_EMAIL}
+    create_html_page ${LOG_BASE_FULL_RESULTS}.html ${LOG_BASE_AVG}.html ${LOG_BASE_DIFF}.html ${LOG_BASE_STDDEV}.html | mutt -s "${SUBJECT}" -e "set content_type=text/html" -a ${tarFileName} -- ${RESULTS_EMAIL}
   fi
 
   rm -rf ${DATA_DIR}
