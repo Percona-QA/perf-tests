@@ -455,6 +455,7 @@ function on_exit(){
   if [[ ${BACKUP_DIR} != "" ]]; then
     echo "- Copying ${tarFileName} to ${BACKUP_DIR}"
     cp ${tarFileName} ${BACKUP_DIR}/
+    cp ${LOGS}/${BENCH_ID}_${BENCH_NAME}* ${BACKUP_DIR}/
   fi
 
   if [[ ${RESULTS_EMAIL} != "" ]]; then
