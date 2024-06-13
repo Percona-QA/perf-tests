@@ -413,7 +413,7 @@ function on_exit(){
   local TIME_HMS=$(printf "%02d:%02d:%02d" $((DURATION / 3600)) $(((DURATION % 3600) / 60)) $((DURATION % 60)))
 
   HEADER="WORKLOAD"
-  for num_threads in ${THREADS_LIST}; do HEADER+=", ${num_threads} THREADS"; done
+  for num_threads in ${THREADS_LIST}; do HEADER+=", ${num_threads} THDS"; done
 
   echo "Create .csv files"
   echo "${HEADER}" > ${LOG_BASE_FULL_RESULTS}.csv

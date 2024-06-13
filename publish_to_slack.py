@@ -15,7 +15,8 @@ HEADERS = ["QPS results:", "Difference in percentages to the average QPS:", "Sta
 
 def csv_to_markdown(file_path):
     df = pd.read_csv(file_path)
-    markdown = df.to_markdown(index=False)
+    df = df.applymap(lambda x: round(x) if isinstance(x, (int, float)) and x > 1000 else x)
+    markdown = df.to_markdown(index=False, tablefmt='presto')
     return markdown
 
 def send_to_slack(webhook_url, payload):
