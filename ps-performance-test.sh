@@ -388,6 +388,8 @@ function on_exit(){
   pkill -f iostat
   killall -9 mysqld
 
+  rm -rf ${DATA_DIR}
+
   local LOG_SYS_INFO=$LOGS/sys_info_end.txt
   print_system_info >> ${LOG_SYS_INFO}
 
@@ -463,8 +465,6 @@ function on_exit(){
     echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
     create_html_page ${LOG_BASE_FULL_RESULTS}.html ${LOG_BASE_AVG}.html ${LOG_BASE_DIFF}.html ${LOG_BASE_STDDEV}.html | mutt -s "${SUBJECT}" -e "set content_type=text/html" -a ${tarFileName} -- ${RESULTS_EMAIL}
   fi
-
-  rm -rf ${DATA_DIR}
 }
 
 function drop_caches(){

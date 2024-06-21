@@ -123,8 +123,6 @@ function run_perf_tests() {
     export DATASIZE=${DATASIZE:-10M}
     export RUN_TIME_SECONDS=${RUN_TIME_SECONDS:-300}
     export THREADS_LIST=${THREADS_LIST:-"8 16 32 64"}
-    # additional mysqld parameters
-    export MYEXTRA=${MYEXTRA:-"--sync_binlog=1024 --innodb_flush_log_at_trx_commit=0"}
 
     # path to template databases
     export TEMPLATE_PATH=${TEMPLATE_PATH:-$MAIN_DIR/template_datadir}
