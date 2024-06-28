@@ -553,9 +553,11 @@ function prepare_datadir() {
     echo "Data directory in ${TEMPLATE_DIR} created"
     shutdown_mysqld
   fi
-  echo "Copying data directory from ${TEMPLATE_DIR} to ${DATA_DIR}"
-  rm -rf ${DATA_DIR}
-  (time cp -r ${TEMPLATE_DIR} ${DATA_DIR}) 2>&1
+  if [[ ${RUN_TIME_SECONDS} > 0 ]]; then
+    echo "Copying data directory from ${TEMPLATE_DIR} to ${DATA_DIR}"
+    rm -rf ${DATA_DIR}
+    (time cp -r ${TEMPLATE_DIR} ${DATA_DIR}) 2>&1
+  fi
 }
 
 function sysbench_warmup() {
@@ -592,6 +594,7 @@ function run_sysbench() {
       sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log
     fi
 
+    if [[ ${RUN_TIME_SECONDS} > 0 ]]; then
     for num_threads in ${THREADS_LIST}; do
       echo "Testing $WORKLOAD_NAME with $num_threads threads"
       LOG_NAME_RESULTS=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}_results_qps.csv
@@ -652,6 +655,7 @@ function run_sysbench() {
     echo "${BENCH_WITH_CONFIG}_stddev$(standard_deviation_percent "${LOG_RESULTS_CACHE}")" >> ${LOGS_STDDEV}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_stddev.csv
     echo "${BENCH_WITH_CONFIG}_avg$(average "${LOG_RESULTS_CACHE}")" >> ${LOGS_AVG}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_avg.csv
     unset result_set
+    fi
   done
 }
 
