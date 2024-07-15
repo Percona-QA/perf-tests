@@ -30,22 +30,12 @@ function setup_git_repo() {
     if [ ! -d "${REPO_DIR}" ]; then return 1; fi
 
     pushd $REPO_DIR
-    if [ -n "${GIT_REPO}" ]; then
-        git remote set-url origin "${GIT_REPO}"
-        git fetch --all
-    fi
+    git remote set-url origin "${GIT_REPO}"
+    git fetch --all
 
     git reset --hard
     git clean -xdf
-
-    if [ -n "${GIT_BRANCH}" ]; then
-        git checkout "${GIT_BRANCH}"
-    fi
-    if [ -n "${GIT_REPO}" -a -n "${GIT_BRANCH}" ]; then
-        git pull origin ${GIT_BRANCH}
-    fi
-
-    # update to the pinned revisions
+    git checkout "origin/${GIT_BRANCH}"
     git submodule update --init
     popd
 }
@@ -58,6 +48,7 @@ function call_cmake() {
     local BOOST_DIR="../_deps"
     echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
 
+    rm -rf $BUILD_DIR
     mkdir -p $BUILD_DIR
     pushd $BUILD_DIR
     OPTIONS_DEBUG="-DCMAKE_C_FLAGS_DEBUG=-g1 -DCMAKE_CXX_FLAGS_DEBUG=-g1"
