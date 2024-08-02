@@ -8,7 +8,7 @@
 
 function install_deps_debian() {
     export DEBIAN_FRONTEND=noninteractive
-    local PACKAGES_TO_INSTALL="mutt ca-certificates git pkg-config dpkg-dev make cmake ccache bison python-is-python3 python3-pip linux-tools-$(uname -r)"
+    local PACKAGES_TO_INSTALL="g++ dstat mutt ca-certificates git pkg-config dpkg-dev make cmake ccache bison python-is-python3 python3-pip linux-tools-$(uname -r)"
     local PACKAGES_LIBS="libtirpc-dev libgflags-dev libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev libedit-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
     local PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
     command -v sendmail >/dev/null 2>&1 || { PACKAGES_TO_INSTALL+=" sendmail"; }
