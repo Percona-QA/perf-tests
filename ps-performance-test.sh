@@ -557,6 +557,7 @@ function prepare_datadir() {
     echo "Copying data directory from ${TEMPLATE_DIR} to ${DATA_DIR}"
     rm -rf ${DATA_DIR}
     (time cp -r ${TEMPLATE_DIR} ${DATA_DIR}) 2>&1
+    print_database_size
   fi
 }
 
