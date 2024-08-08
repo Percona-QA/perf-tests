@@ -642,6 +642,7 @@ function run_sysbench() {
       fi
       shutdown_mysqld | tee -a $LOG_NAME
       kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
+      sync
     done
 
     local LOG_RESULTS_CACHE="${CACHE_DIR}/${BENCH_ID}_${CONFIG_BASE^^}_$(basename "${WORKLOAD_SCRIPT}" .txt)_${WORKLOAD_NAME}_${SCALING_GOVERNOR}_${THREADS_LIST// /_}.csv"
