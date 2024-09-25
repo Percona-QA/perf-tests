@@ -35,7 +35,7 @@ function setup_git_repo() {
 
     git reset --hard
     git clean -xdf
-    git checkout "origin/${GIT_BRANCH}" || git checkout "tags/${GIT_BRANCH}"
+    git checkout "origin/${GIT_BRANCH}" || git checkout "tags/${GIT_BRANCH}" || git checkout "${GIT_BRANCH}"
     git submodule update --init
     popd
 }
