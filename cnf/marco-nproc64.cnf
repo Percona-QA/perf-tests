@@ -1,0 +1,109 @@
+[mysqld]
+# binary log
+binlog_row_image=minimal
+loose-binlog_space_limit=4G
+
+# connections
+connect_timeout=120
+back_log=4K
+max_connections=4K
+max_prepared_stmt_count=4M
+
+# general
+table_open_cache=256K
+table_open_cache_instances=64
+
+# InnoDB
+innodb_open_files=4K
+innodb_redo_log_capacity=16G
+innodb_fast_shutdown=0
+innodb_io_capacity=4000
+
+# Defaults from MySQL 8.0
+innodb_doublewrite_files=16
+innodb_doublewrite_pages=4
+innodb_page_cleaners=4
+innodb_parallel_read_threads=4
+innodb_read_io_threads=4
+innodb_log_buffer_size=16M
+innodb_use_fdatasync=OFF
+innodb_buffer_pool_instances=8
+#temptable_max_ram=1G
+#temptable_max_mmap=1G
+#temptable_use_mmap=ON
+
+# Defaults from MySQL 8.4
+innodb_change_buffering=none
+innodb_flush_method=O_DIRECT
+innodb_adaptive_hash_index=OFF
+innodb_numa_interleave=1
+
+# Non-ACID compliant options but improve stability of results
+#sync_binlog=1024
+#innodb_flush_log_at_trx_commit=0
+
+
+####################
+## Cache
+####################
+table_definition_cache                                     = 4096
+tablespace-definition-cache                                 =256
+
+table_open_cache                                           = 4096
+table-open-cache-instances                                  =4
+
+thread_cache_size                                          = 1024
+thread_stack                                               = 256K
+thread_handling                                            = one-thread-per-connection
+
+#####################
+#Per connection
+#####################
+binlog_cache_size      = 1M
+binlog_stmt_cache_size = 1M
+join_buffer_size       = 32M
+max_heap_table_size    = 16M
+read_buffer_size       = 1M
+read_rnd_buffer_size   = 16M
+sort_buffer_size       = 1M
+tmp_table_size         = 16M
+
+#####################
+#InnoDB settings
+#####################
+innodb_autoinc_lock_mode            =2
+innodb_buffer_pool_in_core_file     =OFF
+innodb_buffer_pool_instances        = 40 #innodb_buffer_pool_size / innodb_buffer_pool_chunk_size (134217728)) / 2)
+#innodb_buffer_pool_size            =10G
+innodb_doublewrite_files            =2 #By default, two doublewrite files are created for each buffer pool instance.
+innodb_doublewrite_pages            =128
+innodb_use_fdatasync                =1
+innodb_io_capacity                  =10000
+innodb_io_capacity_max              = 20000 #(innodb_io_capacity * 2)
+innodb_log_buffer_size              =64M
+innodb_monitor_enable               =all
+innodb_page_cleaners                = 40 #number of BP
+innodb_parallel_read_threads        = 8  #logical processors  /8
+innodb_purge_threads                = 4 # if more than 16 core then 4
+innodb_read_io_threads              = 32 #logical processors / 2 (min 4)
+innodb_redo_log_capacity            = 3355443200
+innodb_sync_array_size              = 12
+innodb_write_io_threads             = 32
+
+#####################
+#Replication + binlog settings
+#####################
+skip-log-bin
+
+
+#####################
+#Slow Log
+#####################
+long_query_time=240
+slow-query-log = 0
+
+
+#####################
+# General Log DO NOT activate unless very good reason
+#####################
+#general-log
