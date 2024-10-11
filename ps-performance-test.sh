@@ -583,6 +583,7 @@ function run_sysbench() {
   for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
     local WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
     local WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
+    local SYSBENCH_RUN_TIME=$RUN_TIME_SECONDS
 
     echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
     if [[ $num -eq 0 || ${PREV_WORKLOAD_NAME:0:3} == "WR_" ]]; then
@@ -590,6 +591,9 @@ function run_sysbench() {
       prepare_datadir | tee ${LOGS_CONFIG}/prepare_datadir_${WORKLOAD_NAME}.log
     fi
     PREV_WORKLOAD_NAME=${WORKLOAD_NAME}
+    if [[ ${WORKLOAD_NAME:0:3} != "WR_" ]]; then
+        SYSBENCH_RUN_TIME=$((RUN_TIME_SECONDS / 2)) # optimization: spend only half of given time for reads
+    fi
 
     if [[ ${WORKLOAD_WARMUP_TIME} > 0 ]]; then
       sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log
@@ -597,7 +601,7 @@ function run_sysbench() {
 
     if [[ ${RUN_TIME_SECONDS} > 0 ]]; then
     for num_threads in ${THREADS_LIST}; do
-      echo "Testing $WORKLOAD_NAME with $num_threads threads"
+      echo "Testing $WORKLOAD_NAME with $num_threads threads for $SYSBENCH_RUN_TIME seconds"
       LOG_NAME_RESULTS=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}_results_qps.csv
       LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}-$num_threads.txt
       LOG_NAME_MYSQL=${LOG_NAME}.mysql
@@ -626,7 +630,7 @@ function run_sysbench() {
           fi
       fi
       pushd $SYSBENCH_LUA
-      local ALL_SYSBENCH_OPTIONS="$WORKLOAD_PARAMETERS --threads=$num_threads --time=$RUN_TIME_SECONDS --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
+      local ALL_SYSBENCH_OPTIONS="$WORKLOAD_PARAMETERS --threads=$num_threads --time=$SYSBENCH_RUN_TIME --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
       echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
       (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $ALL_SYSBENCH_OPTIONS) 2>&1 | tee -a $LOG_NAME
       popd
