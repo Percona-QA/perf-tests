@@ -13,19 +13,17 @@
 #  --sum_ranges=N                  Number of SELECT SUM() queries per transaction [1]
 
 # reads
-SCAN_2                  = "oltp_scan.lua --time=0 --events=2"
-SCAN_8                  = "oltp_scan.lua --time=0 --events=8"
-SCAN_16                 = "oltp_scan.lua --time=0 --events=16"
+#SCAN_8                  = "oltp_scan.lua --time=0 --events=8"
 
 #random-points 10 100 1000 (oltp_inlist_select) --random_points=10/100/1000 (default=10)
-SELECT_RANDOM_POINTS_4  = "oltp_inlist_select.lua --random_points=4"
-SELECT_RANDOM_POINTS_8  = "oltp_inlist_select.lua --random_points=8"
-SELECT_RANDOM_POINTS_16 = "oltp_inlist_select.lua --random_points=16"
-SELECT_RANDOM_POINTS_32 = "oltp_inlist_select.lua --random_points=32"
-SELECT_HOT_POINTS_4     = "oltp_inlist_select.lua --random_points=4 --hot-points=true"
-SELECT_HOT_POINTS_8     = "oltp_inlist_select.lua --random_points=8 --hot-points=true"
-SELECT_HOT_POINTS_16    = "oltp_inlist_select.lua --random_points=16 --hot-points=true"
-SELECT_HOT_POINTS_32    = "oltp_inlist_select.lua --random_points=32 --hot-points=true"
+SELECT_RANDOM_POINTS_1   = "oltp_inlist_select.lua --random_points=1"
+SELECT_RANDOM_POINTS_8   = "oltp_inlist_select.lua --random_points=8"
+SELECT_RANDOM_POINTS_32  = "oltp_inlist_select.lua --random_points=32"
+SELECT_RANDOM_POINTS_128 = "oltp_inlist_select.lua --random_points=128"
+SELECT_HOT_POINTS_1      = "oltp_inlist_select.lua --random_points=1 --hot-points=true"
+SELECT_HOT_POINTS_8      = "oltp_inlist_select.lua --random_points=8 --hot-points=true"
+SELECT_HOT_POINTS_32     = "oltp_inlist_select.lua --random_points=32 --hot-points=true"
+SELECT_HOT_POINTS_128    = "oltp_inlist_select.lua --random_points=128 --hot-points=true"
 
 #read-only 10 100 1000 10000 (prepare_simple_ranges prepare_sum_ranges prepare_order_ranges prepare_order_ranges) --range_size=10/100/1000/10000 (default=100)
 #read-only_count 1 10 100 1000 (oltp_read_only_count.lua) --count_ranges=1 --range_size=1/10/100/1000 (default=100)
@@ -46,11 +44,11 @@ COUNT_RANGES_100     = "oltp_read_only_count.lua --skip-trx=on --range_size=100"
 COUNT_RANGES_1000    = "oltp_read_only_count.lua --skip-trx=on --range_size=1000"
 
 # writes (write workloads should start with the "WR_" prefix to reset the database to its original state after writes have been made)
-WR_INLIST_UPDATE_4          = "oltp_inlist_update.lua --random_points=4"
-WR_INLIST_UPDATE_8          = "oltp_inlist_update.lua --random_points=8"
-WR_INLIST_UPDATE_16         = "oltp_inlist_update.lua --random_points=16"
-WR_INLIST_UPDATE_32         = "oltp_inlist_update.lua --random_points=32"
-WR_INLIST_UPDATE_HOTSPOT_4  = "oltp_inlist_update.lua --random_points=4 --hot_points=true"
-WR_INLIST_UPDATE_HOTSPOT_8  = "oltp_inlist_update.lua --random_points=8 --hot_points=true"
-WR_INLIST_UPDATE_HOTSPOT_16 = "oltp_inlist_update.lua --random_points=16 --hot_points=true"
-WR_INLIST_UPDATE_HOTSPOT_32 = "oltp_inlist_update.lua --random_points=32 --hot_points=true"
+WR_INLIST_UPDATE_1              = "oltp_inlist_update.lua --random_points=1"
+WR_INLIST_UPDATE_8              = "oltp_inlist_update.lua --random_points=8"
+WR_INLIST_UPDATE_32             = "oltp_inlist_update.lua --random_points=32"
+WR_INLIST_UPDATE_128            = "oltp_inlist_update.lua --random_points=128"
+WR_INLIST_UPDATE_HOT_POINTS_1   = "oltp_inlist_update.lua --random_points=1 --hot_points=true"
+WR_INLIST_UPDATE_HOT_POINTS_8   = "oltp_inlist_update.lua --random_points=8 --hot_points=true"
+WR_INLIST_UPDATE_HOT_POINTS_32  = "oltp_inlist_update.lua --random_points=32 --hot_points=true"
+WR_INLIST_UPDATE_HOT_POINTS_128 = "oltp_inlist_update.lua --random_points=128 --hot_points=true"
