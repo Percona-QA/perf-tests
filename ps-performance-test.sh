@@ -197,7 +197,7 @@ function print_system_info() {
 function print_parameters() {
   local ENDLINE=$1
   variables=("BENCH_NAME" "BUILD_PATH" "CONFIG_FILES" "INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS"
-             "WORKLOAD_WARMUP_TIME" "WORKSPACE" "CACHE_DIR" "BENCH_DIR" "BACKUP_DIR" "MYEXTRA" "SYSBENCH_EXTRA" "SCALING_GOVERNOR" "RESULTS_EMAIL" "WORKLOAD_SCRIPT")
+             "WORKLOAD_WARMUP_TIME" "WORKSPACE" "CACHE_DIR" "BENCH_DIR" "BACKUP_DIR" "CXXFLAGS" "MYEXTRA" "SYSBENCH_EXTRA" "SCALING_GOVERNOR" "RESULTS_EMAIL" "WORKLOAD_SCRIPT")
   for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
   echo "==========${ENDLINE}"
   for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
@@ -335,7 +335,7 @@ function on_start(){
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL}"
     local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-    print_parameters "" | mutt -s "$(uname -n): Perf benchmarking started for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
+    print_parameters "" | mutt -s "Start $(basename "${WORKLOAD_SCRIPT}" .txt) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
   fi
 
   local LOG_SYS_INFO=$LOGS/sys_info_start.txt
@@ -441,7 +441,7 @@ function on_exit(){
 
   local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
   local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-  local SUBJECT="$(uname -n): Perf benchmarking finished for ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
+  local SUBJECT="Finish $(basename "${WORKLOAD_SCRIPT}" .txt) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
 
   if [[ ${SLACK_WEBHOOK_URL} != "" ]]; then
     echo "- Sending slack message"
