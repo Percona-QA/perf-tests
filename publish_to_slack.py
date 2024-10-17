@@ -26,6 +26,23 @@ def send_to_slack(webhook_url, payload):
     else:
         print("Published successfully to Slack.")
 
+def get_prefix_ending_at_line(content, max_length):
+    # Return the longest prefix of content that ends at a line break and is smaller or equal to max_length.
+    if len(content) == 0:
+        return ""
+
+    # Check if the entire content is within the limit
+    if len(content) <= max_length:
+        return content
+
+    # Find the last newline character within the limit
+    last_newline = content.rfind('\n', 0, max_length)
+
+    if last_newline == -1:  # No newline found
+        return content[:max_length]
+
+    return content[:last_newline].strip()
+
 def publish_to_slack(webhook_url, message, files):
     if message:
         payload = {
@@ -36,11 +53,23 @@ def publish_to_slack(webhook_url, message, files):
     # Send each file as a separate message
     for file_path, header in zip(files, HEADERS):
         markdown_content = csv_to_markdown(file_path)
-        code_block = "{}```{}```".format(header, markdown_content)
-        payload = {
-            "text": code_block
-        }
-        send_to_slack(webhook_url, payload)
+        code_block = "{}```{}".format(header, markdown_content)
+
+        # Split the message using the get_prefix_ending_at_line function
+        while code_block:
+            chunk = get_prefix_ending_at_line(code_block, max_length=4000-3)
+            if not chunk:
+                break  # Break if there's nothing left to send
+            payload = {
+                "text": chunk + "```"
+            }
+            send_to_slack(webhook_url, payload)
+
+            if len(code_block) == len(chunk):
+                break  # Break if there's nothing left to send
+            # Remove the sent chunk from code_block
+            code_block = code_block[len(chunk):]
+            code_block= "```" + code_block
 
 if __name__ == "__main__":
     webhook_url = os.getenv("SLACK_WEBHOOK_URL")
