@@ -649,11 +649,13 @@ function run_sysbench() {
       sync
     done
 
-    local LOG_RESULTS_CACHE="${CACHE_DIR}/${BENCH_ID}_${CONFIG_BASE^^}_$(basename "${WORKLOAD_SCRIPT}" .txt)_${WORKLOAD_NAME}_${SCALING_GOVERNOR}_${THREADS_LIST// /_}.csv"
+    local LOG_RESULTS_PATH="${CACHE_DIR}/${BENCH_ID}_${CONFIG_BASE^^}_$(basename "${WORKLOAD_SCRIPT}" .txt)"
+    local LOG_RESULTS_CACHE="${LOG_RESULTS_PATH}/${WORKLOAD_NAME}_${SCALING_GOVERNOR}_${THREADS_LIST// /_}.csv"
     local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}"
     local RESULTS_LINE="${BENCH_WITH_CONFIG}_qps"
     for number in "${result_set[@]}"; do RESULTS_LINE+=", ${number}"; done
 
+    mkdir -p $LOG_RESULTS_PATH
     echo "${RESULTS_LINE}" >> ${LOG_NAME_RESULTS}
     cat ${LOG_NAME_RESULTS} >> ${LOG_RESULTS_CACHE}
     cat ${LOG_NAME_RESULTS} >> ${LOGS_QPS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_qps.csv
