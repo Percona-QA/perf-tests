@@ -335,7 +335,7 @@ function on_start(){
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL}"
     local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-    print_parameters "" | mutt -s "Start $(basename "${WORKLOAD_SCRIPT}" .txt) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
+    print_parameters "" | mutt -s "Start $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_SCRIPT}" .txt) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
   fi
 
   local LOG_SYS_INFO=$LOGS/sys_info_start.txt
@@ -441,7 +441,7 @@ function on_exit(){
 
   local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
   local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-  local SUBJECT="Finish $(basename "${WORKLOAD_SCRIPT}" .txt) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
+  local SUBJECT="Done $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_SCRIPT}" .txt) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
 
   if [[ ${SLACK_WEBHOOK_URL} != "" ]]; then
     echo "- Sending slack message"
@@ -671,6 +671,7 @@ function run_sysbench() {
 #**********************************************************************************************
 if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
   command -v cpupower >/dev/null 2>&1 || { echo >&2 "cpupower is not installed. Aborting."; exit 1; }
+  [[ $(cpupower 2>&1) == *"WARNING: cpupower not found for kernel"* ]] && { echo >&2 "Error: cpupower is installed but not available for the current kernel."; exit 1; }
   command -v dstat >/dev/null 2>&1 || { echo >&2 "dstat is not installed. Aborting."; exit 1; }
   command -v iostat >/dev/null 2>&1 || { echo >&2 "iostat is not installed. Aborting."; exit 1; }
   dstat -t -v --nocolor --output dstat.csv 1 1 >/dev/null 2>&1 || DSTAT_OUTPUT_NOT_SUPPORTED=1
