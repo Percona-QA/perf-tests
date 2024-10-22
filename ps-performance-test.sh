@@ -38,7 +38,8 @@ export EVENTS_MULT=${EVENTS_MULT:-1}
 export PS_START_TIMEOUT=${PS_START_TIMEOUT:-180}
 WORKLOAD_WARMUP_TIME=${WORKLOAD_WARMUP_TIME:-0}
 export WARMUP_TIME_SECONDS=${WARMUP_TIME_SECONDS:-0}
-export RUN_TIME_SECONDS=${RUN_TIME_SECONDS:-600}
+export WRITES_TIME_SECONDS=${WRITES_TIME_SECONDS:-${RUN_TIME_SECONDS:-600}}
+export READS_TIME_SECONDS=${READS_TIME_SECONDS:-$((WRITES_TIME_SECONDS / 2))} # optimization: spend only half of given time for reads
 export REPORT_INTERVAL=10
 export IOSTAT_INTERVAL=10
 export DSTAT_INTERVAL=10
@@ -196,7 +197,7 @@ function print_system_info() {
 
 function print_parameters() {
   local ENDLINE=$1
-  variables=("BENCH_NAME" "BUILD_PATH" "CONFIG_FILES" "INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "RUN_TIME_SECONDS" "WARMUP_TIME_SECONDS"
+  variables=("BENCH_NAME" "BUILD_PATH" "CONFIG_FILES" "INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "WRITES_TIME_SECONDS" "READS_TIME_SECONDS" "WARMUP_TIME_SECONDS"
              "WORKLOAD_WARMUP_TIME" "WORKSPACE" "CACHE_DIR" "BENCH_DIR" "BACKUP_DIR" "CXXFLAGS" "MYEXTRA" "SYSBENCH_EXTRA" "SCALING_GOVERNOR" "RESULTS_EMAIL" "WORKLOAD_SCRIPT")
   for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
   echo "==========${ENDLINE}"
@@ -553,7 +554,7 @@ function prepare_datadir() {
     echo "Data directory in ${TEMPLATE_DIR} created"
     shutdown_mysqld
   fi
-  if [[ ${RUN_TIME_SECONDS} > 0 ]]; then
+  if [[ ${WRITES_TIME_SECONDS} > 0 ]]; then
     echo "Copying data directory from ${TEMPLATE_DIR} to ${DATA_DIR}"
     rm -rf ${DATA_DIR}
     (time cp -r ${TEMPLATE_DIR} ${DATA_DIR}) 2>&1
@@ -583,7 +584,7 @@ function run_sysbench() {
   for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
     local WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
     local WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
-    local SYSBENCH_RUN_TIME=$RUN_TIME_SECONDS
+    local SYSBENCH_RUN_TIME=$WRITES_TIME_SECONDS
 
     echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
     if [[ $num -eq 0 || ${PREV_WORKLOAD_NAME:0:3} == "WR_" ]]; then
@@ -592,14 +593,14 @@ function run_sysbench() {
     fi
     PREV_WORKLOAD_NAME=${WORKLOAD_NAME}
     if [[ ${WORKLOAD_NAME:0:3} != "WR_" ]]; then
-        SYSBENCH_RUN_TIME=$((RUN_TIME_SECONDS / 2)) # optimization: spend only half of given time for reads
+        SYSBENCH_RUN_TIME=$READS_TIME_SECONDS
     fi
 
     if [[ ${WORKLOAD_WARMUP_TIME} > 0 ]]; then
       sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log
     fi
 
-    if [[ ${RUN_TIME_SECONDS} > 0 ]]; then
+    if [[ ${SYSBENCH_RUN_TIME} > 0 ]]; then
     for num_threads in ${THREADS_LIST}; do
       echo "Testing $WORKLOAD_NAME with $num_threads threads for $SYSBENCH_RUN_TIME seconds"
       LOG_NAME_RESULTS=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}_results_qps.csv
@@ -704,7 +705,7 @@ get_build_info
 export INNODB_CACHE=${INNODB_CACHE:-32G}
 export NUM_TABLES=${NUM_TABLES:-16}
 export DATASIZE=${DATASIZE:-10M}
-export BENCH_ID=$(uname -n)_${MYSQL_NAME}${MYSQL_VERSION}_${RUN_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+export BENCH_ID=$(uname -n)_${MYSQL_NAME}${MYSQL_VERSION}_${WRITES_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
 
 on_start
 
