@@ -2,7 +2,7 @@
 # set -x
 
 #**********************************************************************************************
-# PS performance benchmark scripts
+# Percona Database Benchmark scripts
 # Sysbench suite will run performance tests
 #**********************************************************************************************
 
@@ -11,15 +11,21 @@ export BENCH_NAME=$1
 export BUILD_PATH=$2
 export CONFIG_FILES="$3"
 
+# directories
+export WORKSPACE=${WORKSPACE:-${PWD}}
+export TEMPLATE_PATH=${TEMPLATE_PATH:-${WORKSPACE}/template_datadir}
+export CACHE_DIR=${CACHE_DIR:-${WORKSPACE}/results_cache}
+export BENCH_DIR=${BENCH_DIR:-${WORKSPACE}}
+export DATA_DIR=${DATA_DIR:-${WORKSPACE}}
+BENCH_DIR=${BENCH_DIR}/${BENCH_NAME}
+DATA_DIR=${DATA_DIR}/${BENCH_NAME}-datadir
+SCRIPT_DIR=$(cd $(dirname $0) && pwd)
+
 # generic variables
 export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
-export WORKSPACE=${WORKSPACE:-${PWD}}
-export TEMPLATE_PATH=${TEMPLATE_PATH:-${WORKSPACE}/template_datadir}
-export CACHE_DIR=${CACHE_DIR:-$WORKSPACE/results_cache}
 export BENCHMARK_LOGGING=${BENCHMARK_LOGGING:-Y}
 export SMART_DEVICE=${SMART_DEVICE:-/dev/nvme0n1}
-SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 export WORKLOAD_SCRIPT=${WORKLOAD_SCRIPT:-$SCRIPT_DIR/workloads/read_write.txt}
 
 # sysbench variables
@@ -170,7 +176,7 @@ function process_workload_config_file() {
 function print_parameters() {
   local ENDLINE=$1
   variables=("BENCH_NAME" "BUILD_PATH" "CONFIG_FILES" "INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "WRITES_TIME_SECONDS" "READS_TIME_SECONDS" "WARMUP_TIME_SECONDS"
-             "WORKLOAD_WARMUP_TIME" "WORKSPACE" "CACHE_DIR" "BENCH_DIR" "BACKUP_DIR" "CXXFLAGS" "MYEXTRA" "SYSBENCH_EXTRA" "SCALING_GOVERNOR" "RESULTS_EMAIL" "WORKLOAD_SCRIPT")
+             "WORKLOAD_WARMUP_TIME" "WORKSPACE" "TEMPLATE_PATH" "CACHE_DIR" "BENCH_DIR" "DATA_DIR" "BACKUP_DIR" "CXXFLAGS" "MYEXTRA" "SYSBENCH_EXTRA" "SCALING_GOVERNOR" "RESULTS_EMAIL" "WORKLOAD_SCRIPT")
   for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
   echo "==========${ENDLINE}"
   for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
@@ -688,8 +694,6 @@ if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
 fi
 
 export START_TIME=$(date +%s)
-export BENCH_DIR=$WORKSPACE/$BENCH_NAME
-export DATA_DIR=$BENCH_DIR-datadir
 export LOGS=$BENCH_DIR
 export LOGS_AVG=${LOGS}/${BENCH_NAME}-avg
 export LOGS_STDDEV=${LOGS}/${BENCH_NAME}-stddev
