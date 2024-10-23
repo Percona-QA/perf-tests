@@ -13,7 +13,4 @@
 #  --sum_ranges=N                  Number of SELECT SUM() queries per transaction [1]
 
 # writes (write workloads should start with the "WR_" prefix to reset the database to its original state after writes have been made)
-WR_INLIST_UPDATE_100         = "oltp_inlist_update.lua --skip_trx=on --random_points=100 --hot_points=false"
-WR_INLIST_UPDATE_HOTSPOT_100 = "oltp_inlist_update.lua --skip_trx=on --random_points=100 --hot_points=true"
-WR_INLIST_UPDATE             = "oltp_inlist_update.lua --hot_points=false"
-WR_INLIST_UPDATE_HOTSPOT     = "oltp_inlist_update.lua --hot_points=true"
+WR_INLIST_UPDATE_128            = "oltp_inlist_update.lua --random_points=128"
