@@ -167,6 +167,18 @@ function process_workload_config_file() {
   done < "$filename"
 }
 
+function print_parameters() {
+  local ENDLINE=$1
+  variables=("BENCH_NAME" "BUILD_PATH" "CONFIG_FILES" "INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "WRITES_TIME_SECONDS" "READS_TIME_SECONDS" "WARMUP_TIME_SECONDS"
+             "WORKLOAD_WARMUP_TIME" "WORKSPACE" "CACHE_DIR" "BENCH_DIR" "BACKUP_DIR" "CXXFLAGS" "MYEXTRA" "SYSBENCH_EXTRA" "SCALING_GOVERNOR" "RESULTS_EMAIL" "WORKLOAD_SCRIPT")
+  for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
+  echo "==========${ENDLINE}"
+  for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
+    WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[i]})
+    echo "${WORKLOAD_NAMES[i]}=${WORKLOAD_PARAMETERS}${ENDLINE}"
+  done
+}
+
 function print_system_info() {
   local VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
   local UPTIME_HOUR=`uptime -p`
@@ -194,18 +206,6 @@ function print_system_info() {
   sysctl -a 2>/dev/null | grep "\bvm."
   echo "===== nproc=$(nproc --all)"
   cat /proc/cpuinfo
-}
-
-function print_parameters() {
-  local ENDLINE=$1
-  variables=("BENCH_NAME" "BUILD_PATH" "CONFIG_FILES" "INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "WRITES_TIME_SECONDS" "READS_TIME_SECONDS" "WARMUP_TIME_SECONDS"
-             "WORKLOAD_WARMUP_TIME" "WORKSPACE" "CACHE_DIR" "BENCH_DIR" "BACKUP_DIR" "CXXFLAGS" "MYEXTRA" "SYSBENCH_EXTRA" "SCALING_GOVERNOR" "RESULTS_EMAIL" "WORKLOAD_SCRIPT")
-  for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
-  echo "==========${ENDLINE}"
-  for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
-    WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[i]})
-    echo "${WORKLOAD_NAMES[i]}=${WORKLOAD_PARAMETERS}${ENDLINE}"
-  done
 }
 
 function get_build_info() {
@@ -332,6 +332,30 @@ function csv_to_html_table() {
     echo "</table>"
 }
 
+function create_html_page() {
+  echo "<!DOCTYPE html>"
+  echo "<html>"
+  echo "<head>"
+  echo "<style>"
+  echo "table, th, td {"
+  echo "  border: 1px solid;"
+  echo "  border-collapse: collapse;"
+  echo "  border-color: #DDDDDD;"
+  echo "}"
+  echo "</style>"
+  echo "</head>"
+  echo "<body>"
+  cat $1
+  echo "<BR>"
+  cat $2
+  echo "<BR>"
+  cat $3
+  echo "<BR>"
+  cat $4
+  echo "</body>"
+  echo "</html>"
+}
+
 # depends on $LOGS, $BENCH_NAME, $DATA_DIR, $MYSQL_NAME, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE, $WORKSPACE, $THREADS_LIST, $RESULTS_EMAIL
 function on_start(){
   if [[ ${RESULTS_EMAIL} != "" ]]; then
@@ -359,30 +383,6 @@ function on_start(){
   echo "=========="
 
   trap on_exit EXIT KILL
-}
-
-function create_html_page() {
-  echo "<!DOCTYPE html>"
-  echo "<html>"
-  echo "<head>"
-  echo "<style>"
-  echo "table, th, td {"
-  echo "  border: 1px solid;"
-  echo "  border-collapse: collapse;"
-  echo "  border-color: #DDDDDD;"
-  echo "}"
-  echo "</style>"
-  echo "</head>"
-  echo "<body>"
-  cat $1
-  echo "<BR>"
-  cat $2
-  echo "<BR>"
-  cat $3
-  echo "<BR>"
-  cat $4
-  echo "</body>"
-  echo "</html>"
 }
 
 function on_exit(){
