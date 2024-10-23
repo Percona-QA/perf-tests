@@ -25,9 +25,10 @@ export WORKLOAD_SCRIPT=${WORKLOAD_SCRIPT:-$SCRIPT_DIR/workloads/read_write.txt}
 # sysbench variables
 export MYSQL_DATABASE=test
 export SUSER=root
-export RAND_TYPE=${RAND_TYPE:-uniform}
-export RAND_SEED=${RAND_SEED:-1111}
+RAND_TYPE=${RAND_TYPE:-uniform}
+RAND_SEED=${RAND_SEED:-1111}
 export THREADS_LIST=${THREADS_LIST:-"1 4 16 64 128 256 512 1024"}
+SYSBENCH_REPORT_INTERVAL=${SYSBENCH_REPORT_INTERVAL:-10}
 SYSBENCH_BIN=${SYSBENCH_BIN:-sysbench}
 SYSBENCH_LUA=${SYSBENCH_LUA:-/usr/local/share/sysbench}
 SYSBENCH_WRITE=${SYSBENCH_WRITE:-oltp_write_only.lua}
@@ -540,7 +541,7 @@ function shutdown_mysqld() {
 
 function init_perf_tests() {
   local NUM_ROWS=$(numfmt --from=si $DATASIZE)
-  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=10 --db-driver=mysql --mysql-ssl=DISABLED --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
+  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=$SYSBENCH_REPORT_INTERVAL --db-driver=mysql --mysql-ssl=DISABLED --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
 }
 
 function prepare_datadir() {
