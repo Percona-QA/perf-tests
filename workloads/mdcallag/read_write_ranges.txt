@@ -46,9 +46,9 @@ COUNT_RANGES_1000    = "oltp_read_only_count.lua --skip-trx=on --range_size=1000
 # writes (write workloads should start with the "WR_" prefix to reset the database to its original state after writes have been made)
 WR_INLIST_UPDATE_1              = "oltp_inlist_update.lua --random_points=1"
 WR_INLIST_UPDATE_8              = "oltp_inlist_update.lua --random_points=8"
-WR_INLIST_UPDATE_32             = "oltp_inlist_update.lua --random_points=32 --reset_binlog=192000000"
-WR_INLIST_UPDATE_128            = "oltp_inlist_update.lua --random_points=128 --reset_binlog=192000000"
+WR_INLIST_UPDATE_32             = "oltp_inlist_update.lua --random_points=32 --reset_binlog=64000000"
+WR_INLIST_UPDATE_128            = "oltp_inlist_update.lua --random_points=128 --reset_binlog=64000000"
 WR_INLIST_UPDATE_HOT_POINTS_1   = "oltp_inlist_update.lua --random_points=1 --hot_points=true"
 WR_INLIST_UPDATE_HOT_POINTS_8   = "oltp_inlist_update.lua --random_points=8 --hot_points=true"
-WR_INLIST_UPDATE_HOT_POINTS_32  = "oltp_inlist_update.lua --random_points=32 --hot_points=true --reset_binlog=192000000"
-WR_INLIST_UPDATE_HOT_POINTS_128 = "oltp_inlist_update.lua --random_points=128 --hot_points=true --reset_binlog=192000000"
+WR_INLIST_UPDATE_HOT_POINTS_32  = "oltp_inlist_update.lua --random_points=32 --hot_points=true --reset_binlog=64000000"
+WR_INLIST_UPDATE_HOT_POINTS_128 = "oltp_inlist_update.lua --random_points=128 --hot_points=true --reset_binlog=64000000"
