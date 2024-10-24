@@ -367,7 +367,7 @@ function on_start(){
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL}"
     local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-    print_parameters "" | mutt -s "Start $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_SCRIPT}" .txt) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
+    print_parameters "" | mutt -s "Start $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_SCRIPT^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
   fi
 
   local LOG_SYS_INFO=$LOGS/sys_info_start.txt
@@ -396,6 +396,7 @@ function on_exit(){
   pkill -f iostat
   killall -9 mysqld
 
+  echo "Remove DATA_DIR=$DATA_DIR"
   rm -rf ${DATA_DIR}
 
   local LOG_SYS_INFO=$LOGS/sys_info_end.txt
@@ -449,7 +450,7 @@ function on_exit(){
 
   local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
   local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-  local SUBJECT="Done $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_SCRIPT}" .txt) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
+  local SUBJECT="Done $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_SCRIPT^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
 
   if [[ ${SLACK_WEBHOOK_URL} != "" ]]; then
     echo "- Sending slack message"
