@@ -1,7 +1,7 @@
 [mysqld]
 # binary log
 binlog_row_image=minimal
-loose-binlog_space_limit=4G
+#loose-binlog_space_limit=4G
 
 # connections
 connect_timeout=120
@@ -17,7 +17,6 @@ table_open_cache_instances=64
 innodb_open_files=4K
 innodb_redo_log_capacity=16G
 innodb_fast_shutdown=0
-innodb_io_capacity=4000
 
 # Defaults from MySQL 8.0
 innodb_doublewrite_files=16
@@ -37,6 +36,7 @@ innodb_change_buffering=none
 innodb_flush_method=O_DIRECT
 innodb_adaptive_hash_index=OFF
 innodb_numa_interleave=1
+innodb_io_capacity=10000
 
 # Non-ACID compliant options but improve stability of results
 sync_binlog=1024
