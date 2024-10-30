@@ -6,16 +6,18 @@
 #**********************************************************************************************
 
 function usage(){
-  echo $1
-  echo "Usage: $0 <BENCH_NAME> <BUILD_PATH> <MYSQL_CONFIG_FILE>"
-  echo "where:"
+  echo "$1"
+  echo -e "\nYou have to set the following env variables:"
+  echo "<WORKSPACE> - path to store results (default: \$PWD)"
   echo "<BENCH_NAME> - name of benchmark (a directory with this name will be created in \$WORKSPACE)"
   echo "<BUILD_PATH> - path to MySQL or Percona Server binaries"
-  echo "<MYSQL_CONFIG_FILE> - full path to Percona Server's configuration file"
-  echo "Usage example:"
-  echo "$0 100 Percona-Server-8.0.34-26-Linux.x86_64.glibc2.35 cnf/percona-innodb.cnf"
-  echo "This would lead to $WORKSPACE/100 being created, in which testing takes place and"
-  echo "$WORKSPACE/Percona-Server-8.0.34-26-Linux.x86_64.glibc2.35 would be used to test."
+  echo "<CONFIG_FILES> - full path to Percona Server's configuration file"
+  echo -e "\nUsage example:"
+  echo "export WORKSPACE=/data/perf-results"
+  echo "export CONFIG_FILES=/data/perf-tests/cnf/stable-noACID.cnf"
+  echo "export BUILD_PATH=/data/release-9.0.1-1-rel-gcc-13"
+  echo "export BENCH_NAME=release-9.0.1-1@6feb03ff8ed"
+  echo "bash $0"
   exit 1
 }
 
@@ -326,5 +328,61 @@ function run_sysbench() {
     echo "${BENCH_WITH_CONFIG}_avg$(average "${LOG_RESULTS_CACHE}")" >> ${LOGS_AVG}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_avg.csv
     unset result_set
     fi
+  done
+}
+
+function db_bench() {
+  if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
+    command -v cpupower >/dev/null 2>&1 || { echo >&2 "cpupower is not installed. Aborting."; exit 1; }
+    [[ $(cpupower 2>&1) == *"WARNING: cpupower not found for kernel"* ]] && { echo >&2 "Error: cpupower is installed but not available for the current kernel."; exit 1; }
+    command -v dstat >/dev/null 2>&1 || { echo >&2 "dstat is not installed. Aborting."; exit 1; }
+    command -v iostat >/dev/null 2>&1 || { echo >&2 "iostat is not installed. Aborting."; exit 1; }
+    dstat -t -v --nocolor --output dstat.csv 1 1 >/dev/null 2>&1 || DSTAT_OUTPUT_NOT_SUPPORTED=1
+    rm dstat.csv
+  fi
+
+  export START_TIME=$(date +%s)
+  export LOGS=$BENCH_DIR
+  export LOGS_AVG=${LOGS}/${BENCH_NAME}-avg
+  export LOGS_STDDEV=${LOGS}/${BENCH_NAME}-stddev
+  export LOGS_DIFF=${LOGS}/${BENCH_NAME}-diff
+  export LOGS_QPS=${LOGS}/${BENCH_NAME}-qps
+
+  # check parameters
+  if [ -z "$BENCH_NAME" ]; then usage "Error: BENCH_NAME is not defined or is empty."; fi
+  if [ -z "$BUILD_PATH" ]; then usage "Error: BUILD_PATH is not defined or is empty."; fi
+  if [ -z "$CONFIG_FILES" ]; then usage "Error: CONFIG_FILES is not defined or is empty."; fi
+  if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD_SCRIPT not found."; fi
+  if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
+
+  rm -rf ${LOGS}
+  mkdir -p ${LOGS} ${LOGS_AVG} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${CACHE_DIR}
+  cd $WORKSPACE
+
+  process_workload_config_file "$WORKLOAD_SCRIPT"
+  get_build_info
+
+  export INNODB_CACHE=${INNODB_CACHE:-32G}
+  export NUM_TABLES=${NUM_TABLES:-16}
+  export DATASIZE=${DATASIZE:-10M}
+  export BENCH_ID=$(uname -n)_${MYSQL_NAME}${MYSQL_VERSION}_${WRITES_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+
+  on_start
+
+  for file in $CONFIG_FILES; do
+    if [ ! -f $file ]; then usage "ERROR: Config file $file not found."; fi
+    CONFIG_BASE=$(basename ${file%.*})
+    LOGS_CONFIG=${LOGS}/${BENCH_NAME}-${CONFIG_BASE}
+    mkdir -p ${LOGS_CONFIG}
+    CONFIG_FILE=${LOGS_CONFIG}/$(basename $file)
+    cp $file $CONFIG_FILE
+    echo "Using $CONFIG_FILE as mysqld config file"
+
+
+    MYSQL_SOCKET=${LOGS}/ps_socket.sock
+    timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
+    kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
+
+    run_sysbench
   done
 }
