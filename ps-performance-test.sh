@@ -51,4 +51,10 @@ source ${SCRIPT_DIR}/data_funcs.inc
 source ${SCRIPT_DIR}/main_funcs.inc
 source ${SCRIPT_DIR}/system_funcs.inc
 
-db_bench
+db_bench_init
+
+for file in $CONFIG_FILES; do
+    MYSQL_CONFIG_FILE=$file
+    db_bench_init_config
+    run_sysbench
+done

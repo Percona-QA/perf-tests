@@ -22,34 +22,6 @@ function usage(){
 }
 
 # depends on $LOGS, $BENCH_NAME, $DATA_DIR, $MYSQL_NAME, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE, $WORKSPACE, $THREADS_LIST, $RESULTS_EMAIL
-function on_start(){
-  if [[ ${RESULTS_EMAIL} != "" ]]; then
-    echo "- Sending e-mail to ${RESULTS_EMAIL}"
-    local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-    print_parameters "" | mutt -s "Start $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_SCRIPT^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
-  fi
-
-  local LOG_SYS_INFO=$LOGS/sys_info_start.txt
-  print_system_info >> ${LOG_SYS_INFO}
-
-  if [[ ${SCALING_GOVERNOR} != "" ]]; then
-    disable_address_randomization > ${LOG_SYS_INFO}2
-    disable_turbo_boost >> ${LOG_SYS_INFO}2
-    change_scaling_governor ${SCALING_GOVERNOR} >> ${LOG_SYS_INFO}2
-    cat ${LOG_SYS_INFO}2 | tee -a ${LOG_SYS_INFO}; rm ${LOG_SYS_INFO}2
-    if [[ ${DISABLE_IDLE_STATES} == "yes" ]]; then
-      disable_idle_states >> ${LOG_SYS_INFO}
-    fi
-  fi
-
-  local LOGS_BUILD_INFO=${LOGS}/build_info.txt
-  echo -e "Date: `date +'%d-%m-%Y %H:%M'`\nNode: $(uname -n)\nMySQL version: ${MYSQL_NAME}${MYSQL_VERSION} = ${MYSQL_VERSION_LONG}\n" | tee ${LOGS_BUILD_INFO}
-  print_parameters "" | tee -a ${LOGS_BUILD_INFO}
-  echo "=========="
-
-  trap on_exit EXIT KILL
-}
-
 function on_exit(){
   pkill -f dstat
   pkill -f iostat
@@ -331,7 +303,7 @@ function run_sysbench() {
   done
 }
 
-function db_bench() {
+function db_bench_init() {
   if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
     command -v cpupower >/dev/null 2>&1 || { echo >&2 "cpupower is not installed. Aborting."; exit 1; }
     [[ $(cpupower 2>&1) == *"WARNING: cpupower not found for kernel"* ]] && { echo >&2 "Error: cpupower is installed but not available for the current kernel."; exit 1; }
@@ -367,22 +339,43 @@ function db_bench() {
   export DATASIZE=${DATASIZE:-10M}
   export BENCH_ID=$(uname -n)_${MYSQL_NAME}${MYSQL_VERSION}_${WRITES_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
 
-  on_start
+  if [[ ${RESULTS_EMAIL} != "" ]]; then
+    echo "- Sending e-mail to ${RESULTS_EMAIL}"
+    local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
+    print_parameters "" | mutt -s "Start $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_SCRIPT^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
+  fi
 
-  for file in $CONFIG_FILES; do
-    if [ ! -f $file ]; then usage "ERROR: Config file $file not found."; fi
-    CONFIG_BASE=$(basename ${file%.*})
-    LOGS_CONFIG=${LOGS}/${BENCH_NAME}-${CONFIG_BASE}
-    mkdir -p ${LOGS_CONFIG}
-    CONFIG_FILE=${LOGS_CONFIG}/$(basename $file)
-    cp $file $CONFIG_FILE
-    echo "Using $CONFIG_FILE as mysqld config file"
+  local LOG_SYS_INFO=$LOGS/sys_info_start.txt
+  print_system_info >> ${LOG_SYS_INFO}
 
+  if [[ ${SCALING_GOVERNOR} != "" ]]; then
+    disable_address_randomization > ${LOG_SYS_INFO}2
+    disable_turbo_boost >> ${LOG_SYS_INFO}2
+    change_scaling_governor ${SCALING_GOVERNOR} >> ${LOG_SYS_INFO}2
+    cat ${LOG_SYS_INFO}2 | tee -a ${LOG_SYS_INFO}; rm ${LOG_SYS_INFO}2
+    if [[ ${DISABLE_IDLE_STATES} == "yes" ]]; then
+      disable_idle_states >> ${LOG_SYS_INFO}
+    fi
+  fi
 
-    MYSQL_SOCKET=${LOGS}/ps_socket.sock
-    timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
-    kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
+  local LOGS_BUILD_INFO=${LOGS}/build_info.txt
+  echo -e "Date: `date +'%d-%m-%Y %H:%M'`\nNode: $(uname -n)\nMySQL version: ${MYSQL_NAME}${MYSQL_VERSION} = ${MYSQL_VERSION_LONG}\n" | tee ${LOGS_BUILD_INFO}
+  print_parameters "" | tee -a ${LOGS_BUILD_INFO}
+  echo "=========="
 
-    run_sysbench
-  done
+  trap on_exit EXIT KILL
+}
+
+function db_bench_init_config() {
+  if [ ! -f $MYSQL_CONFIG_FILE ]; then usage "ERROR: Config file $MYSQL_CONFIG_FILE not found."; fi
+  CONFIG_BASE=$(basename ${file%.*})
+  LOGS_CONFIG=${LOGS}/${BENCH_NAME}-${CONFIG_BASE}
+  mkdir -p ${LOGS_CONFIG}
+  CONFIG_FILE=${LOGS_CONFIG}/$(basename $MYSQL_CONFIG_FILE)
+  cp $MYSQL_CONFIG_FILE $CONFIG_FILE
+  echo "Using $CONFIG_FILE as mysqld config file"
+
+  MYSQL_SOCKET=${LOGS}/ps_socket.sock
+  timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
+  kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
 }
