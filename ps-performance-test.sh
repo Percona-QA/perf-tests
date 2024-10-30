@@ -56,5 +56,23 @@ db_bench_init
 for file in $CONFIG_FILES; do
     MYSQL_CONFIG_FILE=$file
     db_bench_init_config
-    run_sysbench
+
+    for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
+        WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
+        WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
+
+        if [[ $num -eq 0 || ${PREV_WORKLOAD_NAME:0:3} == "WR_" ]]; then
+            drop_caches
+            prepare_datadir | tee ${LOGS_CONFIG}/prepare_datadir_${WORKLOAD_NAME}.log
+        fi
+        PREV_WORKLOAD_NAME=${WORKLOAD_NAME}
+
+        if [[ ${WORKLOAD_NAME:0:3} != "WR_" ]]; then
+            SYSBENCH_RUN_TIME=$READS_TIME_SECONDS
+        else
+            SYSBENCH_RUN_TIME=$WRITES_TIME_SECONDS
+        fi
+
+        run_sysbench
+    done
 done

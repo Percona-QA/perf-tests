@@ -21,7 +21,7 @@ function usage(){
   exit 1
 }
 
-# depends on $LOGS, $BENCH_NAME, $DATA_DIR, $MYSQL_NAME, $MYSQL_VERSION, $NUM_TABLES, $DATASIZE, $INNODB_CACHE, $WORKSPACE, $THREADS_LIST, $RESULTS_EMAIL
+# depends on $DATA_DIR, $LOGS, $SCALING_GOVERNOR, $BENCH_ID, $BENCH_NAME, $START_TIME, $THREADS_LIST, $CONFIG_FILES, $WORKLOAD_SCRIPT, $SLACK_WEBHOOK_URL, $WORKSPACE, $BACKUP_DIR, $RESULTS_EMAIL
 function on_exit(){
   pkill -f dstat
   pkill -f iostat
@@ -212,95 +212,77 @@ function sysbench_warmup() {
 }
 
 function run_sysbench() {
-  init_perf_tests
+  echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
 
-  echo "Storing Sysbench results in ${WORKSPACE}"
+  if [[ ${WORKLOAD_WARMUP_TIME} > 0 ]]; then
+    sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log
+  fi
 
-  for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
-    local WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
-    local WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
-    local SYSBENCH_RUN_TIME=$WRITES_TIME_SECONDS
+  if [[ ${SYSBENCH_RUN_TIME} > 0 ]]; then
+  for num_threads in ${THREADS_LIST}; do
+    echo "Testing $WORKLOAD_NAME with $num_threads threads for $SYSBENCH_RUN_TIME seconds"
+    LOG_NAME_RESULTS=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}_results_qps.csv
+    LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}-$num_threads.txt
+    LOG_NAME_MYSQL=${LOG_NAME}.mysql
+    LOG_NAME_MYSQLD=${LOG_NAME}.mysqld
+    LOG_NAME_MEMORY=${LOG_NAME}.memory
+    LOG_NAME_IOSTAT=${LOG_NAME}.iostat
+    LOG_NAME_VMSTAT=${LOG_NAME}.vmstat
+    LOG_NAME_DSTAT=${LOG_NAME}.dstat
+    LOG_NAME_DSTAT_CSV=${LOG_NAME}.dstat.csv
+    LOG_NAME_CPUINFO=${LOG_NAME}.cpuinfo
+    LOG_NAME_SMART=${LOG_NAME}.smart
+    LOG_NAME_PS=${LOG_NAME}.ps
+    LOG_NAME_ZONEINFO=${LOG_NAME}.zoneinfo
+    start_mysqld "--datadir=${DATA_DIR}"
 
-    echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
-    if [[ $num -eq 0 || ${PREV_WORKLOAD_NAME:0:3} == "WR_" ]]; then
-      drop_caches
-      prepare_datadir | tee ${LOGS_CONFIG}/prepare_datadir_${WORKLOAD_NAME}.log
+    if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
+        # verbose logging
+        echo "*** verbose benchmark logging enabled ***"
+        report_thread &
+        REPORT_THREAD_PID=$!
+        (iostat -dxm $IOSTAT_INTERVAL 1000000 | grep -v loop > $LOG_NAME_IOSTAT) &
+        if [[ ${DSTAT_OUTPUT_NOT_SUPPORTED} == "1" ]]; then
+          dstat -t -v --nocolor $DSTAT_INTERVAL 1000000 > $LOG_NAME_DSTAT &
+        else
+          dstat -t -v --nocolor --output $LOG_NAME_DSTAT_CSV $DSTAT_INTERVAL 1000000 > $LOG_NAME_DSTAT &
+        fi
     fi
-    PREV_WORKLOAD_NAME=${WORKLOAD_NAME}
-    if [[ ${WORKLOAD_NAME:0:3} != "WR_" ]]; then
-        SYSBENCH_RUN_TIME=$READS_TIME_SECONDS
+    pushd $SYSBENCH_LUA
+    local ALL_SYSBENCH_OPTIONS="$WORKLOAD_PARAMETERS --threads=$num_threads --time=$SYSBENCH_RUN_TIME --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
+    echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
+    (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $ALL_SYSBENCH_OPTIONS) 2>&1 | tee -a $LOG_NAME
+    popd
+
+    sleep 6
+    pkill -f dstat
+    pkill -f iostat
+    kill -9 ${REPORT_THREAD_PID}
+    result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1}'`)
+    ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G; SHOW ENGINE INNODB MUTEX" >> ${LOG_NAME_MYSQL} 2>&1
+    if [[ ${PERF_EXTRA} != "" ]]; then
+      ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT/1000000000 SUM_TIMER_WAIT_MS FROM performance_schema.events_waits_summary_global_by_event_name WHERE SUM_TIMER_WAIT > 0 AND EVENT_NAME LIKE 'wait/synch/mutex/innodb/%' ORDER BY COUNT_STAR DESC" >> ${LOG_NAME_MYSQL} 2>&1
     fi
-
-    if [[ ${WORKLOAD_WARMUP_TIME} > 0 ]]; then
-      sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log
-    fi
-
-    if [[ ${SYSBENCH_RUN_TIME} > 0 ]]; then
-    for num_threads in ${THREADS_LIST}; do
-      echo "Testing $WORKLOAD_NAME with $num_threads threads for $SYSBENCH_RUN_TIME seconds"
-      LOG_NAME_RESULTS=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}_results_qps.csv
-      LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}-$num_threads.txt
-      LOG_NAME_MYSQL=${LOG_NAME}.mysql
-      LOG_NAME_MYSQLD=${LOG_NAME}.mysqld
-      LOG_NAME_MEMORY=${LOG_NAME}.memory
-      LOG_NAME_IOSTAT=${LOG_NAME}.iostat
-      LOG_NAME_VMSTAT=${LOG_NAME}.vmstat
-      LOG_NAME_DSTAT=${LOG_NAME}.dstat
-      LOG_NAME_DSTAT_CSV=${LOG_NAME}.dstat.csv
-      LOG_NAME_CPUINFO=${LOG_NAME}.cpuinfo
-      LOG_NAME_SMART=${LOG_NAME}.smart
-      LOG_NAME_PS=${LOG_NAME}.ps
-      LOG_NAME_ZONEINFO=${LOG_NAME}.zoneinfo
-      start_mysqld "--datadir=${DATA_DIR}"
-
-      if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
-          # verbose logging
-          echo "*** verbose benchmark logging enabled ***"
-          report_thread &
-          REPORT_THREAD_PID=$!
-          (iostat -dxm $IOSTAT_INTERVAL 1000000 | grep -v loop > $LOG_NAME_IOSTAT) &
-          if [[ ${DSTAT_OUTPUT_NOT_SUPPORTED} == "1" ]]; then
-            dstat -t -v --nocolor $DSTAT_INTERVAL 1000000 > $LOG_NAME_DSTAT &
-          else
-            dstat -t -v --nocolor --output $LOG_NAME_DSTAT_CSV $DSTAT_INTERVAL 1000000 > $LOG_NAME_DSTAT &
-          fi
-      fi
-      pushd $SYSBENCH_LUA
-      local ALL_SYSBENCH_OPTIONS="$WORKLOAD_PARAMETERS --threads=$num_threads --time=$SYSBENCH_RUN_TIME --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
-      echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
-      (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $ALL_SYSBENCH_OPTIONS) 2>&1 | tee -a $LOG_NAME
-      popd
-
-      sleep 6
-      pkill -f dstat
-      pkill -f iostat
-      kill -9 ${REPORT_THREAD_PID}
-      result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1}'`)
-      ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G; SHOW ENGINE INNODB MUTEX" >> ${LOG_NAME_MYSQL} 2>&1
-      if [[ ${PERF_EXTRA} != "" ]]; then
-        ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT/1000000000 SUM_TIMER_WAIT_MS FROM performance_schema.events_waits_summary_global_by_event_name WHERE SUM_TIMER_WAIT > 0 AND EVENT_NAME LIKE 'wait/synch/mutex/innodb/%' ORDER BY COUNT_STAR DESC" >> ${LOG_NAME_MYSQL} 2>&1
-      fi
-      shutdown_mysqld | tee -a $LOG_NAME
-      kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
-      sync
-    done
-
-    local LOG_RESULTS_PATH="${CACHE_DIR}/${BENCH_ID}_${CONFIG_BASE^^}_$(basename "${WORKLOAD_SCRIPT}" .txt)"
-    local LOG_RESULTS_CACHE="${LOG_RESULTS_PATH}/${WORKLOAD_NAME}_${SCALING_GOVERNOR}_${THREADS_LIST// /_}.csv"
-    local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}"
-    local RESULTS_LINE="${BENCH_WITH_CONFIG}_qps"
-    for number in "${result_set[@]}"; do RESULTS_LINE+=", ${number}"; done
-
-    mkdir -p $LOG_RESULTS_PATH
-    echo "${RESULTS_LINE}" >> ${LOG_NAME_RESULTS}
-    cat ${LOG_NAME_RESULTS} >> ${LOG_RESULTS_CACHE}
-    cat ${LOG_NAME_RESULTS} >> ${LOGS_QPS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_qps.csv
-    echo "${BENCH_WITH_CONFIG}_diff$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS_DIFF}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_diff.csv
-    echo "${BENCH_WITH_CONFIG}_stddev$(standard_deviation_percent "${LOG_RESULTS_CACHE}")" >> ${LOGS_STDDEV}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_stddev.csv
-    echo "${BENCH_WITH_CONFIG}_avg$(average "${LOG_RESULTS_CACHE}")" >> ${LOGS_AVG}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_avg.csv
-    unset result_set
-    fi
+    shutdown_mysqld | tee -a $LOG_NAME
+    kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
+    sync
   done
+
+  local LOG_RESULTS_PATH="${CACHE_DIR}/${BENCH_ID}_${CONFIG_BASE^^}_$(basename "${WORKLOAD_SCRIPT}" .txt)"
+  local LOG_RESULTS_CACHE="${LOG_RESULTS_PATH}/${WORKLOAD_NAME}_${SCALING_GOVERNOR}_${THREADS_LIST// /_}.csv"
+  local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}"
+  local RESULTS_LINE="${BENCH_WITH_CONFIG}_qps"
+  for number in "${result_set[@]}"; do RESULTS_LINE+=", ${number}"; done
+
+  mkdir -p $LOG_RESULTS_PATH
+  echo "${RESULTS_LINE}" >> ${LOG_NAME_RESULTS}
+  cat ${LOG_NAME_RESULTS} >> ${LOG_RESULTS_CACHE}
+  cat ${LOG_NAME_RESULTS} >> ${LOGS_QPS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_qps.csv
+  echo "${BENCH_WITH_CONFIG}_diff$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS_DIFF}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_diff.csv
+  echo "${BENCH_WITH_CONFIG}_stddev$(standard_deviation_percent "${LOG_RESULTS_CACHE}")" >> ${LOGS_STDDEV}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_stddev.csv
+  echo "${BENCH_WITH_CONFIG}_avg$(average "${LOG_RESULTS_CACHE}")" >> ${LOGS_AVG}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_avg.csv
+  unset result_set
+  fi
 }
 
 function db_bench_init() {
@@ -362,6 +344,9 @@ function db_bench_init() {
   echo -e "Date: `date +'%d-%m-%Y %H:%M'`\nNode: $(uname -n)\nMySQL version: ${MYSQL_NAME}${MYSQL_VERSION} = ${MYSQL_VERSION_LONG}\n" | tee ${LOGS_BUILD_INFO}
   print_parameters "" | tee -a ${LOGS_BUILD_INFO}
   echo "=========="
+
+  init_perf_tests
+  echo "Storing Sysbench results in ${WORKSPACE}"
 
   trap on_exit EXIT KILL
 }
