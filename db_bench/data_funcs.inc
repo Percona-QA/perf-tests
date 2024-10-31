@@ -5,51 +5,45 @@
 # data_funcs.inc - data processing functions
 #**********************************************************************************************
 
-# Function to process a configuration file and return WORKLOAD_NAMES[] and WORKLOAD_PARAMS[] arrays
-function process_workload_config_file() {
-  local filename="$1"
-  WORKLOAD_NAMES=()
+source ${SCRIPT_DIR}/db_bench/workloads.inc
+
+# Function to process workload names and return WORKLOAD_ARRAY[] and WORKLOAD_PARAMS[] arrays
+function process_workload_names() {
+  WORKLOAD_ARRAY=()
   WORKLOAD_PARAMS=()
 
-  while IFS= read -r line; do
-    # Ignore lines starting with '#' (comments) and empty lines
-    if [[ "$line" =~ ^\# ]] || [[ "$line" == "" ]]; then
-      continue
-    fi
+  # Replace aliases in workloads with actual strings
+  WORKLOAD_FULL_NAMES="$WORKLOAD_NAMES"
+  for ALIAS in "${!aliases[@]}"; do
+    WORKLOAD_FULL_NAMES="${WORKLOAD_FULL_NAMES//${ALIAS}/${aliases[$ALIAS]}}"
+  done
 
-    # Concatenate lines ending with "\"
-    out_line="${line%\\}"
-    out_line=${out_line% } # Trim suffix (space)
-    while [[ $line =~ \\$ ]]; do
-      read -r line
-      out_line+=" ${line%\\}"
-      out_line=${out_line% } # Trim suffix (space)
+  echo "- Evaluated 'WORKLOAD_NAMES=$WORKLOAD_NAMES' to '$WORKLOAD_FULL_NAMES'"
+
+  # Split workloads into an array
+  IFS=',' read -r -a WORKLOAD_FULL_ARRAY <<< "$WORKLOAD_FULL_NAMES"
+
+  for WORKLOAD in "${WORKLOAD_FULL_ARRAY[@]}"; do
+    # Iterate through configurations
+    for KEY in "${!load[@]}"; do
+      if [[ $KEY == ${WORKLOAD} ]]; then
+        WORKLOAD_ARRAY+=("$WORKLOAD")
+        WORKLOAD_PARAMS+=("${load[$WORKLOAD]}")
+        break
+      fi
     done
-    line=$out_line
-
-    # Extract variable name and value
-    variable_name=$(echo "$line" | cut -d= -f1)
-    variable_value=$(echo "$line" | cut -d= -f2-)
-
-    # Trim leading and trailing whitespaces from variable value
-    variable_name=$(echo "$variable_name" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-    variable_value=$(echo "$variable_value" | sed -e 's/^[[:space:]]*[" ]//' -e 's/[" ][[:space:]]*$//')
-
-    # Add the variable name and value to their respective arrays
-    WORKLOAD_NAMES+=("$variable_name")
-    WORKLOAD_PARAMS+=("$variable_value")
-  done < "$filename"
+  done
 }
 
 function print_parameters() {
   local ENDLINE=$1
   variables=("BENCH_NAME" "BUILD_PATH" "CONFIG_FILES" "INNODB_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST" "WRITES_TIME_SECONDS" "READS_TIME_SECONDS" "WARMUP_TIME_SECONDS"
-             "WORKLOAD_WARMUP_TIME" "WORKSPACE" "TEMPLATE_PATH" "CACHE_DIR" "BENCH_DIR" "DATA_DIR" "BACKUP_DIR" "CXXFLAGS" "MYEXTRA" "SYSBENCH_EXTRA" "SCALING_GOVERNOR" "RESULTS_EMAIL" "WORKLOAD_SCRIPT")
+             "WORKLOAD_WARMUP_TIME" "WORKSPACE" "TEMPLATE_PATH" "CACHE_DIR" "BENCH_DIR" "DATA_DIR" "BACKUP_DIR" "CXXFLAGS" "MYEXTRA" "SYSBENCH_EXTRA" "SCALING_GOVERNOR" "RESULTS_EMAIL" "WORKLOAD_NAMES")
   for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
   echo "==========${ENDLINE}"
-  for ((i=0; i<${#WORKLOAD_NAMES[@]}; i++)); do
+  for ((i=0; i<${#WORKLOAD_ARRAY[@]}; i++)); do
     WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[i]})
-    echo "${WORKLOAD_NAMES[i]}=${WORKLOAD_PARAMETERS}${ENDLINE}"
+    echo "${WORKLOAD_ARRAY[i]}=${WORKLOAD_PARAMETERS}${ENDLINE}"
   done
 }
 

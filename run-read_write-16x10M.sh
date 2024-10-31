@@ -22,6 +22,7 @@ BUILD_PATH=$MAIN_DIR/release-8.0.36-28@47601f19675-rel-gcc10
 PERFTEST_PATH=$MAIN_DIR/perf-tests
 CNFFILE_PATH=${PERFTEST_PATH}/cnf/stable-innodb.cnf
 export WORKLOAD_SCRIPT=${PERFTEST_PATH}/workloads/read_write.txt
+export WORKLOAD_NAMES="reads,writes"
 
 BENCH_PREFIX=8036_
 ${PERFTEST_PATH}/ps-performance-test.sh ${BENCH_PREFIX}1 ${BUILD_PATH} "${CNFFILE_PATH}"

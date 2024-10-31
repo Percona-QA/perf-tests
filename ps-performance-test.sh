@@ -16,7 +16,7 @@ export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
 export BENCHMARK_LOGGING=${BENCHMARK_LOGGING:-Y}
 export SMART_DEVICE=${SMART_DEVICE:-/dev/nvme0n1}
-export WORKLOAD_SCRIPT=${WORKLOAD_SCRIPT:-$SCRIPT_DIR/workloads/read_write.txt}
+export WORKLOAD_NAMES=${WORKLOAD_NAMES:-reads,writes}
 
 # sysbench variables
 export MYSQL_DATABASE=test
@@ -47,9 +47,9 @@ export DSTAT_INTERVAL=10
 #TASKSET_MYSQLD=${TASKSET_MYSQLD:=taskset -c 0}
 #TASKSET_SYSBENCH=${TASKSET_SYSBENCH:=taskset -c 1}
 
-source ${SCRIPT_DIR}/data_funcs.inc
-source ${SCRIPT_DIR}/main_funcs.inc
-source ${SCRIPT_DIR}/system_funcs.inc
+source ${SCRIPT_DIR}/db_bench/data_funcs.inc
+source ${SCRIPT_DIR}/db_bench/main_funcs.inc
+source ${SCRIPT_DIR}/db_bench/system_funcs.inc
 
 db_bench_init
 
@@ -57,8 +57,8 @@ for file in $CONFIG_FILES; do
     MYSQL_CONFIG_FILE=$file
     db_bench_init_config
 
-    for ((num=0; num<${#WORKLOAD_NAMES[@]}; num++)); do
-        WORKLOAD_NAME=${WORKLOAD_NAMES[num]}
+    for ((num=0; num<${#WORKLOAD_ARRAY[@]}; num++)); do
+        WORKLOAD_NAME=${WORKLOAD_ARRAY[num]}
         WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
 
         if [[ $num -eq 0 || ${PREV_WORKLOAD_NAME:0:3} == "WR_" ]]; then

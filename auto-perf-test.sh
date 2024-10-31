@@ -121,6 +121,7 @@ function run_perf_tests() {
     CNFFILE_NAME=${CNFFILE_NAME:-stable8x-innodb.cnf}
     WORKLOAD_NAME=${WORKLOAD_NAME:-read_write.txt}
     export WORKLOAD_SCRIPT=${WORKLOAD_SCRIPT:-${PERFTEST_PATH}/workloads/${WORKLOAD_NAME}}
+    export WORKLOAD_NAMES="reads,writes"
 
     REPEAT_NUM=${REPEAT_NUM:-1}
     for i in $(seq $REPEAT_NUM); do

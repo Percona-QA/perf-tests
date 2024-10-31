@@ -21,7 +21,7 @@ function usage(){
   exit 1
 }
 
-# depends on $DATA_DIR, $LOGS, $SCALING_GOVERNOR, $BENCH_ID, $BENCH_NAME, $START_TIME, $THREADS_LIST, $CONFIG_FILES, $WORKLOAD_SCRIPT, $SLACK_WEBHOOK_URL, $WORKSPACE, $BACKUP_DIR, $RESULTS_EMAIL
+# depends on $DATA_DIR, $LOGS, $SCALING_GOVERNOR, $BENCH_ID, $BENCH_NAME, $START_TIME, $THREADS_LIST, $CONFIG_FILES, $WORKLOAD_NAMES, $SLACK_WEBHOOK_URL, $WORKSPACE, $BACKUP_DIR, $RESULTS_EMAIL
 function on_exit(){
   pkill -f dstat
   pkill -f iostat
@@ -81,11 +81,11 @@ function on_exit(){
 
   local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
   local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-  local SUBJECT="Done $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_SCRIPT^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
+  local SUBJECT="Done $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
 
   if [[ ${SLACK_WEBHOOK_URL} != "" ]]; then
     echo "- Sending slack message"
-    SLACK_MESSAGE="${SUBJECT}\nScript executed in $TIME_HMS ($DURATION seconds)\nWORKLOAD_SCRIPT=${WORKLOAD_SCRIPT}\nBUILD_PATH=${BUILD_PATH}\nDATA_DIR=${DATA_DIR}\n" ${SCRIPT_DIR}/publish_to_slack.py ${LOG_BASE_FULL_RESULTS}.csv ${LOG_BASE_DIFF}.csv ${LOG_BASE_STDDEV}.csv
+    SLACK_MESSAGE="${SUBJECT}\nScript executed in $TIME_HMS ($DURATION seconds)\nWORKLOAD_NAMES=${WORKLOAD_NAMES}\nBUILD_PATH=${BUILD_PATH}\nDATA_DIR=${DATA_DIR}\n" ${SCRIPT_DIR}/db_bench/publish_to_slack.py ${LOG_BASE_FULL_RESULTS}.csv ${LOG_BASE_DIFF}.csv ${LOG_BASE_STDDEV}.csv
   fi
 
   echo "Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_FULL_RESULTS}.csv
@@ -268,7 +268,7 @@ function run_sysbench() {
     sync
   done
 
-  local LOG_RESULTS_PATH="${CACHE_DIR}/${BENCH_ID}_${CONFIG_BASE^^}_$(basename "${WORKLOAD_SCRIPT}" .txt)"
+  local LOG_RESULTS_PATH="${CACHE_DIR}/${BENCH_ID}_${CONFIG_BASE^^}_$(basename "${WORKLOAD_NAMES}" .txt)"
   local LOG_RESULTS_CACHE="${LOG_RESULTS_PATH}/${WORKLOAD_NAME}_${SCALING_GOVERNOR}_${THREADS_LIST// /_}.csv"
   local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}"
   local RESULTS_LINE="${BENCH_WITH_CONFIG}_qps"
@@ -306,15 +306,15 @@ function db_bench_init() {
   if [ -z "$BENCH_NAME" ]; then usage "Error: BENCH_NAME is not defined or is empty."; fi
   if [ -z "$BUILD_PATH" ]; then usage "Error: BUILD_PATH is not defined or is empty."; fi
   if [ -z "$CONFIG_FILES" ]; then usage "Error: CONFIG_FILES is not defined or is empty."; fi
-  if [ ! -f $WORKLOAD_SCRIPT ]; then usage "ERROR: Workloads config file $WORKLOAD_SCRIPT not found."; fi
   if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
 
   rm -rf ${LOGS}
   mkdir -p ${LOGS} ${LOGS_AVG} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${CACHE_DIR}
   cd $WORKSPACE
 
-  process_workload_config_file "$WORKLOAD_SCRIPT"
   get_build_info
+  process_workload_names
+  if [ ${#WORKLOAD_ARRAY[@]} -eq 0 ]; then usage "ERROR: Maching workloads names from $WORKLOAD_NAMES are empty."; fi
 
   export INNODB_CACHE=${INNODB_CACHE:-32G}
   export NUM_TABLES=${NUM_TABLES:-16}
@@ -324,7 +324,7 @@ function db_bench_init() {
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL}"
     local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-    print_parameters "" | mutt -s "Start $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_SCRIPT^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
+    print_parameters "" | mutt -s "Start $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
   fi
 
   local LOG_SYS_INFO=$LOGS/sys_info_start.txt
