@@ -173,7 +173,16 @@ function init_perf_tests() {
   SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=$SYSBENCH_REPORT_INTERVAL --db-driver=mysql --mysql-ssl=DISABLED --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
 }
 
+function snapshot_datadir() {
+  local SNAPSHOT_DIR=${TEMPLATE_PATH}/snapshot_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
+  echo "Copying data directory from ${DATA_DIR} to ${SNAPSHOT_DIR}"
+  rm -rf ${SNAPSHOT_DIR}
+  (time cp -r ${DATA_DIR} ${SNAPSHOT_DIR}) 2>&1
+  print_database_size
+}
+
 function prepare_datadir() {
+  local SNAPSHOT_DIR=${TEMPLATE_PATH}/snapshot_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
   local TEMPLATE_DIR=${TEMPLATE_PATH}/datadir_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
   if [ ! -d ${TEMPLATE_DIR} ]; then
     echo "Creating template data directory in ${TEMPLATE_DIR}"
@@ -190,9 +199,10 @@ function prepare_datadir() {
     shutdown_mysqld
   fi
   if [[ ${WRITES_TIME_SECONDS} > 0 ]]; then
-    echo "Copying data directory from ${TEMPLATE_DIR} to ${DATA_DIR}"
+    if [ -d ${SNAPSHOT_DIR} ]; then ORIGIN_DIR=$SNAPSHOT_DIR; else ORIGIN_DIR=$TEMPLATE_DIR; fi
+    echo "Copying data directory from ${ORIGIN_DIR} to ${DATA_DIR}"
     rm -rf ${DATA_DIR}
-    (time cp -r ${TEMPLATE_DIR} ${DATA_DIR}) 2>&1
+    (time cp -r ${ORIGIN_DIR} ${DATA_DIR}) 2>&1
     print_database_size
   fi
 }

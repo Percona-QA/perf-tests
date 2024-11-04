@@ -9,6 +9,7 @@
 declare -A aliases
 aliases["reads"]="POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI,RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES"
 aliases["writes"]="WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS,WR_DELETE,WR_INSERT,WR_REPLACE"
+aliases["make_snapshot"]="WR_INLIST_UPDATE,WR_UPDATE_INDEX,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS,snapshot"
 
 declare -A load=(
 # reads
@@ -77,4 +78,7 @@ WR_INLIST_UPDATE_HOT_POINTS_1   "oltp_inlist_update.lua --random_points=1 --hot_
 WR_INLIST_UPDATE_HOT_POINTS_8   "oltp_inlist_update.lua --random_points=8 --hot_points=true"
 WR_INLIST_UPDATE_HOT_POINTS_32  "oltp_inlist_update.lua --random_points=32 --hot_points=true --reset_binlog=64000000"
 WR_INLIST_UPDATE_HOT_POINTS_128 "oltp_inlist_update.lua --random_points=128 --hot_points=true --reset_binlog=64000000"
+
+# additional commands
+snapshot "options are ignored"
 )

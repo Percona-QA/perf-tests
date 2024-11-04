@@ -29,7 +29,6 @@ SYSBENCH_BIN=${SYSBENCH_BIN:-sysbench}
 SYSBENCH_LUA=${SYSBENCH_LUA:-/usr/local/share/sysbench}
 SYSBENCH_WRITE=${SYSBENCH_WRITE:-oltp_write_only.lua}
 SYSBENCH_READ=${SYSBENCH_READ:-oltp_read_only.lua}
-export EVENTS_MULT=${EVENTS_MULT:-1}
 
 # time variables
 export PS_START_TIMEOUT=${PS_START_TIMEOUT:-180}
@@ -54,25 +53,30 @@ source ${SCRIPT_DIR}/db_bench/system_funcs.inc
 db_bench_init
 
 for file in $CONFIG_FILES; do
-    MYSQL_CONFIG_FILE=$file
-    db_bench_init_config
+  MYSQL_CONFIG_FILE=$file
+  db_bench_init_config
 
-    for ((num=0; num<${#WORKLOAD_ARRAY[@]}; num++)); do
-        WORKLOAD_NAME=${WORKLOAD_ARRAY[num]}
-        WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
+  for ((num=0; num<${#WORKLOAD_ARRAY[@]}; num++)); do
+    WORKLOAD_NAME=${WORKLOAD_ARRAY[num]}
+    WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[num]})
 
-        if [[ $num -eq 0 || ${PREV_WORKLOAD_NAME:0:3} == "WR_" ]]; then
-            drop_caches
-            prepare_datadir | tee ${LOGS_CONFIG}/prepare_datadir_${WORKLOAD_NAME}.log
-        fi
-        PREV_WORKLOAD_NAME=${WORKLOAD_NAME}
+    if [[ ${WORKLOAD_NAME} == "snapshot" ]]; then
+      snapshot_datadir
+      continue
+    fi
 
-        if [[ ${WORKLOAD_NAME:0:3} != "WR_" ]]; then
-            SYSBENCH_RUN_TIME=$READS_TIME_SECONDS
-        else
-            SYSBENCH_RUN_TIME=$WRITES_TIME_SECONDS
-        fi
+    if [[ $num -eq 0 || ${PREV_WORKLOAD_NAME:0:3} == "WR_" ]]; then
+      drop_caches
+      prepare_datadir | tee ${LOGS_CONFIG}/prepare_datadir_${WORKLOAD_NAME}.log
+    fi
+    PREV_WORKLOAD_NAME=${WORKLOAD_NAME}
 
-        run_sysbench
-    done
+    if [[ ${WORKLOAD_NAME:0:3} != "WR_" ]]; then
+      SYSBENCH_RUN_TIME=$READS_TIME_SECONDS
+    else
+      SYSBENCH_RUN_TIME=$WRITES_TIME_SECONDS
+    fi
+
+    run_sysbench
+  done
 done
