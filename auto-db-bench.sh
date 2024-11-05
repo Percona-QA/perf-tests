@@ -1,11 +1,11 @@
 #!/bin/bash
 # usage:
-#   sudo nice --adjustment=-10 env PS_BRANCH=8.0 RUN_TIME_SECONDS=30 THREADS_LIST="8" WORKLOAD_NAME=point_select.txt ROOT_DIR=/mnt/optane/auto-perf-test /mnt/optane/auto-perf-test/perf-tests/auto-perf-test.sh
+#   sudo nice --adjustment=-10 env PS_BRANCH=8.0 WRITES_TIME_SECONDS=30 THREADS_LIST="8" WORKLOAD_NAMES=POINT_SELECT ROOT_DIR=/mnt/optane/auto-perf-test /mnt/optane/auto-perf-test/perf-tests/auto-db-bench.sh
 # or add with "crontab -e":
-# 0 18 * * * sudo nice --adjustment=-10 env PS_BRANCH=8.0 WORKLOAD_NAME=mdcallag/daily.txt TEMPLATE_PATH=/mnt/fast/template_datadir /mnt/fast/przemek/perf-tests/auto-perf-test.sh
+# 0 18 * * * sudo nice --adjustment=-10 env PS_BRANCH=8.0 WORKLOAD_NAMES=reads,writes TEMPLATE_PATH=/mnt/fast/template_datadir /mnt/fast/przemek/perf-tests/auto-db-bench.sh
 #            sudo nice --adjustment=-10 bash -c "./run-ACID-shm.sh >run-ACID-shm.txt 2>&1"
 #
-# to kill all deps: sudo killall -9 ps-performance-test.sh auto-perf-test.sh mysqld sysbench dstat iostat
+# to kill all deps: sudo killall -9 db-bench.sh auto-db-bench.sh mysqld sysbench dstat iostat
 
 function install_deps_debian() {
     export DEBIAN_FRONTEND=noninteractive
@@ -37,6 +37,8 @@ function setup_git_repo() {
     git reset --hard
     git clean -xdf
     git checkout "origin/${GIT_BRANCH}" || git checkout "tags/${GIT_BRANCH}" || git checkout "${GIT_BRANCH}"
+    if [[ $? != 0 ]]; then echo "git checkout ${GIT_BRANCH} failed"; exit -1; fi
+
     git submodule update --init
     popd
 }
@@ -89,7 +91,7 @@ function build_ps() {
     echo "Using $NPROC threads for compilation"
     rm -f bin/mysqld
     make -j${NPROC}
-    if [[ $? != 0 ]]; then echo make failed; exit -1; fi
+    if [[ $? != 0 ]]; then echo "make -j${NPROC} failed"; exit -1; fi
     ccache --show-stats
     df -Th
     popd
@@ -98,7 +100,7 @@ function build_ps() {
 function run_perf_tests() {
     if [ $# -lt 4 ]; then echo "Usage: run_perf_tests <MAIN_DIR> <BUILD_PATH> <PERFTEST_PATH> <SYSBENCH_REPO_DIR>"; return 1; fi
     local MAIN_DIR=$1
-    local BUILD_PATH=$2
+    export BUILD_PATH=$2
     local PERFTEST_PATH=$3
     local SYSBENCH_REPO_DIR=$4
 
@@ -106,7 +108,7 @@ function run_perf_tests() {
     export INNODB_CACHE=${INNODB_CACHE:-96G}
     export NUM_TABLES=${NUM_TABLES:-16}
     export DATASIZE=${DATASIZE:-10M}
-    export RUN_TIME_SECONDS=${RUN_TIME_SECONDS:-300}
+    export WRITES_TIME_SECONDS=${WRITES_TIME_SECONDS:-300}
     export THREADS_LIST=${THREADS_LIST:-"8 16 32 64"}
 
     # path to template databases
@@ -118,21 +120,20 @@ function run_perf_tests() {
     export SYSBENCH_LUA=$SYSBENCH_REPO_DIR/src/lua
 
     # path to files from https://github.com/Percona-QA/perf-tests
-    CNFFILE_NAME=${CNFFILE_NAME:-stable8x-innodb.cnf}
-    WORKLOAD_NAME=${WORKLOAD_NAME:-read_write.txt}
-    export WORKLOAD_SCRIPT=${WORKLOAD_SCRIPT:-${PERFTEST_PATH}/workloads/${WORKLOAD_NAME}}
-    export WORKLOAD_NAMES="reads,writes"
+    CNFFILE_NAME=${CNFFILE_NAME:-stable-innodb.cnf}
+    export CONFIG_FILES=${CONFIG_FILES:-"${PERFTEST_PATH}/cnf/${CNFFILE_NAME}"}
 
     REPEAT_NUM=${REPEAT_NUM:-1}
     for i in $(seq $REPEAT_NUM); do
         local NICE_DATE=$(date +"%Y-%m-%d_%H:%M")
-        ${PERFTEST_PATH}/ps-performance-test.sh ${PS_BRANCH}@${PS_GIT_HASH}_${NICE_DATE} ${BUILD_PATH} "${PERFTEST_PATH}/cnf/${CNFFILE_NAME}"
+        export BENCH_NAME=${PS_BRANCH}@${PS_GIT_HASH}_${NICE_DATE}
+        ${PERFTEST_PATH}/db-bench.sh
     done
 }
 
 SELECTED_CC=${SELECTED_CC:-gcc-13}
 SELECTED_CXX=${SELECTED_CXX:-g++-13}
-ROOT_DIR=${ROOT_DIR:-/mnt/fast/auto-perf-test}
+ROOT_DIR=${ROOT_DIR:-/mnt/fast/auto-db-bench}
 export RESULTS_EMAIL=${RESULTS_EMAIL:-przemyslaw.skibinski@percona.com}
 
 PS_REPO_DIR=${PS_REPO_DIR:-$ROOT_DIR/sources}
@@ -146,7 +147,7 @@ SYSBENCH_BRANCH=${SYSBENCH_BRANCH:-mdcallag}
 
 PERF_TESTS_REPO_DIR=${PERF_TESTS_REPO_DIR:-$ROOT_DIR/perf-tests}
 PERF_TESTS_REPO_URL=${PERF_TESTS_REPO_URL:-https://github.com/Percona-QA/perf-tests.git}
-PERF_TESTS_BRANCH=${PERF_TESTS_BRANCH:-main}
+PERF_TESTS_BRANCH=${PERF_TESTS_BRANCH:-2.0}
 
 mkdir -p ${ROOT_DIR} > /dev/null 2>&1
 install_deps_debian | tee $PS_BUILD_DIR-install-deps.log
