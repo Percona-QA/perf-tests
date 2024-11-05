@@ -72,7 +72,7 @@ function diff_to_average() {
     END {
         for (i=2; i<=NF; i++) {
           avg[i] = (count[i] > 0) ? sum[i] / count[i] : 0
-          printf ", %.2f%%", ((last_row_data[i] - avg[i]) / avg[i]) * 100
+          printf ", %.2f%%", (count[i] > 0) ? ((last_row_data[i] - avg[i]) / avg[i]) * 100 : 0
         }
         printf "\n"
 
@@ -127,7 +127,7 @@ function standard_deviation_percent() {
     END {
         for (i=2; i<=NF; i++) {
            avg[i] = (count[i] > 0) ? sum[i] / count[i] : 0
-           printf ", %.2f%%", (sqrt((sumsq[i]/count[i]) - (avg[i])**2) / avg[i]) * 100
+           printf ", %.2f%%", (count[i] > 0) ? (sqrt((sumsq[i]/count[i]) - (avg[i])**2) / avg[i]) * 100 : 0
         }
         printf "\n"
 
