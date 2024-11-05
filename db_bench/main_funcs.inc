@@ -181,9 +181,25 @@ function snapshot_datadir() {
   print_database_size
 }
 
+function copy_datadir() {
+  local FROM_DIR=$1
+  local TO_DIR=$2
+  if [ $# -lt 2 ]; then echo "Usage: copy_datadir <FROM_DIR> <TO_DIR>"; return 1; fi
+
+  echo "Copying data directory from ${FROM_DIR} to ${TO_DIR}"
+  rm -rf ${TO_DIR}
+  (time cp -r ${FROM_DIR} ${TO_DIR}) 2>&1
+  print_database_size
+}
+
 function prepare_datadir() {
   local SNAPSHOT_DIR=${TEMPLATE_PATH}/snapshot_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
   local TEMPLATE_DIR=${TEMPLATE_PATH}/datadir_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
+
+  if [[ ${WRITES_TIME_SECONDS} == 0 ]]; then return; fi
+
+  if [ -d ${SNAPSHOT_DIR} ]; then copy_datadir "${SNAPSHOT_DIR}" "${DATA_DIR}"; return; fi
+
   if [ ! -d ${TEMPLATE_DIR} ]; then
     echo "Creating template data directory in ${TEMPLATE_DIR}"
     mkdir -p ${TEMPLATE_PATH} > /dev/null 2>&1
@@ -198,13 +214,8 @@ function prepare_datadir() {
     echo "Data directory in ${TEMPLATE_DIR} created"
     shutdown_mysqld
   fi
-  if [[ ${WRITES_TIME_SECONDS} > 0 ]]; then
-    if [ -d ${SNAPSHOT_DIR} ]; then ORIGIN_DIR=$SNAPSHOT_DIR; else ORIGIN_DIR=$TEMPLATE_DIR; fi
-    echo "Copying data directory from ${ORIGIN_DIR} to ${DATA_DIR}"
-    rm -rf ${DATA_DIR}
-    (time cp -r ${ORIGIN_DIR} ${DATA_DIR}) 2>&1
-    print_database_size
-  fi
+
+  copy_datadir "${TEMPLATE_DIR}" "${DATA_DIR}"
 }
 
 function sysbench_warmup() {
