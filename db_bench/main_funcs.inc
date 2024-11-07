@@ -296,7 +296,7 @@ function run_sysbench() {
   for number in "${result_set[@]}"; do RESULTS_LINE+=", ${number}"; done
 
   mkdir -p $LOG_RESULTS_PATH
-  echo "${RESULTS_LINE}" >> ${LOG_NAME_RESULTS}
+  echo "${RESULTS_LINE}" > ${LOG_NAME_RESULTS}
   cat ${LOG_NAME_RESULTS} >> ${LOG_RESULTS_CACHE}
   cat ${LOG_NAME_RESULTS} >> ${LOGS_QPS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_qps.csv
   echo "${BENCH_WITH_CONFIG}_diff$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS_DIFF}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_diff.csv

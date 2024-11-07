@@ -84,6 +84,7 @@ WR_INLIST_UPDATE_HOT_POINTS_128 "oltp_inlist_update.lua --random_points=128 --ho
 
 # additional commands
 snapshot "options are ignored"
+reset    "options are ignored"
 
 
 #fill tables
