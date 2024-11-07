@@ -10,6 +10,9 @@ declare -A aliases
 aliases["reads"]="POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI,RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES"
 aliases["writes"]="WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS,WR_DELETE,WR_INSERT,WR_REPLACE"
 aliases["make_snapshot"]="INLIST_UPDATE,UPDATE_INDEX,UPDATE_NON_INDEX,DELETE_INSERTS,snapshot"
+aliases["select_run"]="SELECT_RUN_POINT_SELECT,SELECT_RUN_RANGE_SIMPLE,SELECT_RUN_RANGE_SUM,SELECT_RUN_RANGE_ORDER,SELECT_RUN_RANGE_DISTINCT,SELECT_RUN_RANGE_ALL,SELECT_RUN_INLIST,SELECT_RUN_INLIST_HOTSPOT,SELECT_RUN_SELECT_SCAN"
+aliases["write_run"]="WRITE_RUN_INLIST_UPDATE,WRITE_RUN_INLIST_UPDATE_HOTSPOT,WRITE_RUN_UPDATE_NO_INDEX_SINGLE,WRITE_RUN_UPDATE_NO_INDEX_MULTI,WRITE_RUN_UPDATE_NO_INDEX_MULTI_SPECIAL,WRITE_RUN_UPDATE_WITH_INDEX_SINGLE,WRITE_RUN_UPDATE_WITH_INDEX_MULTI,WRITE_RUN_UPDATE_WITH_INDEX_MULTI_SPECIAL,WRITE_RUN_INSERT_DELETE_SINGLE,WRITE_RUN_INSERT_DELETE_MULTI,WRITE_RUN_REPLACE_DELETE_SINGLE,WRITE_RUN_REPLACE_DELETE_MULTI,WRITE_RUN_WRITE_ALL_NO_TRX,WRITE_RUN_WRITE_ALL_WITH_TRX,WRITE_RUN_WRITE_ALL_WITH_TRX_SPECIAL,WRITE_RUN_RW_WITH_RANGE_100,WRITE_RUN_RW_WITH_RANGE_1000"
+aliases["write_only"]="WRITE_RUN_INLIST_UPDATE,WRITE_RUN_INLIST_UPDATE_HOTSPOT,WRITE_RUN_UPDATE_NO_INDEX_SINGLE,WRITE_RUN_UPDATE_NO_INDEX_MULTI,WRITE_RUN_UPDATE_WITH_INDEX_SINGLE,WRITE_RUN_UPDATE_WITH_INDEX_MULTI,WRITE_RUN_INSERT_DELETE_SINGLE,WRITE_RUN_INSERT_DELETE_MULTI,WRITE_RUN_REPLACE_DELETE_SINGLE,WRITE_RUN_REPLACE_DELETE_MULTI"
 
 declare -A load=(
 # reads
@@ -81,4 +84,86 @@ WR_INLIST_UPDATE_HOT_POINTS_128 "oltp_inlist_update.lua --random_points=128 --ho
 
 # additional commands
 snapshot "options are ignored"
+
+
+#fill tables
+CLEAN_PREPARE_SMALL       "windmills/oltp_write.lua --skip_trx=on"
+CLEAN_PREPARE_LARGE       "windmills/oltp_write.lua --tables=5 --skip_trx=on"
+
+#point select
+SELECT_RUN_POINT_SELECT   "windmills/oltp_point_select.lua --skip_trx=on"
+
+#Select Range
+SELECT_RUN_RANGE_SIMPLE   "windmills/oltp_range_select.lua --skip_trx=on --type_of_range=simple"
+SELECT_RUN_RANGE_SUM      "windmills/oltp_range_select.lua --skip_trx=on --type_of_range=sum"
+SELECT_RUN_RANGE_ORDER    "windmills/oltp_range_select.lua --skip_trx=on --type_of_range=order"
+SELECT_RUN_RANGE_DISTINCT "windmills/oltp_range_select.lua --skip_trx=on --type_of_range=distinct"
+SELECT_RUN_RANGE_ALL      "windmills/oltp_range_select.lua --skip_trx=on --type_of_range=all"
+
+#in list
+SELECT_RUN_INLIST         "windmills/oltp_inlist_select.lua --skip_trx=on --random_points=100 --hot_points=false"
+SELECT_RUN_INLIST_HOTSPOT "windmills/oltp_inlist_select.lua --skip_trx=on --random_points=100 --hot_points=true"
+
+#select scan
+SELECT_RUN_SELECT_SCAN    "windmills/oltp_scan.lua --skip_trx=on --events=2"
+
+#Sysbench Write only tests
+WRITE_RUN_INLIST_UPDATE         "windmills/oltp_inlist_update.lua --skip_trx=on --random_points=100 --hot_points=false"
+WRITE_RUN_INLIST_UPDATE_HOTSPOT "windmills/oltp_inlist_update.lua --skip_trx=on --random_points=100 --hot_points=true"
+
+#update no indexed
+WRITE_RUN_UPDATE_NO_INDEX_SINGLE        "windmills/oltp_update_non_index.lua --skip_trx=on --non_index_updates=1"
+WRITE_RUN_UPDATE_NO_INDEX_MULTI         "windmills/oltp_update_non_index.lua --skip_trx=on --non_index_updates=100"
+WRITE_RUN_UPDATE_NO_INDEX_MULTI_SPECIAL "windmills/oltp_update_non_index.lua --skip_trx=on --rand-type=special --non_index_updates=10"
+
+#update with indexed
+WRITE_RUN_UPDATE_WITH_INDEX_SINGLE        "windmills/oltp_update_index.lua --skip_trx=on --index_updates=1"
+WRITE_RUN_UPDATE_WITH_INDEX_MULTI         "windmills/oltp_update_index.lua --skip_trx=on --index_updates=100"
+WRITE_RUN_UPDATE_WITH_INDEX_MULTI_SPECIAL "windmills/oltp_update_index.lua --skip_trx=on --rand-type=special --index_updates=10"
+
+#Insert/deletes
+WRITE_RUN_INSERT_DELETE_SINGLE  "windmills/oltp_delete_insert.lua --skip_trx=on --delete_inserts=1"
+WRITE_RUN_INSERT_DELETE_MULTI   "windmills/oltp_delete_insert.lua --skip_trx=on --delete_inserts=100"
+WRITE_RUN_REPLACE_DELETE_SINGLE "windmills/oltp_insert.lua --skip_trx=on --use_replace --delete_inserts=1"
+WRITE_RUN_REPLACE_DELETE_MULTI  "windmills/oltp_insert.lua --skip_trx=on --use_replace --delete_inserts=100"
+
+#All write operations at once
+WRITE_RUN_WRITE_ALL_NO_TRX           "windmills/oltp_write.lua --skip_trx=on --delete_inserts=1"
+WRITE_RUN_WRITE_ALL_WITH_TRX         "windmills/oltp_write.lua --skip_trx=off --delete_inserts=1"
+WRITE_RUN_WRITE_ALL_WITH_TRX_SPECIAL "windmills/oltp_write.lua --skip_trx=off --rand-type=special --delete_inserts=1"
+
+#Read and Write with range selects
+WRITE_RUN_RW_WITH_RANGE_100  "windmills/oltp_read_write.lua --skip_trx=on --point_selects=1 --range_size=100"
+WRITE_RUN_RW_WITH_RANGE_1000 "windmills/oltp_read_write.lua --skip_trx=on --point_selects=1 --range_size=1000"
+
+#10% Writes 90% Select writes with Reads with and without transactions
+WRITE_RUN_RW_25%_WRITES_NOTRX "windmills/oltp_read_write.lua --skip_trx=on --point_selects=180 --range_size=180 --index_updates=20 --non_index_updates=10 --delete_inserts=10"
+
+WRITE_RUN_RW_25%_WRITES_TRX "windmills/oltp_read_write.lua --skip_trx=off --point_selects=180 --range_size=180 --index_updates=20 --non_index_updates=10 --delete_inserts=10"
+
+
+#25% Writes 75% Select writes with Reads with and without transactions
+WRITE_RUN_RW_25%_WRITES_NOTRX "windmills/oltp_read_write.lua --skip_trx=on --point_selects=150 --range_size=150 --index_updates=50 --non_index_updates=25 --delete_inserts=25"
+
+WRITE_RUN_RW_25%_WRITES_TRX "windmills/oltp_read_write.lua --skip_trx=off --point_selects=150 --range_size=150 --index_updates=50 --non_index_updates=25 --delete_inserts=25"
+
+
+
+#50% Writes 50% Select writes with Reads with and without transactions
+WRITE_RUN_RW_50%_WRITES_NOTRX "windmills/oltp_read_write.lua --skip_trx=on --point_selects=100 --range_size=100 --index_updates=120 --non_index_updates=40 --delete_inserts=40"
+
+WRITE_RUN_RW_50%_WRITES_TRX "windmills/oltp_read_write.lua --skip_trx=off --point_selects=100 --range_size=100 --index_updates=120 --non_index_updates=40 --delete_inserts=40"
+
+
+#75% Writes 25% Select writes with Reads with and without transactions
+WRITE_RUN_RW_75%_WRITES_NOTRX "windmills/oltp_read_write.lua --skip_trx=on --point_selects=50 --range_size=50 --index_updates=160 --non_index_updates=70 --delete_inserts=70"
+
+WRITE_RUN_RW_75%_WRITES_TRX "windmills/oltp_read_write.lua --skip_trx=off --point_selects=50 --range_size=50 --index_updates=150 --non_index_updates=70 --delete_inserts=70"
+
+#WARMUP action
+WARMUP_RUN_SELECT_SCAN "windmills/oltp_scan.lua --skip_trx=on"
+
+
+#Cleanup action
+CLEANUP_RUN_SELECT_SCAN "windmills/oltp_scan.lua --skip_trx=on"
 )
