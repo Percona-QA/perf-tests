@@ -65,20 +65,20 @@ for file in $CONFIG_FILES; do
       continue
     fi
 
-    if [[ $num -eq 0 || ${PREV_WORKLOAD_NAME:0:3} == "WR_" || ${WORKLOAD_NAME} == "reset" ]]; then
+    if [[ $num -eq 0 || ${PREV_WORKLOAD_NAME:0:3} == "WR_" || ${PREV_WORKLOAD_NAME:0:6} == "WRITE_" || ${WORKLOAD_NAME} == "reset" ]]; then
       drop_caches
       prepare_datadir | tee ${LOGS_CONFIG}/prepare_datadir_${WORKLOAD_NAME}.log
       if [[ ${WORKLOAD_NAME} == "reset" ]]; then continue; fi
-      if [ -d ${SNAPSHOT_DIR} ]; then WORKLOAD_NAME="${WORKLOAD_NAME}(snap)"; fi
     fi
     PREV_WORKLOAD_NAME=${WORKLOAD_NAME}
 
-    if [[ ${WORKLOAD_NAME:0:3} != "WR_" ]]; then
-      SYSBENCH_RUN_TIME=$READS_TIME_SECONDS
-    else
-      SYSBENCH_RUN_TIME=$WRITES_TIME_SECONDS
-    fi
+    if [ -d ${SNAPSHOT_DIR} ]; then WORKLOAD_NAME="${WORKLOAD_NAME}(snap)"; fi
 
+    if [[ ${WORKLOAD_NAME:0:3} == "WR_" || ${WORKLOAD_NAME:0:6} == "WRITE_" ]]; then
+      SYSBENCH_RUN_TIME=$WRITES_TIME_SECONDS
+    else
+      SYSBENCH_RUN_TIME=$READS_TIME_SECONDS
+    fi
     run_sysbench
   done
 done

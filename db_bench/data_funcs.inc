@@ -36,6 +36,11 @@ function process_workload_names() {
         WORKLOAD_PARAMS+=("${load[WR_$WORKLOAD]}")
         break
       fi
+      if [[ "${KEY}" == "WRITE_${WORKLOAD}" ]]; then
+        WORKLOAD_ARRAY+=("$WORKLOAD")
+        WORKLOAD_PARAMS+=("${load[WRITE_$WORKLOAD]}")
+        break
+      fi
     done
   done
 }
