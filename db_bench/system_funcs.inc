@@ -104,8 +104,7 @@ function get_build_info() {
   MYSQL_VERSION=`echo ${MYSQL_VERSION_LONG} | awk '{ print $3}'`
   MYSQL_NAME=`$BUILD_PATH/bin/mysqld --help | grep Percona`
   if [[ $MYSQL_NAME == *"Percona"* ]]; then MYSQL_NAME=PS; else MYSQL_NAME=MS; fi
-  export MYSQL_NAME="${MYSQL_NAME}"
-  export MYSQL_VERSION="${MYSQL_VERSION//./}"
+  MYSQL_VERSION="${MYSQL_VERSION//./}"
 }
 
 function drop_caches(){

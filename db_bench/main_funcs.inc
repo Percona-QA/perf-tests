@@ -170,13 +170,7 @@ function shutdown_mysqld() {
   print_database_size
 }
 
-function init_perf_tests() {
-  local NUM_ROWS=$(numfmt --from=si $DATASIZE)
-  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=$SYSBENCH_REPORT_INTERVAL --db-driver=mysql --mysql-ssl=DISABLED --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
-}
-
 function snapshot_datadir() {
-  local SNAPSHOT_DIR=${TEMPLATE_PATH}/snapshot_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
   echo "Copying data directory from ${DATA_DIR} to ${SNAPSHOT_DIR}"
   rm -rf ${SNAPSHOT_DIR}
   (time cp -r ${DATA_DIR} ${SNAPSHOT_DIR}) 2>&1
@@ -195,7 +189,6 @@ function copy_datadir() {
 }
 
 function prepare_datadir() {
-  local SNAPSHOT_DIR=${TEMPLATE_PATH}/snapshot_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
   local TEMPLATE_DIR=${TEMPLATE_PATH}/datadir_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
 
   if [[ ${WRITES_TIME_SECONDS} == 0 ]]; then return; fi
@@ -308,6 +301,24 @@ function run_sysbench() {
   fi
 }
 
+function init_global_variables() {
+  export START_TIME=$(date +%s)
+  export LOGS=$BENCH_DIR
+  export LOGS_AVG=${LOGS}/${BENCH_NAME}-avg
+  export LOGS_STDDEV=${LOGS}/${BENCH_NAME}-stddev
+  export LOGS_DIFF=${LOGS}/${BENCH_NAME}-diff
+  export LOGS_QPS=${LOGS}/${BENCH_NAME}-qps
+
+  INNODB_CACHE=${INNODB_CACHE:-32G}
+  NUM_TABLES=${NUM_TABLES:-16}
+  DATASIZE=${DATASIZE:-10M}
+  SNAPSHOT_DIR=${TEMPLATE_PATH}/snapshot_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
+  export BENCH_ID=$(uname -n)_${MYSQL_NAME}${MYSQL_VERSION}_${WRITES_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+
+  local NUM_ROWS=$(numfmt --from=si $DATASIZE)
+  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=$SYSBENCH_REPORT_INTERVAL --db-driver=mysql --mysql-ssl=DISABLED --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
+}
+
 function db_bench_init() {
   if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
     command -v cpupower >/dev/null 2>&1 || { echo >&2 "cpupower is not installed. Aborting."; exit 1; }
@@ -318,31 +329,21 @@ function db_bench_init() {
     rm dstat.csv
   fi
 
-  export START_TIME=$(date +%s)
-  export LOGS=$BENCH_DIR
-  export LOGS_AVG=${LOGS}/${BENCH_NAME}-avg
-  export LOGS_STDDEV=${LOGS}/${BENCH_NAME}-stddev
-  export LOGS_DIFF=${LOGS}/${BENCH_NAME}-diff
-  export LOGS_QPS=${LOGS}/${BENCH_NAME}-qps
-
   # check parameters
   if [ -z "$BENCH_NAME" ]; then usage "Error: BENCH_NAME is not defined or is empty."; fi
   if [ -z "$BUILD_PATH" ]; then usage "Error: BUILD_PATH is not defined or is empty."; fi
   if [ -z "$CONFIG_FILES" ]; then usage "Error: CONFIG_FILES is not defined or is empty."; fi
   if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
 
-  rm -rf ${LOGS}
-  mkdir -p ${LOGS} ${LOGS_AVG} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${CACHE_DIR}
-  cd $WORKSPACE
-
-  get_build_info
   process_workload_names
   if [ ${#WORKLOAD_ARRAY[@]} -eq 0 ]; then usage "ERROR: Maching workloads names from $WORKLOAD_NAMES are empty."; fi
 
-  export INNODB_CACHE=${INNODB_CACHE:-32G}
-  export NUM_TABLES=${NUM_TABLES:-16}
-  export DATASIZE=${DATASIZE:-10M}
-  export BENCH_ID=$(uname -n)_${MYSQL_NAME}${MYSQL_VERSION}_${WRITES_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+  get_build_info
+  init_global_variables
+
+  rm -rf ${LOGS}
+  mkdir -p ${LOGS} ${LOGS_AVG} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${CACHE_DIR}
+  cd $WORKSPACE
 
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL}"
@@ -368,7 +369,6 @@ function db_bench_init() {
   print_parameters "" | tee -a ${LOGS_BUILD_INFO}
   echo "=========="
 
-  init_perf_tests
   echo "Storing Sysbench results in ${WORKSPACE}"
 
   trap on_exit EXIT KILL
