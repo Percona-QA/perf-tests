@@ -158,12 +158,14 @@ function print_database_size() {
 
 # shutdown_mysqld
 function shutdown_mysqld() {
-  echo "Shutting mysqld down"
   if [[ "$MYSQL_VERSION" < "81" ]]; then
     ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET MASTER" 2>&1
   else
     ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET BINARY LOGS AND GTIDS" 2>&1
   fi
+  ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "USE $MYSQL_DATABASE; SELECT COUNT(*) FROM sbtest1" 2>&1
+
+  echo "Shutting mysqld down"
   (time ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown) 2>&1
   print_database_size
 }
