@@ -265,9 +265,14 @@ function run_sysbench() {
         fi
     fi
     pushd $SYSBENCH_LUA
-    local ALL_SYSBENCH_OPTIONS="$WORKLOAD_PARAMETERS --threads=$num_threads --time=$SYSBENCH_RUN_TIME --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run"
+    local ALL_SYSBENCH_OPTIONS="$WORKLOAD_PARAMETERS --threads=$num_threads --time=$SYSBENCH_RUN_TIME --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS "
+    if [[ ${SYSBENCH_HOST} != "" ]]; then
+      ALL_SYSBENCH_OPTIONS+="--mysql-host=$SYSBENCH_HOST --mysql-port=$RBASE"
+    else
+      ALL_SYSBENCH_OPTIONS+="--mysql-socket=$MYSQL_SOCKET"
+    fi
     echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
-    (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $ALL_SYSBENCH_OPTIONS) 2>&1 | tee -a $LOG_NAME
+    (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $ALL_SYSBENCH_OPTIONS run) 2>&1 | tee -a $LOG_NAME
     popd
 
     sleep 6
@@ -327,6 +332,10 @@ function db_bench_init() {
     command -v iostat >/dev/null 2>&1 || { echo >&2 "iostat is not installed. Aborting."; exit 1; }
     dstat -t -v --nocolor --output dstat.csv 1 1 >/dev/null 2>&1 || DSTAT_OUTPUT_NOT_SUPPORTED=1
     rm dstat.csv
+  fi
+
+  if [[ ${RESULTS_EMAIL} != "" ]]; then
+    command -v mutt >/dev/null 2>&1 || { echo >&2 "mutt is not installed. Aborting."; exit 1; }
   fi
 
   # check parameters
