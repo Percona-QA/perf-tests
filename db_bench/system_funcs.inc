@@ -71,7 +71,7 @@ function enable_idle_states(){
 }
 
 function print_system_info() {
-  local VERSION_INFO=`$BUILD_PATH/bin/mysqld --version | cut -d' ' -f2-`
+  local VERSION_INFO=`${MYSQLD_BIN} --version | cut -d' ' -f2-`
   local UPTIME_HOUR=`uptime -p`
   local SYSTEM_LOAD=`uptime | sed 's|  | |g' | sed -e 's|.*user*.,|System|'`
   local MEM=`free -g | grep "Mem:" | awk '{print "Total:"$2"GB  Used:"$3"GB  Free:"$4"GB" }'`
@@ -100,9 +100,9 @@ function print_system_info() {
 }
 
 function get_build_info() {
-  MYSQL_VERSION_LONG=`$BUILD_PATH/bin/mysqld --version`
+  MYSQL_VERSION_LONG=`${MYSQLD_BIN} --version`
   MYSQL_VERSION=`echo ${MYSQL_VERSION_LONG} | awk '{ print $3}'`
-  MYSQL_NAME=`$BUILD_PATH/bin/mysqld --help | grep Percona`
+  MYSQL_NAME=`${MYSQLD_BIN} --help | grep Percona`
   if [[ $MYSQL_NAME == *"Percona"* ]]; then MYSQL_NAME=PS; else MYSQL_NAME=MS; fi
   MYSQL_VERSION="${MYSQL_VERSION//./}"
 }

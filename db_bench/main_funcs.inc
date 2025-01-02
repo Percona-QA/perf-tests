@@ -135,18 +135,18 @@ function start_mysqld() {
   RBASE="$(( RBASE + 100 ))"
   local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=$LOG_NAME_MYSQLD --socket=$MYSQL_SOCKET --port=$RBASE"
   echo "Starting Percona Server with options $MYSQLD_OPTIONS" | tee -a $LOG_NAME_MYSQLD
-  ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld $MYSQLD_OPTIONS >> $LOG_NAME_MYSQLD 2>&1 &
+  ${TASKSET_MYSQLD} ${MYSQLD_BIN} $MYSQLD_OPTIONS >> $LOG_NAME_MYSQLD 2>&1 &
 
   echo "- Waiting for start of mysqld"
   for X in $(seq 0 ${PS_START_TIMEOUT}); do
     sleep 1
     echo -n "."
-    if ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1; then
+    if ${MYSQLADMIN_BIN} -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1; then
       echo "Percona Server started in $(( X+1 )) seconds (socket=$MYSQL_SOCKET port=$RBASE)"
       break
     fi
   done
-  ${BUILD_PATH}/bin/mysqladmin -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { cat $LOG_NAME_MYSQLD; echo "Couldn't connect $MYSQL_SOCKET" && exit 0; }
+  ${MYSQLADMIN_BIN} -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { cat $LOG_NAME_MYSQLD; echo "Couldn't connect $MYSQL_SOCKET" && exit 0; }
 }
 
 # print_database_size
@@ -159,14 +159,14 @@ function print_database_size() {
 # shutdown_mysqld
 function shutdown_mysqld() {
   if [[ "$MYSQL_VERSION" < "81" ]]; then
-    ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET MASTER" 2>&1
+    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET MASTER" 2>&1
   else
-    ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET BINARY LOGS AND GTIDS" 2>&1
+    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET BINARY LOGS AND GTIDS" 2>&1
   fi
-  ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "USE $MYSQL_DATABASE; SELECT COUNT(*) FROM sbtest1" 2>&1
+  ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "USE $MYSQL_DATABASE; SELECT COUNT(*) FROM sbtest1" 2>&1
 
   echo "Shutting mysqld down"
-  (time ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown) 2>&1
+  (time ${MYSQLADMIN_BIN} -uroot --socket=$MYSQL_SOCKET shutdown) 2>&1
   print_database_size
 }
 
@@ -198,11 +198,11 @@ function prepare_datadir() {
   if [ ! -d ${TEMPLATE_DIR} ]; then
     echo "Creating template data directory in ${TEMPLATE_DIR}"
     mkdir -p ${TEMPLATE_PATH} > /dev/null 2>&1
-    ${TASKSET_MYSQLD} ${BUILD_PATH}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=${TEMPLATE_DIR} 2>&1
+    ${TASKSET_MYSQLD} ${MYSQLD_BIN} --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=${TEMPLATE_DIR} 2>&1
 
     LOG_NAME_MYSQLD=${LOGS_CONFIG}/prepare.mysqld
     start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin --innodb_flush_log_at_trx_commit=0 --innodb_fast_shutdown=0"
-    ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
+    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
     pushd $SYSBENCH_LUA
     (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_WRITE --threads=$NUM_TABLES --rand-seed=$RAND_SEED $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare) 2>&1
     popd
@@ -280,9 +280,9 @@ function run_sysbench() {
     pkill -f iostat
     kill -9 ${REPORT_THREAD_PID}
     result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1}'`)
-    ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G; SHOW ENGINE INNODB MUTEX" >> ${LOG_NAME_MYSQL} 2>&1
+    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G; SHOW ENGINE INNODB MUTEX" >> ${LOG_NAME_MYSQL} 2>&1
     if [[ ${PERF_EXTRA} != "" ]]; then
-      ${BUILD_PATH}/bin/mysql -uroot -S$MYSQL_SOCKET -e "SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT/1000000000 SUM_TIMER_WAIT_MS FROM performance_schema.events_waits_summary_global_by_event_name WHERE SUM_TIMER_WAIT > 0 AND EVENT_NAME LIKE 'wait/synch/mutex/innodb/%' ORDER BY COUNT_STAR DESC" >> ${LOG_NAME_MYSQL} 2>&1
+      ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT/1000000000 SUM_TIMER_WAIT_MS FROM performance_schema.events_waits_summary_global_by_event_name WHERE SUM_TIMER_WAIT > 0 AND EVENT_NAME LIKE 'wait/synch/mutex/innodb/%' ORDER BY COUNT_STAR DESC" >> ${LOG_NAME_MYSQL} 2>&1
     fi
     shutdown_mysqld | tee -a $LOG_NAME
     kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
@@ -342,7 +342,20 @@ function db_bench_init() {
   if [ -z "$BENCH_NAME" ]; then usage "Error: BENCH_NAME is not defined or is empty."; fi
   if [ -z "$BUILD_PATH" ]; then usage "Error: BUILD_PATH is not defined or is empty."; fi
   if [ -z "$CONFIG_FILES" ]; then usage "Error: CONFIG_FILES is not defined or is empty."; fi
-  if [ ! -x $BUILD_PATH/bin/mysqld ]; then usage "ERROR: Executable $BUILD_PATH/bin/mysqld not found."; fi
+
+  export MYSQLD_BIN=$BUILD_PATH/bin/mysqld
+  if [ ! -x ${MYSQLD_BIN} ]; then export MYSQLD_BIN=$BUILD_PATH/sql/mysqld; fi
+  if [ ! -x ${MYSQLD_BIN} ]; then usage "ERROR: Executable ${MYSQLD_BIN} not found."; fi
+
+  export MYSQLADMIN_BIN=${BUILD_PATH}/bin/mysqladmin
+  if [ ! -x ${MYSQLADMIN_BIN} ]; then export MYSQLADMIN_BIN=$BUILD_PATH/client/mysqladmin; fi
+  if [ ! -x ${MYSQLADMIN_BIN} ]; then usage "ERROR: Executable ${MYSQLADMIN_BIN} not found."; fi
+
+  export MYSQLCLIENT_BIN=${BUILD_PATH}/bin/mysql
+  if [ ! -x ${MYSQLCLIENT_BIN} ]; then export MYSQLCLIENT_BIN=$BUILD_PATH/client/mysql; fi
+  if [ ! -x ${MYSQLCLIENT_BIN} ]; then usage "ERROR: Executable ${MYSQLCLIENT_BIN} not found."; fi
+
+  echo MYSQLD_BIN=${MYSQLD_BIN} MYSQLADMIN_BIN=${MYSQLADMIN_BIN} MYSQLCLIENT_BIN=${MYSQLCLIENT_BIN}
 
   process_workload_names
   if [ ${#WORKLOAD_ARRAY[@]} -eq 0 ]; then usage "ERROR: Maching workloads names from $WORKLOAD_NAMES are empty."; fi
@@ -393,6 +406,6 @@ function db_bench_init_config() {
   echo "Using $CONFIG_FILE as mysqld config file"
 
   MYSQL_SOCKET=${LOGS}/ps_socket.sock
-  timeout --signal=9 30s ${BUILD_PATH}/bin/mysqladmin -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
+  timeout --signal=9 30s ${MYSQLADMIN_BIN} -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
   kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
 }

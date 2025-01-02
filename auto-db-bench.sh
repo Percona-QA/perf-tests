@@ -89,7 +89,6 @@ function build_ps() {
     pushd $BUILD_DIR
     NPROC=`nproc --all`
     echo "Using $NPROC threads for compilation"
-    rm -f bin/mysqld
     make -j${NPROC}
     if [[ $? != 0 ]]; then echo "make -j${NPROC} failed"; exit -1; fi
     ccache --show-stats
