@@ -318,7 +318,8 @@ function init_global_variables() {
   NUM_TABLES=${NUM_TABLES:-16}
   DATASIZE=${DATASIZE:-10M}
   SNAPSHOT_DIR=${TEMPLATE_PATH}/snapshot_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
-  export BENCH_ID=$(uname -n)_${MYSQL_NAME}${MYSQL_VERSION}_${WRITES_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+  HOSTNAME=$(uname -n)
+  export BENCH_ID=${HOSTNAME%%.*}_${MYSQL_NAME}${MYSQL_VERSION}_${WRITES_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
 
   local NUM_ROWS=$(numfmt --from=si $DATASIZE)
   SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=$SYSBENCH_REPORT_INTERVAL --db-driver=mysql --mysql-ssl=DISABLED --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
