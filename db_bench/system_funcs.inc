@@ -70,6 +70,18 @@ function enable_idle_states(){
   sudo cpupower idle-info
 }
 
+function set_performance(){
+  disable_address_randomization
+  disable_turbo_boost
+  change_scaling_governor performance
+}
+
+function restore_from_performance(){
+  restore_address_randomization
+  restore_turbo_boost
+  restore_scaling_governor
+}
+
 function print_system_info() {
   local VERSION_INFO=`${MYSQLD_BIN} --version | cut -d' ' -f2-`
   local UPTIME_HOUR=`uptime -p`
