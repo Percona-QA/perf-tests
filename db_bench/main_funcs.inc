@@ -81,7 +81,7 @@ function on_exit(){
 
   local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
   local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-  local SUBJECT="Done $RUN_NAME $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
+  local SUBJECT="Done ($RUN_NAME) $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
 
   if [[ ${SLACK_WEBHOOK_URL} != "" ]]; then
     echo "- Sending slack message"
@@ -371,7 +371,7 @@ function db_bench_init() {
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL}"
     local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-    print_parameters "" | mutt -s "Start $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
+    print_parameters "" | mutt -s "Start ($RUN_NAME) $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
   fi
 
   local LOG_SYS_INFO=$LOGS/sys_info_start.txt

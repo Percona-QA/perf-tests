@@ -48,7 +48,7 @@ function call_cmake() {
     local REPO_DIR=$1
     local BUILD_DIR=$2
     local BUILD_TYPE="RelWithDebInfo"
-    local BOOST_DIR="../_deps"
+    local BOOST_DIR="../../_deps"
     echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
 
     rm -rf $BUILD_DIR
