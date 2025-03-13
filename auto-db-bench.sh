@@ -139,6 +139,7 @@ PS_REPO_DIR=${PS_REPO_DIR:-$ROOT_DIR/sources}
 PS_REPO_URL=${PS_REPO_URL:-https://github.com/percona/percona-server}
 PS_BRANCH=${PS_BRANCH:-8.0}
 PS_BUILD_DIR=${PS_BUILD_DIR:-$ROOT_DIR/$PS_BRANCH-rel-$SELECTED_CC}
+PS_BIN_DIR=${PS_BUILD_DIR}/bin
 
 SYSBENCH_REPO_DIR=${SYSBENCH_REPO_DIR:-$ROOT_DIR/sysbench}
 SYSBENCH_REPO_URL=${SYSBENCH_REPO_URL:-https://github.com/inikep/sysbench}
@@ -149,15 +150,16 @@ PERF_TESTS_REPO_URL=${PERF_TESTS_REPO_URL:-https://github.com/Percona-QA/perf-te
 PERF_TESTS_BRANCH=${PERF_TESTS_BRANCH:-2.0}
 
 mkdir -p ${ROOT_DIR} > /dev/null 2>&1
-install_deps_debian | tee $PS_BUILD_DIR-install-deps.log
-setup_git_repo $PERF_TESTS_REPO_DIR $PERF_TESTS_BRANCH $PERF_TESTS_REPO_URL | tee $PS_BUILD_DIR-setup-perf-tests-repo.log
-setup_git_repo $SYSBENCH_REPO_DIR $SYSBENCH_BRANCH $SYSBENCH_REPO_URL | tee $PS_BUILD_DIR-setup-sysbench-repo.log
-setup_git_repo $PS_REPO_DIR $PS_BRANCH $PS_REPO_URL| tee $PS_BUILD_DIR-setup-ps-repo.log
+mkdir -p ${PS_BUILD_DIR} > /dev/null 2>&1
+install_deps_debian | tee $PS_BUILD_DIR/install-deps.log
+setup_git_repo $PERF_TESTS_REPO_DIR $PERF_TESTS_BRANCH $PERF_TESTS_REPO_URL | tee $PS_BUILD_DIR/setup-perf-tests-repo.log
+setup_git_repo $SYSBENCH_REPO_DIR $SYSBENCH_BRANCH $SYSBENCH_REPO_URL | tee $PS_BUILD_DIR/setup-sysbench-repo.log
+setup_git_repo $PS_REPO_DIR $PS_BRANCH $PS_REPO_URL| tee $PS_BUILD_DIR/setup-ps-repo.log
 
 pushd $PS_REPO_DIR; PS_GIT_HASH=$(git rev-parse --short HEAD); popd
 echo "PS_GIT_HASH=$PS_GIT_HASH PS_REPO_URL=$PS_REPO_URL PS_BRANCH=$PS_BRANCH"
 
-build_sysbench $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR-sysbench-make.log
-call_cmake $PS_REPO_DIR $PS_BUILD_DIR | tee $PS_BUILD_DIR-cmake.log
-build_ps $PS_BUILD_DIR | tee $PS_BUILD_DIR-make.log
-run_perf_tests $ROOT_DIR $PS_BUILD_DIR $PERF_TESTS_REPO_DIR $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR-perf-test.log
+build_sysbench $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR/sysbench-make.log
+call_cmake $PS_REPO_DIR $PS_BIN_DIR | tee $PS_BUILD_DIR/cmake.log
+build_ps $PS_BIN_DIR | tee $PS_BUILD_DIR/make.log
+run_perf_tests $ROOT_DIR $PS_BIN_DIR $PERF_TESTS_REPO_DIR $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR/perf-test.log
