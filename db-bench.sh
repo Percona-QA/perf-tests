@@ -19,6 +19,7 @@ export SMART_DEVICE=${SMART_DEVICE:-/dev/nvme0n1}
 export WORKLOAD_NAMES=${WORKLOAD_NAMES:-reads,writes}
 
 # sysbench variables
+ENGINE=${ENGINE:-innodb}
 export MYSQL_DATABASE=test
 export SUSER=root
 RAND_TYPE=${RAND_TYPE:-uniform}

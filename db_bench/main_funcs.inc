@@ -131,7 +131,12 @@ function report_thread(){
 
 # start_mysqld $MORE_PARAMS
 function start_mysqld() {
-  local EXTRA_PARAMS="--user=root --innodb-buffer-pool-size=$INNODB_CACHE $PERF_EXTRA $MYEXTRA $1"
+  if [ "$ENGINE" == "rocksdb" ]; then
+      EXTRA_PARAMS="--rocksdb_block_cache_size=${ENGINE_CACHE}"
+  else
+      EXTRA_PARAMS="--innodb_buffer_pool_size=${ENGINE_CACHE}"
+  fi
+  EXTRA_PARAMS+=" --user=root $PERF_EXTRA $MYEXTRA $1"
   RBASE="$(( RBASE + 100 ))"
   local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=$LOG_NAME_MYSQLD --socket=$MYSQL_SOCKET --port=$RBASE"
   echo "Starting Percona Server with options $MYSQLD_OPTIONS" | tee -a $LOG_NAME_MYSQLD
@@ -163,6 +168,11 @@ function shutdown_mysqld() {
   else
     ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET BINARY LOGS AND GTIDS" 2>&1
   fi
+
+  if [ "$ENGINE" == "rocksdb" ]; then
+    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "set global rocksdb_force_flush_memtable_and_lzero_now=0" 2>&1
+  fi
+
   ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "USE $MYSQL_DATABASE; SELECT COUNT(*) FROM sbtest1" 2>&1
 
   echo "Shutting mysqld down"
@@ -189,7 +199,7 @@ function copy_datadir() {
 }
 
 function prepare_datadir() {
-  local TEMPLATE_DIR=${TEMPLATE_PATH}/datadir_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
+  local TEMPLATE_DIR=${TEMPLATE_PATH}/${ENGINE}_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
 
   if [[ ${WRITES_TIME_SECONDS} == 0 ]]; then return; fi
 
@@ -201,9 +211,15 @@ function prepare_datadir() {
     ${TASKSET_MYSQLD} ${MYSQLD_BIN} --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=${TEMPLATE_DIR} 2>&1
 
     LOG_NAME_MYSQLD=${LOGS_CONFIG}/prepare.mysqld
-    start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin --innodb_flush_log_at_trx_commit=0 --innodb_fast_shutdown=0"
+    if [ "$ENGINE" == "rocksdb" ]; then
+        EXTRA_PARAMS="--rocksdb_bulk_load=1"
+    else
+        EXTRA_PARAMS="--innodb_flush_log_at_trx_commit=0"
+    fi
+    start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin $EXTRA_PARAMS --innodb_fast_shutdown=0"
     ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
     pushd $SYSBENCH_LUA
+    # --rocksdb_bulk_load_sync_size  # Number of rows to sync bulk load
     (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_WRITE --threads=$NUM_TABLES --rand-seed=$RAND_SEED $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare) 2>&1
     popd
     echo "Data directory in ${TEMPLATE_DIR} created"
@@ -280,7 +296,7 @@ function run_sysbench() {
     pkill -f iostat
     kill -9 ${REPORT_THREAD_PID}
     result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1}'`)
-    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE InnoDB STATUS\G; SHOW ENGINE INNODB MUTEX" >> ${LOG_NAME_MYSQL} 2>&1
+    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE $ENGINE STATUS\G; SHOW ENGINE $ENGINE MUTEX" >> ${LOG_NAME_MYSQL} 2>&1
     if [[ ${PERF_EXTRA} != "" ]]; then
       ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT/1000000000 SUM_TIMER_WAIT_MS FROM performance_schema.events_waits_summary_global_by_event_name WHERE SUM_TIMER_WAIT > 0 AND EVENT_NAME LIKE 'wait/synch/mutex/innodb/%' ORDER BY COUNT_STAR DESC" >> ${LOG_NAME_MYSQL} 2>&1
     fi
@@ -314,15 +330,15 @@ function init_global_variables() {
   export LOGS_DIFF=${LOGS}/${BENCH_NAME}-diff
   export LOGS_QPS=${LOGS}/${BENCH_NAME}-qps
 
-  INNODB_CACHE=${INNODB_CACHE:-32G}
+  ENGINE_CACHE=${ENGINE_CACHE:-32G}
   NUM_TABLES=${NUM_TABLES:-16}
   DATASIZE=${DATASIZE:-10M}
   SNAPSHOT_DIR=${TEMPLATE_PATH}/snapshot_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
   HOSTNAME=$(uname -n)
-  export BENCH_ID=${HOSTNAME%%.*}_${MYSQL_NAME}${MYSQL_VERSION}_${WRITES_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}-${INNODB_CACHE}
+  export BENCH_ID=${HOSTNAME%%.*}_${MYSQL_NAME}${MYSQL_VERSION}_${WRITES_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}_${ENGINE}-${ENGINE_CACHE}
 
   local NUM_ROWS=$(numfmt --from=si $DATASIZE)
-  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --report-interval=$SYSBENCH_REPORT_INTERVAL --db-driver=mysql --mysql-ssl=DISABLED --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
+  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --mysql-storage-engine=$ENGINE --report-interval=$SYSBENCH_REPORT_INTERVAL --db-driver=mysql --mysql-ssl=DISABLED --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
 }
 
 function db_bench_init() {
@@ -338,6 +354,8 @@ function db_bench_init() {
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     command -v mutt >/dev/null 2>&1 || { echo >&2 "mutt is not installed. Aborting."; exit 1; }
   fi
+
+  if [ "$ENGINE" != "innodb" ] && [ "$ENGINE" != "rocksdb" ]; then usage "error: unknown $ENGINE storage engine"; fi
 
   # check parameters
   if [ -z "$BENCH_NAME" ]; then usage "Error: BENCH_NAME is not defined or is empty."; fi

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # mysqld and sysbench parameters
-export INNODB_CACHE=96G
+export ENGINE_CACHE=96G
 export NUM_TABLES=16
 export DATASIZE=10M
 export RUN_TIME_SECONDS=300

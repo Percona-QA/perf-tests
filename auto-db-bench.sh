@@ -105,6 +105,7 @@ function run_perf_tests() {
 
     # mysqld and sysbench parameters
     export INNODB_CACHE=${INNODB_CACHE:-96G}
+    export ENGINE_CACHE=${ENGINE_CACHE:-$INNODB_CACHE}
     export NUM_TABLES=${NUM_TABLES:-16}
     export DATASIZE=${DATASIZE:-10M}
     export WRITES_TIME_SECONDS=${WRITES_TIME_SECONDS:-300}
