@@ -148,7 +148,7 @@ SYSBENCH_BRANCH=${SYSBENCH_BRANCH:-mdcallag}
 
 PERF_TESTS_REPO_DIR=${PERF_TESTS_REPO_DIR:-$ROOT_DIR/perf-tests}
 PERF_TESTS_REPO_URL=${PERF_TESTS_REPO_URL:-https://github.com/Percona-QA/perf-tests.git}
-PERF_TESTS_BRANCH=${PERF_TESTS_BRANCH:-2.0}
+PERF_TESTS_BRANCH=${PERF_TESTS_BRANCH:-2.1}
 
 mkdir -p ${ROOT_DIR} > /dev/null 2>&1
 mkdir -p ${PS_BUILD_DIR} > /dev/null 2>&1
