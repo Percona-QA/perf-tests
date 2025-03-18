@@ -433,7 +433,7 @@ function db_bench_init_config() {
   cp $MYSQL_CONFIG_FILE $CONFIG_FILE
   echo "Using $CONFIG_FILE as mysqld config file"
 
-  MYSQL_SOCKET=${LOGS}/ps_socket.sock
+  MYSQL_SOCKET=${LOGS}/ps.sock
   timeout --signal=9 30s ${MYSQLADMIN_BIN} -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
   kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
 }

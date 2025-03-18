@@ -114,7 +114,7 @@ function run_perf_tests() {
     # path to template databases
     export TEMPLATE_PATH=${TEMPLATE_PATH:-$MAIN_DIR/template_datadir}
     # path to work directory and results
-    export WORKSPACE=${WORKSPACE:-$MAIN_DIR/perf-results}
+    export WORKSPACE=${WORKSPACE:-$MAIN_DIR/dbb-results}
 
     export SYSBENCH_BIN=$SYSBENCH_REPO_DIR/src/sysbench
     export SYSBENCH_LUA=$SYSBENCH_REPO_DIR/src/lua
@@ -126,7 +126,7 @@ function run_perf_tests() {
     REPEAT_NUM=${REPEAT_NUM:-1}
     for i in $(seq $REPEAT_NUM); do
         local NICE_DATE=$(date +"%Y-%m-%d_%H:%M")
-        export BENCH_NAME=${PS_BRANCH}@${PS_GIT_HASH}_${NICE_DATE}
+        export BENCH_NAME=${PS_BRANCH:0:30}@${PS_GIT_HASH}_${NICE_DATE}
         ${PERFTEST_PATH}/db-bench.sh
     done
 }
