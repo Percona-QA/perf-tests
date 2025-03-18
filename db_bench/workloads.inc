@@ -85,6 +85,12 @@ WR_INLIST_UPDATE_HOT_POINTS_8   "oltp_inlist_update.lua --random_points=8 --hot_
 WR_INLIST_UPDATE_HOT_POINTS_32  "oltp_inlist_update.lua --random_points=32 --hot_points=true --reset_binlog=64000000"
 WR_INLIST_UPDATE_HOT_POINTS_128 "oltp_inlist_update.lua --random_points=128 --hot_points=true --reset_binlog=64000000"
 
+# misc workloads0
+CONNECTIONS_1                    "connections.lua --frequency=1"
+CONNECTIONS_10                   "connections.lua --frequency=10"
+CONNECTIONS_100                  "connections.lua --frequency=100"
+CONNECTIONS_1000                 "connections.lua --frequency=1000"
+
 # additional commands
 snapshot "options are ignored"
 reset    "options are ignored"
