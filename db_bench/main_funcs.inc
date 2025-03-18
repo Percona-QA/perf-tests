@@ -139,6 +139,9 @@ function start_mysqld() {
   EXTRA_PARAMS+=" --user=root $PERF_EXTRA $MYEXTRA $1"
   RBASE="$(( RBASE + 100 ))"
   local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=$LOG_NAME_MYSQLD --socket=$MYSQL_SOCKET --port=$RBASE"
+  if [[ "$SSL_CERTS_PATH" != "" ]]; then
+    MYSQLD_OPTIONS+=" --ssl-ca=$SSL_CERTS_PATH/ca-cert.pem --ssl-cert=$SSL_CERTS_PATH/server-cert.pem --ssl-key=$SSL_CERTS_PATH/server-key.pem --require_secure_transport=ON"
+  fi
   echo "Starting Percona Server with options $MYSQLD_OPTIONS" | tee -a $LOG_NAME_MYSQLD
   ${TASKSET_MYSQLD} ${MYSQLD_BIN} $MYSQLD_OPTIONS >> $LOG_NAME_MYSQLD 2>&1 &
 
@@ -152,6 +155,7 @@ function start_mysqld() {
     fi
   done
   ${MYSQLADMIN_BIN} -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { cat $LOG_NAME_MYSQLD; echo "Couldn't connect $MYSQL_SOCKET" && exit 0; }
+  ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW GLOBAL VARIABLES LIKE 'tls_version'; SHOW VARIABLES LIKE 'require_secure_transport'" 2>&1
 }
 
 # print_database_size
@@ -338,7 +342,12 @@ function init_global_variables() {
   export BENCH_ID=${HOSTNAME%%.*}_${MYSQL_NAME}${MYSQL_VERSION}_${WRITES_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}_${ENGINE}-${ENGINE_CACHE}
 
   local NUM_ROWS=$(numfmt --from=si $DATASIZE)
-  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --mysql-storage-engine=$ENGINE --report-interval=$SYSBENCH_REPORT_INTERVAL --db-driver=mysql --mysql-ssl=DISABLED --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
+  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --mysql-storage-engine=$ENGINE --report-interval=$SYSBENCH_REPORT_INTERVAL --db-driver=mysql --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
+  if [[ "$SSL_CERTS_PATH" != "" ]]; then
+    SYSBENCH_OPTIONS+=" --mysql-ssl=VERIFY_CA --mysql-ssl-ca=$SSL_CERTS_PATH/ca-cert.pem --mysql-ssl-cert=$SSL_CERTS_PATH/client-cert.pem --mysql-ssl-key=$SSL_CERTS_PATH/client-key.pem"
+  else
+    SYSBENCH_OPTIONS+=" --mysql-ssl=DISABLED"
+  fi
 }
 
 function db_bench_init() {
