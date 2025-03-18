@@ -146,14 +146,18 @@ SYSBENCH_REPO_DIR=${SYSBENCH_REPO_DIR:-$ROOT_DIR/sysbench}
 SYSBENCH_REPO_URL=${SYSBENCH_REPO_URL:-https://github.com/inikep/sysbench}
 SYSBENCH_BRANCH=${SYSBENCH_BRANCH:-mdcallag}
 
-PERF_TESTS_REPO_DIR=${PERF_TESTS_REPO_DIR:-$ROOT_DIR/perf-tests}
-PERF_TESTS_REPO_URL=${PERF_TESTS_REPO_URL:-https://github.com/Percona-QA/perf-tests.git}
-PERF_TESTS_BRANCH=${PERF_TESTS_BRANCH:-2.1}
+DBBENCH_REPO_DIR=${DBBENCH_REPO_DIR:-$ROOT_DIR/db-bench}
+DBBENCH_REPO_URL=${DBBENCH_REPO_URL:-https://github.com/Percona-QA/perf-tests.git}
+DBBENCH_BRANCH=${DBBENCH_BRANCH:-2.1}
+
+if [[ "${DBBENCH_SSL,,}" == "on" || "${DBBENCH_SSL}" == "1" ]]; then
+    export SSL_CERTS_PATH=${DBBENCH_REPO_DIR}/cert
+fi
 
 mkdir -p ${ROOT_DIR} > /dev/null 2>&1
 mkdir -p ${PS_BUILD_DIR} > /dev/null 2>&1
 install_deps_debian | tee $PS_BUILD_DIR/install-deps.log
-setup_git_repo $PERF_TESTS_REPO_DIR $PERF_TESTS_BRANCH $PERF_TESTS_REPO_URL | tee $PS_BUILD_DIR/setup-perf-tests-repo.log
+setup_git_repo $DBBENCH_REPO_DIR $DBBENCH_BRANCH $DBBENCH_REPO_URL | tee $PS_BUILD_DIR/setup-perf-tests-repo.log
 setup_git_repo $SYSBENCH_REPO_DIR $SYSBENCH_BRANCH $SYSBENCH_REPO_URL | tee $PS_BUILD_DIR/setup-sysbench-repo.log
 setup_git_repo $PS_REPO_DIR $PS_BRANCH $PS_REPO_URL| tee $PS_BUILD_DIR/setup-ps-repo.log
 
@@ -163,4 +167,4 @@ echo "PS_GIT_HASH=$PS_GIT_HASH PS_REPO_URL=$PS_REPO_URL PS_BRANCH=$PS_BRANCH"
 build_sysbench $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR/sysbench-make.log
 call_cmake $PS_REPO_DIR $PS_BIN_DIR | tee $PS_BUILD_DIR/cmake.log
 build_ps $PS_BIN_DIR | tee $PS_BUILD_DIR/make.log
-run_perf_tests $ROOT_DIR $PS_BIN_DIR $PERF_TESTS_REPO_DIR $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR/perf-test.log
+run_perf_tests $ROOT_DIR $PS_BIN_DIR $DBBENCH_REPO_DIR $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR/perf-test.log
