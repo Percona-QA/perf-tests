@@ -90,6 +90,7 @@ CONNECTIONS_1                    "connections.lua --frequency=1"
 CONNECTIONS_10                   "connections.lua --frequency=10"
 CONNECTIONS_100                  "connections.lua --frequency=100"
 CONNECTIONS_1000                 "connections.lua --frequency=1000"
+CONNECTIONS_RECONNECT            "connections.lua --force_reconnect=1"
 
 # additional commands
 snapshot "options are ignored"
