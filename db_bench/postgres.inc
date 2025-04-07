@@ -126,3 +126,46 @@ function postgres_prepare_datadir() {
 
   copy_datadir "${TEMPLATE_DIR}" "${DATA_DIR}"
 }
+
+function set_postgres_sysbench_options() {
+  local NUM_ROWS=$(numfmt --from=si $DATASIZE)
+  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --pgsql-db=$DB_NAME --pgsql-user=$DB_USER --report-interval=$SYSBENCH_REPORT_INTERVAL --db-driver=pgsql --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
+  if [[ "$SSL_CERTS_PATH" != "" ]]; then
+    SYSBENCH_OPTIONS+=" --pgsql-ssl=VERIFY_CA --pgsql-ssl-ca=$SSL_CERTS_PATH/ca-cert.pem --pgsql-ssl-cert=$SSL_CERTS_PATH/client-cert.pem --pgsql-ssl-key=$SSL_CERTS_PATH/client-key.pem"
+  else
+    export PGSSLMODE=disable
+  fi
+}
+
+function postgres_before_shutdown() {
+    ${PSQL_BIN} -U $DB_USER -d $DB_NAME -c "SHOW wal_sync_method;" >> ${LOG_NAME_SERVER} 2>&1
+    ${PSQL_BIN} -U $DB_USER -d $DB_NAME -c "SELECT * FROM pg_stat_bgwriter;" >> ${LOG_NAME_SERVER} 2>&1
+    ${PSQL_BIN} -U $DB_USER -d $DB_NAME -c "SELECT * FROM pg_stat_database WHERE datname = current_database();" >> ${LOG_NAME_SERVER} 2>&1
+    ${PSQL_BIN} -U $DB_USER -d $DB_NAME -c "SELECT * FROM pg_stat_activity;" >> ${LOG_NAME_SERVER} 2>&1
+}
+
+function check_postgres_binaries() {
+  export PSQL_BIN=$BUILD_PATH/psql
+  if [ ! -x ${PSQL_BIN} ]; then usage "ERROR: Executable ${PSQL_BIN} not found."; fi
+
+  export INITDB_BIN=${BUILD_PATH}/initdb
+  if [ ! -x ${INITDB_BIN} ]; then usage "ERROR: Executable ${INITDB_BIN} not found."; fi
+
+  export PG_CTL_BIN=${BUILD_PATH}/pg_ctl
+  if [ ! -x ${PG_CTL_BIN} ]; then usage "ERROR: Executable ${PG_CTL_BIN} not found."; fi
+
+  echo PSQL_BIN=${PSQL_BIN} INITDB_BIN=${INITDB_BIN} PG_CTL_BIN=${PG_CTL_BIN}
+}
+
+function postgres_killall() {
+  timeout --signal=9 30s ${PG_CTL_BIN} stop -D "${DATA_DIR}" -m fast 2>&1
+  kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
+  killall -9 postgres
+}
+
+function sysbench_postgres_options() {
+    ALL_SYSBENCH_OPTIONS="$WORKLOAD_PARAMETERS --threads=$num_threads --time=$SYSBENCH_RUN_TIME --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS "
+    if [[ ${SYSBENCH_HOST} != "" ]]; then
+      ALL_SYSBENCH_OPTIONS+="--pgsql-host=$SYSBENCH_HOST --pgsql-port=$RBASE"
+    fi
+}

@@ -2,7 +2,7 @@
 
 #**********************************************************************************************
 # Percona Database Benchmark scripts
-# main_funcs.inc - mysqld and sysbench related functions
+# main_funcs.inc - mysqld/postgres and sysbench related functions
 #**********************************************************************************************
 
 function usage(){
@@ -10,7 +10,7 @@ function usage(){
   echo -e "\nYou have to set the following env variables:"
   echo "<WORKSPACE> - path to store results (default: \$PWD)"
   echo "<BENCH_NAME> - name of benchmark (a directory with this name will be created in \$WORKSPACE)"
-  echo "<BUILD_PATH> - path to MySQL or Percona Server binaries"
+  echo "<BUILD_PATH> - path to PostgreSQL or MySQL or Percona Server binaries"
   echo "<CONFIG_FILES> - full path to Percona Server's configuration file"
   echo -e "\nUsage example:"
   echo "export WORKSPACE=/data/perf-results"
@@ -25,7 +25,7 @@ function usage(){
 function on_exit(){
   pkill -f dstat
   pkill -f iostat
-  killall -9 mysqld
+  killall -9 mysqld postgres
 
   echo "Remove DATA_DIR=$DATA_DIR"
   rm -rf ${DATA_DIR}
@@ -129,34 +129,7 @@ function report_thread(){
   done
 }
 
-# start_mysqld $MORE_PARAMS
-function start_mysqld() {
-  if [ "$ENGINE" == "rocksdb" ]; then
-      EXTRA_PARAMS="--rocksdb_block_cache_size=${ENGINE_CACHE}"
-  else
-      EXTRA_PARAMS="--innodb_buffer_pool_size=${ENGINE_CACHE}"
-  fi
-  EXTRA_PARAMS+=" --user=root $PERF_EXTRA $MYEXTRA $1"
-  RBASE="$(( RBASE + 100 ))"
-  local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=$LOG_NAME_MYSQLD --socket=$MYSQL_SOCKET --port=$RBASE"
-  if [[ "$SSL_CERTS_PATH" != "" ]]; then
-    MYSQLD_OPTIONS+=" --ssl-ca=$SSL_CERTS_PATH/ca-cert.pem --ssl-cert=$SSL_CERTS_PATH/server-cert.pem --ssl-key=$SSL_CERTS_PATH/server-key.pem --require_secure_transport=ON"
-  fi
-  echo "Starting Percona Server with options $MYSQLD_OPTIONS" | tee -a $LOG_NAME_MYSQLD
-  ${TASKSET_MYSQLD} ${MYSQLD_BIN} $MYSQLD_OPTIONS >> $LOG_NAME_MYSQLD 2>&1 &
 
-  echo "- Waiting for start of mysqld"
-  for X in $(seq 0 ${PS_START_TIMEOUT}); do
-    sleep 1
-    echo -n "."
-    if ${MYSQLADMIN_BIN} -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1; then
-      echo "Percona Server started in $(( X+1 )) seconds (socket=$MYSQL_SOCKET port=$RBASE)"
-      break
-    fi
-  done
-  ${MYSQLADMIN_BIN} -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { cat $LOG_NAME_MYSQLD; echo "Couldn't connect $MYSQL_SOCKET" && exit 0; }
-  ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW GLOBAL VARIABLES LIKE 'tls_version'; SHOW VARIABLES LIKE 'require_secure_transport'" 2>&1
-}
 
 # print_database_size
 function print_database_size() {
@@ -165,24 +138,7 @@ function print_database_size() {
   echo "- Size of database is $DATA_SIZE MB in $FILE_COUNT files"
 }
 
-# shutdown_mysqld
-function shutdown_mysqld() {
-  if [[ "$MYSQL_VERSION" < "81" ]]; then
-    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET MASTER" 2>&1
-  else
-    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET BINARY LOGS AND GTIDS" 2>&1
-  fi
 
-  if [ "$ENGINE" == "rocksdb" ]; then
-    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "set global rocksdb_force_flush_memtable_and_lzero_now=0" 2>&1
-  fi
-
-  ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "USE $MYSQL_DATABASE; SELECT COUNT(*) FROM sbtest1" 2>&1
-
-  echo "Shutting mysqld down"
-  (time ${MYSQLADMIN_BIN} -uroot --socket=$MYSQL_SOCKET shutdown) 2>&1
-  print_database_size
-}
 
 function snapshot_datadir() {
   echo "Copying data directory from ${DATA_DIR} to ${SNAPSHOT_DIR}"
@@ -202,35 +158,20 @@ function copy_datadir() {
   print_database_size
 }
 
-function prepare_datadir() {
-  local TEMPLATE_DIR=${TEMPLATE_PATH}/${ENGINE}_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
+function start_server() {
+  if [[ ${ENGINE} == "postgres" ]]; then
+    start_postgres "-D ${DATA_DIR}"
+  else
+    start_mysqld "--datadir=${DATA_DIR}"
+  fi
+}
 
-  if [[ ${WRITES_TIME_SECONDS} == 0 ]]; then return; fi
-
-  if [ -d ${SNAPSHOT_DIR} ]; then copy_datadir "${SNAPSHOT_DIR}" "${DATA_DIR}"; return; fi
-
-  if [ ! -d ${TEMPLATE_DIR} ]; then
-    echo "Creating template data directory in ${TEMPLATE_DIR}"
-    mkdir -p ${TEMPLATE_PATH} > /dev/null 2>&1
-    ${TASKSET_MYSQLD} ${MYSQLD_BIN} --no-defaults --initialize-insecure --basedir=${BUILD_PATH} --datadir=${TEMPLATE_DIR} 2>&1
-
-    LOG_NAME_MYSQLD=${LOGS_CONFIG}/prepare.mysqld
-    if [ "$ENGINE" == "rocksdb" ]; then
-        EXTRA_PARAMS="--rocksdb_bulk_load=1"
-    else
-        EXTRA_PARAMS="--innodb_flush_log_at_trx_commit=0"
-    fi
-    start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin $EXTRA_PARAMS --innodb_fast_shutdown=0"
-    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
-    pushd $SYSBENCH_LUA
-    # --rocksdb_bulk_load_sync_size  # Number of rows to sync bulk load
-    (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_WRITE --threads=$NUM_TABLES --rand-seed=$RAND_SEED $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare) 2>&1
-    popd
-    echo "Data directory in ${TEMPLATE_DIR} created"
+function shutdown_server() {
+  if [[ ${ENGINE} == "postgres" ]]; then
+    shutdown_postgres "${DATA_DIR}"
+  else
     shutdown_mysqld
   fi
-
-  copy_datadir "${TEMPLATE_DIR}" "${DATA_DIR}"
 }
 
 function sysbench_warmup() {
@@ -238,12 +179,12 @@ function sysbench_warmup() {
   # warmup the cache, 64 threads for $WORKLOAD_WARMUP_TIME seconds,
   num_threads=64
   echo "Warming up for $WORKLOAD_WARMUP_TIME seconds"
-  LOG_NAME_MYSQLD=${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.mysqld
-  start_mysqld "--datadir=${DATA_DIR} --innodb_buffer_pool_load_at_startup=OFF"
+  LOG_NAME_SERVERD=${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.${SERVER_TYPE}d
+  start_server
   pushd $SYSBENCH_LUA
-  ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_READ --threads=$num_threads --time=$WORKLOAD_WARMUP_TIME $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET run 2>&1
+  $SYSBENCH_BIN $SYSBENCH_READ --threads=$num_threads --time=$WORKLOAD_WARMUP_TIME $SYSBENCH_OPTIONS run 2>&1
   popd
-  shutdown_mysqld
+  shutdown_server
   sleep $[WORKLOAD_WARMUP_TIME/10]
 }
 
@@ -259,8 +200,8 @@ function run_sysbench() {
     echo "Testing $WORKLOAD_NAME with $num_threads threads for $SYSBENCH_RUN_TIME seconds"
     LOG_NAME_RESULTS=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}_results_qps.csv
     LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}-$num_threads.txt
-    LOG_NAME_MYSQL=${LOG_NAME}.mysql
-    LOG_NAME_MYSQLD=${LOG_NAME}.mysqld
+    LOG_NAME_SERVER=${LOG_NAME}.${SERVER_TYPE}
+    LOG_NAME_SERVERD=${LOG_NAME}.${SERVER_TYPE}d
     LOG_NAME_MEMORY=${LOG_NAME}.memory
     LOG_NAME_IOSTAT=${LOG_NAME}.iostat
     LOG_NAME_VMSTAT=${LOG_NAME}.vmstat
@@ -270,7 +211,7 @@ function run_sysbench() {
     LOG_NAME_SMART=${LOG_NAME}.smart
     LOG_NAME_PS=${LOG_NAME}.ps
     LOG_NAME_ZONEINFO=${LOG_NAME}.zoneinfo
-    start_mysqld "--datadir=${DATA_DIR}"
+    start_server
 
     if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
         # verbose logging
@@ -285,14 +226,9 @@ function run_sysbench() {
         fi
     fi
     pushd $SYSBENCH_LUA
-    local ALL_SYSBENCH_OPTIONS="$WORKLOAD_PARAMETERS --threads=$num_threads --time=$SYSBENCH_RUN_TIME --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS "
-    if [[ ${SYSBENCH_HOST} != "" ]]; then
-      ALL_SYSBENCH_OPTIONS+="--mysql-host=$SYSBENCH_HOST --mysql-port=$RBASE"
-    else
-      ALL_SYSBENCH_OPTIONS+="--mysql-socket=$MYSQL_SOCKET"
-    fi
+    sysbench_${SERVER_TYPE}_options
     echo "Starting sysbench with options $ALL_SYSBENCH_OPTIONS" | tee $LOG_NAME
-    (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $ALL_SYSBENCH_OPTIONS run) 2>&1 | tee -a $LOG_NAME
+    (time $SYSBENCH_BIN $ALL_SYSBENCH_OPTIONS run) 2>&1 | tee -a $LOG_NAME
     popd
 
     sleep 6
@@ -300,11 +236,8 @@ function run_sysbench() {
     pkill -f iostat
     kill -9 ${REPORT_THREAD_PID}
     result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1}'`)
-    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE $ENGINE STATUS\G; SHOW ENGINE $ENGINE MUTEX" >> ${LOG_NAME_MYSQL} 2>&1
-    if [[ ${PERF_EXTRA} != "" ]]; then
-      ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT/1000000000 SUM_TIMER_WAIT_MS FROM performance_schema.events_waits_summary_global_by_event_name WHERE SUM_TIMER_WAIT > 0 AND EVENT_NAME LIKE 'wait/synch/mutex/innodb/%' ORDER BY COUNT_STAR DESC" >> ${LOG_NAME_MYSQL} 2>&1
-    fi
-    shutdown_mysqld | tee -a $LOG_NAME
+    ${SERVER_TYPE}_before_shutdown
+    shutdown_server | tee -a $LOG_NAME
     kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     sync
   done
@@ -337,17 +270,11 @@ function init_global_variables() {
   ENGINE_CACHE=${ENGINE_CACHE:-32G}
   NUM_TABLES=${NUM_TABLES:-16}
   DATASIZE=${DATASIZE:-10M}
-  SNAPSHOT_DIR=${TEMPLATE_PATH}/snapshot_${MYSQL_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
+  SNAPSHOT_DIR=${TEMPLATE_PATH}/snapshot_${SERVER_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
   HOSTNAME=$(uname -n)
-  export BENCH_ID=${HOSTNAME%%.*}_${MYSQL_NAME}${MYSQL_VERSION}_${WRITES_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}_${ENGINE}-${ENGINE_CACHE}
+  export BENCH_ID=${HOSTNAME%%.*}_${SERVER_NAME}${SERVER_VERSION}_${WRITES_TIME_SECONDS}sec_${NUM_TABLES}x${DATASIZE}_${ENGINE}-${ENGINE_CACHE}
 
-  local NUM_ROWS=$(numfmt --from=si $DATASIZE)
-  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$MYSQL_DATABASE --mysql-user=$SUSER --mysql-storage-engine=$ENGINE --report-interval=$SYSBENCH_REPORT_INTERVAL --db-driver=mysql --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
-  if [[ "$SSL_CERTS_PATH" != "" ]]; then
-    SYSBENCH_OPTIONS+=" --mysql-ssl=VERIFY_CA --mysql-ssl-ca=$SSL_CERTS_PATH/ca-cert.pem --mysql-ssl-cert=$SSL_CERTS_PATH/client-cert.pem --mysql-ssl-key=$SSL_CERTS_PATH/client-key.pem"
-  else
-    SYSBENCH_OPTIONS+=" --mysql-ssl=DISABLED"
-  fi
+  set_${SERVER_TYPE}_sysbench_options
 }
 
 function db_bench_init() {
@@ -364,31 +291,23 @@ function db_bench_init() {
     command -v mutt >/dev/null 2>&1 || { echo >&2 "mutt is not installed. Aborting."; exit 1; }
   fi
 
-  if [ "$ENGINE" != "innodb" ] && [ "$ENGINE" != "rocksdb" ]; then usage "error: unknown $ENGINE storage engine"; fi
+  if [ "$ENGINE" != "innodb" ] && [ "$ENGINE" != "rocksdb" ] && [ "$ENGINE" != "postgres" ]; then usage "error: unknown $ENGINE storage engine"; fi
 
   # check parameters
   if [ -z "$BENCH_NAME" ]; then usage "Error: BENCH_NAME is not defined or is empty."; fi
   if [ -z "$BUILD_PATH" ]; then usage "Error: BUILD_PATH is not defined or is empty."; fi
   if [ -z "$CONFIG_FILES" ]; then usage "Error: CONFIG_FILES is not defined or is empty."; fi
 
-  export MYSQLD_BIN=$BUILD_PATH/bin/mysqld
-  if [ ! -x ${MYSQLD_BIN} ]; then export MYSQLD_BIN=$BUILD_PATH/sql/mysqld; fi
-  if [ ! -x ${MYSQLD_BIN} ]; then usage "ERROR: Executable ${MYSQLD_BIN} not found."; fi
-
-  export MYSQLADMIN_BIN=${BUILD_PATH}/bin/mysqladmin
-  if [ ! -x ${MYSQLADMIN_BIN} ]; then export MYSQLADMIN_BIN=$BUILD_PATH/client/mysqladmin; fi
-  if [ ! -x ${MYSQLADMIN_BIN} ]; then usage "ERROR: Executable ${MYSQLADMIN_BIN} not found."; fi
-
-  export MYSQLCLIENT_BIN=${BUILD_PATH}/bin/mysql
-  if [ ! -x ${MYSQLCLIENT_BIN} ]; then export MYSQLCLIENT_BIN=$BUILD_PATH/client/mysql; fi
-  if [ ! -x ${MYSQLCLIENT_BIN} ]; then usage "ERROR: Executable ${MYSQLCLIENT_BIN} not found."; fi
-
-  echo MYSQLD_BIN=${MYSQLD_BIN} MYSQLADMIN_BIN=${MYSQLADMIN_BIN} MYSQLCLIENT_BIN=${MYSQLCLIENT_BIN}
-
   process_workload_names
   if [ ${#WORKLOAD_ARRAY[@]} -eq 0 ]; then usage "ERROR: Maching workloads names from $WORKLOAD_NAMES are empty."; fi
 
-  get_build_info
+  if [[ ${ENGINE} == "postgres" ]]; then
+    check_postgres_binaries
+    get_postgres_build_info
+  else
+    check_mysql_binaries
+    get_mysql_build_info
+  fi
   init_global_variables
 
   rm -rf ${LOGS}
@@ -415,7 +334,7 @@ function db_bench_init() {
   fi
 
   local LOGS_BUILD_INFO=${LOGS}/build_info.txt
-  echo -e "Date: `date +'%d-%m-%Y %H:%M'`\nNode: $(uname -n)\nMySQL version: ${MYSQL_NAME}${MYSQL_VERSION} = ${MYSQL_VERSION_LONG}\n" | tee ${LOGS_BUILD_INFO}
+  echo -e "Date: `date +'%d-%m-%Y %H:%M'`\nNode: $(uname -n)\n${SERVER_TYPE} version: ${SERVER_NAME}${SERVER_VERSION} = ${SERVER_VERSION_LONG}\n" | tee ${LOGS_BUILD_INFO}
   print_parameters "" | tee -a ${LOGS_BUILD_INFO}
   echo "=========="
 
@@ -425,15 +344,13 @@ function db_bench_init() {
 }
 
 function db_bench_init_config() {
-  if [ ! -f $MYSQL_CONFIG_FILE ]; then usage "ERROR: Config file $MYSQL_CONFIG_FILE not found."; fi
+  if [ ! -f $SERVER_CONFIG_FILE ]; then usage "ERROR: Config file $SERVER_CONFIG_FILE not found."; fi
   CONFIG_BASE=$(basename ${file%.*})
   LOGS_CONFIG=${LOGS}/${BENCH_NAME}-${CONFIG_BASE}
   mkdir -p ${LOGS_CONFIG}
-  CONFIG_FILE=${LOGS_CONFIG}/$(basename $MYSQL_CONFIG_FILE)
-  cp $MYSQL_CONFIG_FILE $CONFIG_FILE
-  echo "Using $CONFIG_FILE as mysqld config file"
+  CONFIG_FILE=${LOGS_CONFIG}/$(basename $SERVER_CONFIG_FILE)
+  cp $SERVER_CONFIG_FILE $CONFIG_FILE
+  echo "Using $CONFIG_FILE as ${SERVER_TYPE} config file"
 
-  MYSQL_SOCKET=${LOGS}/ps.sock
-  timeout --signal=9 30s ${MYSQLADMIN_BIN} -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
-  kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
+  ${SERVER_TYPE}_killall
 }

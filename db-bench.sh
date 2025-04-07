@@ -20,8 +20,8 @@ export WORKLOAD_NAMES=${WORKLOAD_NAMES:-reads,writes}
 
 # sysbench variables
 ENGINE=${ENGINE:-innodb}
-export MYSQL_DATABASE=test
-export SUSER=root
+export DB_NAME=test
+export DB_USER=${DB_USER:-root}
 RAND_TYPE=${RAND_TYPE:-uniform}
 RAND_SEED=${RAND_SEED:-1111}
 export THREADS_LIST=${THREADS_LIST:-"1 4 16 64 128 256 512 1024"}
@@ -44,17 +44,16 @@ export DSTAT_INTERVAL=10
 #MYEXTRA=${MYEXTRA:=--disable-log-bin}
 #PERF_EXTRA=${PERF_EXTRA:=--performance-schema-instrument='wait/synch/mutex/innodb/%=ON'}
 
-#TASKSET_MYSQLD=${TASKSET_MYSQLD:=taskset -c 0}
-#TASKSET_SYSBENCH=${TASKSET_SYSBENCH:=taskset -c 1}
-
 source ${SCRIPT_DIR}/db_bench/data_funcs.inc
 source ${SCRIPT_DIR}/db_bench/main_funcs.inc
 source ${SCRIPT_DIR}/db_bench/system_funcs.inc
+source ${SCRIPT_DIR}/db_bench/mysql.inc
+source ${SCRIPT_DIR}/db_bench/postgres.inc
 
 db_bench_init
 
 for file in $CONFIG_FILES; do
-  MYSQL_CONFIG_FILE=$file
+  SERVER_CONFIG_FILE=$file
   db_bench_init_config
 
   for ((num=0; num<${#WORKLOAD_ARRAY[@]}; num++)); do
@@ -68,7 +67,7 @@ for file in $CONFIG_FILES; do
 
     if [[ $num -eq 0 || ${PREV_WORKLOAD_NAME:0:3} == "WR_" || ${PREV_WORKLOAD_NAME:0:6} == "WRITE_" || ${WORKLOAD_NAME} == "reset" ]]; then
       drop_caches
-      prepare_datadir | tee ${LOGS_CONFIG}/prepare_datadir_${WORKLOAD_NAME}.log
+      ${SERVER_TYPE}_prepare_datadir | tee ${LOGS_CONFIG}/prepare_datadir_${WORKLOAD_NAME}.log
       if [[ ${WORKLOAD_NAME} == "reset" ]]; then continue; fi
     fi
     PREV_WORKLOAD_NAME=${WORKLOAD_NAME}

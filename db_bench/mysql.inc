@@ -98,7 +98,7 @@ function shutdown_mysqld() {
     ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "set global rocksdb_force_flush_memtable_and_lzero_now=0" 2>&1
   fi
 
-  ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "USE $MYSQL_DATABASE; SELECT COUNT(*) FROM sbtest1" 2>&1
+  ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "USE $DB_NAME; SELECT COUNT(*) FROM sbtest1" 2>&1
 
   echo "Shutting mysqld down"
   (time ${MYSQLADMIN_BIN} -uroot --socket=$MYSQL_SOCKET shutdown) 2>&1
@@ -124,7 +124,7 @@ function mysql_prepare_datadir() {
         EXTRA_PARAMS="--innodb_flush_log_at_trx_commit=0"
     fi
     start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin $EXTRA_PARAMS --innodb_fast_shutdown=0"
-    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE" 2>&1
+    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $DB_NAME" 2>&1
     pushd $SYSBENCH_LUA
     # --rocksdb_bulk_load_sync_size  # Number of rows to sync bulk load
     (time ${TASKSET_SYSBENCH} $SYSBENCH_BIN $SYSBENCH_WRITE --threads=$NUM_TABLES --rand-seed=$RAND_SEED $SYSBENCH_OPTIONS --mysql-socket=$MYSQL_SOCKET prepare) 2>&1
@@ -134,4 +134,52 @@ function mysql_prepare_datadir() {
   fi
 
   copy_datadir "${TEMPLATE_DIR}" "${DATA_DIR}"
+}
+
+function set_mysql_sysbench_options() {
+  local NUM_ROWS=$(numfmt --from=si $DATASIZE)
+  SYSBENCH_OPTIONS="--table-size=$NUM_ROWS --tables=$NUM_TABLES --mysql-db=$DB_NAME --mysql-user=$DB_USER --mysql-storage-engine=$ENGINE --report-interval=$SYSBENCH_REPORT_INTERVAL --db-driver=mysql --db-ps-mode=disable --percentile=99 --rand-type=$RAND_TYPE $SYSBENCH_EXTRA"
+  if [[ "$SSL_CERTS_PATH" != "" ]]; then
+    SYSBENCH_OPTIONS+=" --mysql-ssl=VERIFY_CA --mysql-ssl-ca=$SSL_CERTS_PATH/ca-cert.pem --mysql-ssl-cert=$SSL_CERTS_PATH/client-cert.pem --mysql-ssl-key=$SSL_CERTS_PATH/client-key.pem"
+  else
+    SYSBENCH_OPTIONS+=" --mysql-ssl=DISABLED"
+  fi
+}
+
+function mysql_before_shutdown() {
+    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE $ENGINE STATUS\G; SHOW ENGINE $ENGINE MUTEX" >> ${LOG_NAME_SERVER} 2>&1
+    if [[ ${PERF_EXTRA} != "" ]]; then
+        ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT/1000000000 SUM_TIMER_WAIT_MS FROM performance_schema.events_waits_summary_global_by_event_name WHERE SUM_TIMER_WAIT > 0 AND EVENT_NAME LIKE 'wait/synch/mutex/innodb/%' ORDER BY COUNT_STAR DESC" >> ${LOG_NAME_SERVER} 2>&1
+    fi
+}
+
+function check_mysql_binaries() {
+  export MYSQLD_BIN=$BUILD_PATH/bin/mysqld
+  if [ ! -x ${MYSQLD_BIN} ]; then export MYSQLD_BIN=$BUILD_PATH/sql/mysqld; fi
+  if [ ! -x ${MYSQLD_BIN} ]; then usage "ERROR: Executable ${MYSQLD_BIN} not found."; fi
+
+  export MYSQLADMIN_BIN=${BUILD_PATH}/bin/mysqladmin
+  if [ ! -x ${MYSQLADMIN_BIN} ]; then export MYSQLADMIN_BIN=$BUILD_PATH/client/mysqladmin; fi
+  if [ ! -x ${MYSQLADMIN_BIN} ]; then usage "ERROR: Executable ${MYSQLADMIN_BIN} not found."; fi
+
+  export MYSQLCLIENT_BIN=${BUILD_PATH}/bin/mysql
+  if [ ! -x ${MYSQLCLIENT_BIN} ]; then export MYSQLCLIENT_BIN=$BUILD_PATH/client/mysql; fi
+  if [ ! -x ${MYSQLCLIENT_BIN} ]; then usage "ERROR: Executable ${MYSQLCLIENT_BIN} not found."; fi
+
+  echo MYSQLD_BIN=${MYSQLD_BIN} MYSQLADMIN_BIN=${MYSQLADMIN_BIN} MYSQLCLIENT_BIN=${MYSQLCLIENT_BIN}
+}
+
+function mysql_killall() {
+  MYSQL_SOCKET=${LOGS}/ps.sock
+  timeout --signal=9 30s ${MYSQLADMIN_BIN} -uroot --socket=$MYSQL_SOCKET shutdown > /dev/null 2>&1
+  kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
+}
+
+function sysbench_mysql_options() {
+    ALL_SYSBENCH_OPTIONS="$WORKLOAD_PARAMETERS --threads=$num_threads --time=$SYSBENCH_RUN_TIME --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS "
+    if [[ ${SYSBENCH_HOST} != "" ]]; then
+        ALL_SYSBENCH_OPTIONS+="--mysql-host=$SYSBENCH_HOST --mysql-port=$RBASE"
+    else
+        ALL_SYSBENCH_OPTIONS+="--mysql-socket=$MYSQL_SOCKET"
+    fi
 }
