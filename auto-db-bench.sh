@@ -5,16 +5,14 @@
 # 0 18 * * * sudo nice --adjustment=-10 env PS_BRANCH=8.0 WORKLOAD_NAMES=reads,writes TEMPLATE_PATH=/mnt/fast/template_datadir /mnt/fast/przemek/perf-tests/auto-db-bench.sh
 #            sudo nice --adjustment=-10 bash -c "./run-ACID-shm.sh >run-ACID-shm.txt 2>&1"
 #
-# to kill all deps: sudo killall -9 db-bench.sh auto-db-bench.sh mysqld sysbench dstat iostat
+# to kill all deps: sudo killall -9 db-bench.sh auto-db-bench.sh mysqld postgres sysbench dstat iostat
 
 function install_deps_debian() {
     export DEBIAN_FRONTEND=noninteractive
     local PACKAGES_TO_INSTALL="smartmontools g++ dstat mutt ca-certificates git pkg-config dpkg-dev make cmake ccache bison python-is-python3 python3-pip linux-tools-$(uname -r)"
-    local PACKAGES_LIBS="libtirpc-dev libgflags-dev libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev libedit-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
-    local PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
     command -v sendmail >/dev/null 2>&1 || { PACKAGES_TO_INSTALL+=" sendmail"; }
     sudo apt update
-    sudo apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $PACKAGES_LIBS $PACKAGES_PROTOBUF $SELECTED_CXX
+    sudo apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $SELECTED_CXX
     pip install requests pandas tabulate
 }
 
@@ -43,56 +41,17 @@ function setup_git_repo() {
     popd
 }
 
-function call_cmake() {
-    if [ $# -lt 2 ]; then echo "Usage: call_cmake <REPO_DIR> <BUILD_DIR>"; return 1; fi
-    local REPO_DIR=$1
-    local BUILD_DIR=$2
-    local BUILD_TYPE="RelWithDebInfo"
-    local BOOST_DIR="../../_deps"
-    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
-
-    rm -rf $BUILD_DIR
-    mkdir -p $BUILD_DIR
-    pushd $BUILD_DIR
-    OPTIONS_DEBUG="-DCMAKE_C_FLAGS_DEBUG=-g1 -DCMAKE_CXX_FLAGS_DEBUG=-g1"
-    OPTIONS_BUILD="-DMYSQL_MAINTAINER_MODE=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_CONFIG=mysql_release -DWITH_PACKAGE_FLAGS=OFF -DDOWNLOAD_BOOST=1 -DWITH_BOOST=$BOOST_DIR"
-    OPTIONS_COMPILER="-DCMAKE_C_COMPILER=$SELECTED_CC -DCMAKE_CXX_COMPILER=$SELECTED_CXX -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
-    OPTIONS_COMPONENTS="-DWITH_ROCKSDB=ON -DWITH_COREDUMPER=ON -DWITH_COMPONENT_KEYRING_VAULT=ON -DWITH_PAM=ON -DWITH_NUMA=ON"
-    OPTIONS_LIBS="-DWITH_MECAB=system -DWITH_SYSTEM_LIBS=ON -DWITH_EDITLINE=system -DWITH_ZLIB=bundled -DWITH_LZ4=bundled"
-    OPTIONS_OPTIMIZED="-DWITH_ROUTER=OFF -DWITH_UNIT_TESTS=OFF"
-    SELECTED_OPTIONS="$OPTIONS_DEBUG $OPTIONS_BUILD $OPTIONS_COMPILER $OPTIONS_COMPONENTS $OPTIONS_LIBS $OPTIONS_OPTIMIZED"
-    echo "SELECTED_OPTIONS=$SELECTED_OPTIONS"
-    cmake $REPO_DIR $SELECTED_OPTIONS
-    cmake -L .
-    popd
-}
-
 function build_sysbench() {
     if [ $# -lt 1 ]; then echo "Usage: build_sysbench <BUILD_DIR>"; return 1; fi
     local BUILD_DIR=$1
 
-    sudo apt -y install make automake libtool pkg-config libaio-dev libmysqlclient-dev libssl-dev
+    sudo apt -y install make automake libtool pkg-config libaio-dev libmysqlclient-dev libpq-dev libssl-dev
 
     pushd $BUILD_DIR
     ./autogen.sh
-    ./configure
+    ./configure --with-pgsql
     make -j$(nproc)
     ./src/sysbench --version
-    popd
-}
-
-function build_ps() {
-    if [ $# -lt 1 ]; then echo "Usage: build_ps <BUILD_DIR>"; return 1; fi
-    local BUILD_DIR=$1
-
-    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
-    pushd $BUILD_DIR
-    NPROC=`nproc --all`
-    echo "Using $NPROC threads for compilation"
-    make -j${NPROC}
-    if [[ $? != 0 ]]; then echo "make -j${NPROC} failed"; exit -1; fi
-    ccache --show-stats
-    df -Th
     popd
 }
 
@@ -103,9 +62,8 @@ function run_perf_tests() {
     local PERFTEST_PATH=$3
     local SYSBENCH_REPO_DIR=$4
 
-    # mysqld and sysbench parameters
-    export INNODB_CACHE=${INNODB_CACHE:-96G}
-    export ENGINE_CACHE=${ENGINE_CACHE:-$INNODB_CACHE}
+    # mysqld/postgres and sysbench parameters
+    export ENGINE_CACHE=${ENGINE_CACHE:-96G}
     export NUM_TABLES=${NUM_TABLES:-16}
     export DATASIZE=${DATASIZE:-10M}
     export WRITES_TIME_SECONDS=${WRITES_TIME_SECONDS:-300}
@@ -114,14 +72,14 @@ function run_perf_tests() {
     # path to template databases
     export TEMPLATE_PATH=${TEMPLATE_PATH:-$MAIN_DIR/template_datadir}
     # path to work directory and results
-    export WORKSPACE=${WORKSPACE:-$MAIN_DIR/dbb-results}
+    export WORKSPACE=${WORKSPACE:-$MAIN_DIR/bench-results}
 
     export SYSBENCH_BIN=$SYSBENCH_REPO_DIR/src/sysbench
     export SYSBENCH_LUA=$SYSBENCH_REPO_DIR/src/lua
 
-    # path to files from https://github.com/Percona-QA/perf-tests
-    CNFFILE_NAME=${CNFFILE_NAME:-stable-innodb.cnf}
-    export CONFIG_FILES=${CONFIG_FILES:-"${PERFTEST_PATH}/cnf/${CNFFILE_NAME}"}
+    # path to files from https://github.com/Percona-QA/perf-tests/3.0
+    CNFFILE_NAME=${CNFFILE_NAME:-cnf/stable-innodb.cnf}
+    export CONFIG_FILES=${CONFIG_FILES:-"${PERFTEST_PATH}/${CNFFILE_NAME}"}
 
     REPEAT_NUM=${REPEAT_NUM:-1}
     for i in $(seq $REPEAT_NUM); do
@@ -136,9 +94,15 @@ SELECTED_CXX=${SELECTED_CXX:-g++-13}
 ROOT_DIR=${ROOT_DIR:-/mnt/fast/auto-db-bench}
 export RESULTS_EMAIL=${RESULTS_EMAIL:-przemyslaw.skibinski@percona.com}
 
-PS_REPO_DIR=${PS_REPO_DIR:-$ROOT_DIR/sources}
-PS_REPO_URL=${PS_REPO_URL:-https://github.com/percona/percona-server}
-PS_BRANCH=${PS_BRANCH:-8.0}
+if [[ ${ENGINE} == "postgres" ]]; then
+    PS_REPO_DIR=${PS_REPO_DIR:-$ROOT_DIR/postgres}
+    PS_REPO_URL=${PS_REPO_URL:-https://github.com/percona/postgres}
+    PS_BRANCH=${PS_BRANCH:-TDE_REL_17_STABLE}
+else
+    PS_REPO_DIR=${PS_REPO_DIR:-$ROOT_DIR/src_mysql}
+    PS_REPO_URL=${PS_REPO_URL:-https://github.com/percona/percona-server}
+    PS_BRANCH=${PS_BRANCH:-8.0}
+fi
 PS_BUILD_DIR=${PS_BUILD_DIR:-$ROOT_DIR/$PS_BRANCH-rel-$SELECTED_CC}
 PS_BIN_DIR=${PS_BUILD_DIR}/bin
 
@@ -148,7 +112,7 @@ SYSBENCH_BRANCH=${SYSBENCH_BRANCH:-mdcallag}
 
 DBBENCH_REPO_DIR=${DBBENCH_REPO_DIR:-$ROOT_DIR/db-bench}
 DBBENCH_REPO_URL=${DBBENCH_REPO_URL:-https://github.com/Percona-QA/perf-tests.git}
-DBBENCH_BRANCH=${DBBENCH_BRANCH:-2.1}
+DBBENCH_BRANCH=${DBBENCH_BRANCH:-3.0}
 
 if [[ "${DBBENCH_SSL,,}" == "on" || "${DBBENCH_SSL}" == "1" ]]; then
     export SSL_CERTS_PATH=${DBBENCH_REPO_DIR}/cert
@@ -165,6 +129,10 @@ pushd $PS_REPO_DIR; PS_GIT_HASH=$(git rev-parse --short HEAD); popd
 echo "PS_GIT_HASH=$PS_GIT_HASH PS_REPO_URL=$PS_REPO_URL PS_BRANCH=$PS_BRANCH"
 
 build_sysbench $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR/sysbench-make.log
-call_cmake $PS_REPO_DIR $PS_BIN_DIR | tee $PS_BUILD_DIR/cmake.log
-build_ps $PS_BIN_DIR | tee $PS_BUILD_DIR/make.log
+if [[ ${ENGINE} == "postgres" ]]; then
+    build_postgres $PS_REPO_DIR $PS_BUILD_DIR | tee $PS_BUILD_DIR/make.log
+else
+    mysql_call_cmake $PS_REPO_DIR $PS_BIN_DIR | tee $PS_BUILD_DIR/cmake.log
+    build_mysql $PS_BIN_DIR | tee $PS_BUILD_DIR/make.log
+fi
 run_perf_tests $ROOT_DIR $PS_BIN_DIR $DBBENCH_REPO_DIR $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR/perf-test.log
