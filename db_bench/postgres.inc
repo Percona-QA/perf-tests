@@ -33,15 +33,16 @@ function get_postgres_build_info() {
   SERVER_TYPE="postgres"
 }
 
-# start_postgres <EXTRA_PARAMS>
+# start_postgres <EXTRA_PARAMS> <EXTRA_CONFIG_PARAMS>
 function start_postgres() {
   PG_PARAMS="$PERF_EXTRA $MYEXTRA $1 -l $LOG_NAME_SERVERD"
+  PG_CONF_PARAMS="-c config_file=${CONFIG_FILE} -c shared_buffers=${ENGINE_CACHE}B $2"
   RBASE="$(( RBASE + 100 ))"
 #  if [[ "$SSL_CERTS_PATH" != "" ]]; then
 #    MYSQLD_OPTIONS+=" --ssl-ca=$SSL_CERTS_PATH/ca-cert.pem --ssl-cert=$SSL_CERTS_PATH/server-cert.pem --ssl-key=$SSL_CERTS_PATH/server-key.pem --require_secure_transport=ON"
 #  fi
-  echo "Starting Postgres with options $PG_PARAMS" | tee -a $LOG_NAME_SERVERD
-  ${PG_CTL_BIN} $PG_PARAMS -o "-c config_file=${CONFIG_FILE} -c shared_buffers=${ENGINE_CACHE}B" start 2>&1
+  echo "Starting Postgres with options $PG_PARAMS -o \"$PG_CONF_PARAMS\"" | tee -a $LOG_NAME_SERVERD
+  ${PG_CTL_BIN} start $PG_PARAMS -o "$PG_CONF_PARAMS" 2>&1
 
   echo "Waiting up to ${PS_START_TIMEOUT} seconds for PostgreSQL to start..."
 
@@ -49,7 +50,7 @@ function start_postgres() {
   interval=2
   elapsed=0
 
-  while ! ${PG_CTL_BIN} $PG_PARAMS status | grep -q "server is running"; do
+  while ! ${PG_CTL_BIN} status $PG_PARAMS | grep -q "server is running"; do
       if [ "$elapsed" -ge "$timeout" ]; then
           echo "Error: PostgreSQL did not start within ${PS_START_TIMEOUT} seconds."
           exit 1
@@ -68,6 +69,7 @@ function start_postgres() {
     SHOW shared_buffers;
     SHOW work_mem;
     SHOW maintenance_work_mem;
+    SHOW synchronous_commit;
   "
 }
 
@@ -83,9 +85,8 @@ function shutdown_postgres() {
   elapsed=0
 
   echo "Stopping PostgreSQL..."
-  ${PG_CTL_BIN} -D ${PG_DATA_DIR} stop 2>&1
-#  while ${PG_CTL_BIN} -D ${PG_DATA_DIR} status >/dev/null 2>&1; do
-  while ${PG_CTL_BIN} -D ${PG_DATA_DIR} status; do
+  ${PG_CTL_BIN} stop -D ${PG_DATA_DIR} 2>&1
+  while ${PG_CTL_BIN} status -D ${PG_DATA_DIR}; do
       if [[ $elapsed -ge $timeout ]]; then
           echo "Timeout reached: PostgreSQL did not stop within $timeout seconds."
           exit 1
@@ -112,9 +113,7 @@ function postgres_prepare_datadir() {
     ${INITDB_BIN} -D ${TEMPLATE_DIR} # 2>&1
 
     LOG_NAME_SERVERD=${LOGS_CONFIG}/prepare.${SERVER_TYPE}d
-    # EXTRA_PARAMS="--innodb_flush_log_at_trx_commit=0"
-    # "--datadir=${TEMPLATE_DIR} --disable-log-bin $EXTRA_PARAMS --innodb_fast_shutdown=0"
-    start_postgres "-D ${TEMPLATE_DIR}"
+    start_postgres "-D ${TEMPLATE_DIR}" "-c synchronous_commit=off"
     ${PSQL_BIN} -U $DB_USER -d postgres -c "CREATE DATABASE $DB_NAME;" 2>&1
 
     pushd $SYSBENCH_LUA
