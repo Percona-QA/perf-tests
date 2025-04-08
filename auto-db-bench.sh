@@ -1,8 +1,8 @@
 #!/bin/bash
 # usage:
-#   sudo nice --adjustment=-10 env PS_BRANCH=8.0 WRITES_TIME_SECONDS=30 THREADS_LIST="8" WORKLOAD_NAMES=POINT_SELECT ROOT_DIR=/mnt/optane/auto-perf-test /mnt/optane/auto-perf-test/perf-tests/auto-db-bench.sh
+#   sudo nice --adjustment=-10 env SERVER_BRANCH=8.0 WRITES_TIME_SECONDS=30 THREADS_LIST="8" WORKLOAD_NAMES=POINT_SELECT ROOT_DIR=/mnt/optane/auto-perf-test /mnt/optane/auto-perf-test/perf-tests/auto-db-bench.sh
 # or add with "crontab -e":
-# 0 18 * * * sudo nice --adjustment=-10 env PS_BRANCH=8.0 WORKLOAD_NAMES=reads,writes TEMPLATE_PATH=/mnt/fast/template_datadir /mnt/fast/przemek/perf-tests/auto-db-bench.sh
+# 0 18 * * * sudo nice --adjustment=-10 env SERVER_BRANCH=8.0 WORKLOAD_NAMES=reads,writes TEMPLATE_PATH=/mnt/fast/template_datadir /mnt/fast/przemek/perf-tests/auto-db-bench.sh
 #            sudo nice --adjustment=-10 bash -c "./run-ACID-shm.sh >run-ACID-shm.txt 2>&1"
 #
 # to kill all deps: sudo killall -9 db-bench.sh auto-db-bench.sh mysqld postgres sysbench dstat iostat
@@ -84,7 +84,7 @@ function run_perf_tests() {
     REPEAT_NUM=${REPEAT_NUM:-1}
     for i in $(seq $REPEAT_NUM); do
         local NICE_DATE=$(date +"%Y-%m-%d_%H:%M")
-        export BENCH_NAME=${PS_BRANCH:0:30}@${PS_GIT_HASH}_${NICE_DATE}
+        export BENCH_NAME=${SERVER_BRANCH:0:30}@${PS_GIT_HASH}_${NICE_DATE}
         ${PERFTEST_PATH}/db-bench.sh
     done
 }
@@ -95,16 +95,16 @@ ROOT_DIR=${ROOT_DIR:-/mnt/fast/auto-db-bench}
 export RESULTS_EMAIL=${RESULTS_EMAIL:-przemyslaw.skibinski@percona.com}
 
 if [[ ${ENGINE} == "postgres" ]]; then
-    PS_REPO_DIR=${PS_REPO_DIR:-$ROOT_DIR/postgres}
-    PS_REPO_URL=${PS_REPO_URL:-https://github.com/percona/postgres}
-    PS_BRANCH=${PS_BRANCH:-TDE_REL_17_STABLE}
+    SERVER_REPO_DIR=${SERVER_REPO_DIR:-$ROOT_DIR/postgres}
+    SERVER_REPO_URL=${SERVER_REPO_URL:-https://github.com/percona/postgres}
+    SERVER_BRANCH=${SERVER_BRANCH:-TDE_REL_17_STABLE}
 else
-    PS_REPO_DIR=${PS_REPO_DIR:-$ROOT_DIR/src_mysql}
-    PS_REPO_URL=${PS_REPO_URL:-https://github.com/percona/percona-server}
-    PS_BRANCH=${PS_BRANCH:-8.0}
+    SERVER_REPO_DIR=${SERVER_REPO_DIR:-$ROOT_DIR/src_mysql}
+    SERVER_REPO_URL=${SERVER_REPO_URL:-https://github.com/percona/percona-server}
+    SERVER_BRANCH=${SERVER_BRANCH:-8.0}
 fi
-PS_BUILD_DIR=${PS_BUILD_DIR:-$ROOT_DIR/$PS_BRANCH-rel-$SELECTED_CC}
-PS_BIN_DIR=${PS_BUILD_DIR}/bin
+SERVER_BUILD_DIR=${SERVER_BUILD_DIR:-$ROOT_DIR/$SERVER_BRANCH-rel-$SELECTED_CC}
+SERVER_BIN_DIR=${SERVER_BUILD_DIR}/bin
 
 SYSBENCH_REPO_DIR=${SYSBENCH_REPO_DIR:-$ROOT_DIR/sysbench}
 SYSBENCH_REPO_URL=${SYSBENCH_REPO_URL:-https://github.com/inikep/sysbench}
@@ -119,20 +119,22 @@ if [[ "${DBBENCH_SSL,,}" == "on" || "${DBBENCH_SSL}" == "1" ]]; then
 fi
 
 mkdir -p ${ROOT_DIR} > /dev/null 2>&1
-mkdir -p ${PS_BUILD_DIR} > /dev/null 2>&1
-install_deps_debian | tee $PS_BUILD_DIR/install-deps.log
-setup_git_repo $DBBENCH_REPO_DIR $DBBENCH_BRANCH $DBBENCH_REPO_URL | tee $PS_BUILD_DIR/setup-perf-tests-repo.log
-setup_git_repo $SYSBENCH_REPO_DIR $SYSBENCH_BRANCH $SYSBENCH_REPO_URL | tee $PS_BUILD_DIR/setup-sysbench-repo.log
-setup_git_repo $PS_REPO_DIR $PS_BRANCH $PS_REPO_URL| tee $PS_BUILD_DIR/setup-ps-repo.log
+mkdir -p ${SERVER_BUILD_DIR} > /dev/null 2>&1
+install_deps_debian | tee $SERVER_BUILD_DIR/install-deps.log
+setup_git_repo $DBBENCH_REPO_DIR $DBBENCH_BRANCH $DBBENCH_REPO_URL | tee $SERVER_BUILD_DIR/setup-perf-tests-repo.log
+setup_git_repo $SYSBENCH_REPO_DIR $SYSBENCH_BRANCH $SYSBENCH_REPO_URL | tee $SERVER_BUILD_DIR/setup-sysbench-repo.log
+setup_git_repo $SERVER_REPO_DIR $SERVER_BRANCH $SERVER_REPO_URL| tee $SERVER_BUILD_DIR/setup-ps-repo.log
 
-pushd $PS_REPO_DIR; PS_GIT_HASH=$(git rev-parse --short HEAD); popd
-echo "PS_GIT_HASH=$PS_GIT_HASH PS_REPO_URL=$PS_REPO_URL PS_BRANCH=$PS_BRANCH"
+pushd $SERVER_REPO_DIR; PS_GIT_HASH=$(git rev-parse --short HEAD); popd
+echo "PS_GIT_HASH=$PS_GIT_HASH SERVER_REPO_URL=$SERVER_REPO_URL SERVER_BRANCH=$SERVER_BRANCH"
 
-build_sysbench $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR/sysbench-make.log
+build_sysbench $SYSBENCH_REPO_DIR | tee $SERVER_BUILD_DIR/sysbench-make.log
 if [[ ${ENGINE} == "postgres" ]]; then
-    build_postgres $PS_REPO_DIR $PS_BUILD_DIR | tee $PS_BUILD_DIR/make.log
+    source ${DBBENCH_REPO_DIR}/db_bench/postgres.inc
+    build_postgres $SERVER_REPO_DIR $SERVER_BUILD_DIR | tee $SERVER_BUILD_DIR/make.log
 else
-    mysql_call_cmake $PS_REPO_DIR $PS_BIN_DIR | tee $PS_BUILD_DIR/cmake.log
-    build_mysql $PS_BIN_DIR | tee $PS_BUILD_DIR/make.log
+    source ${DBBENCH_REPO_DIR}/db_bench/mysql.inc
+    mysql_call_cmake $SERVER_REPO_DIR $SERVER_BIN_DIR | tee $SERVER_BUILD_DIR/cmake.log
+    build_mysql $SERVER_BIN_DIR | tee $SERVER_BUILD_DIR/make.log
 fi
-run_perf_tests $ROOT_DIR $PS_BIN_DIR $DBBENCH_REPO_DIR $SYSBENCH_REPO_DIR | tee $PS_BUILD_DIR/perf-test.log
+run_perf_tests $ROOT_DIR $SERVER_BIN_DIR $DBBENCH_REPO_DIR $SYSBENCH_REPO_DIR | tee $SERVER_BUILD_DIR/perf-test.log
