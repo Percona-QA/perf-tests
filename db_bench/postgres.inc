@@ -20,6 +20,10 @@ function build_postgres() {
     make -j${NPROC}
     if [[ $? != 0 ]]; then echo "make -j${NPROC} failed"; exit -1; fi
     sudo make install
+    cd contrib/pg_tde
+    make -j${NPROC}
+    if [[ $? != 0 ]]; then echo "pg_tde: make -j${NPROC} failed"; exit -1; fi
+    sudo make install
     ccache --show-stats
     df -Th
     popd
@@ -43,23 +47,8 @@ function start_postgres() {
 #  fi
   echo "Starting Postgres with options $PG_PARAMS -o \"$PG_CONF_PARAMS\"" | tee -a $LOG_NAME_SERVERD
   ${PG_CTL_BIN} start $PG_PARAMS -o "$PG_CONF_PARAMS" 2>&1
-
-  echo "Waiting up to ${PS_START_TIMEOUT} seconds for PostgreSQL to start..."
-
-  timeout=${PS_START_TIMEOUT}
-  interval=2
-  elapsed=0
-
-  while ! ${PG_CTL_BIN} status $PG_PARAMS | grep -q "server is running"; do
-      if [ "$elapsed" -ge "$timeout" ]; then
-          echo "Error: PostgreSQL did not start within ${PS_START_TIMEOUT} seconds."
-          exit 1
-      fi
-      sleep $interval
-      ((elapsed+=interval))
-  done
-
   echo "PostgreSQL is up and running!"
+
   ${PSQL_BIN} -U $DB_USER -d postgres -c "ALTER SYSTEM SET shared_buffers = '${ENGINE_CACHE}B';"
   ${PSQL_BIN} -U $DB_USER -d postgres -c "SELECT pg_reload_conf();"
   ${PSQL_BIN} -U $DB_USER -d postgres -c "
@@ -76,9 +65,14 @@ function start_postgres() {
 # shutdown_postgres <DATA_DIR>
 function shutdown_postgres() {
   local PG_DATA_DIR=$1
-  ${PSQL_BIN} -U $DB_USER -d postgres -c "SELECT * FROM pg_ls_waldir();" 2>&1
+  #${PSQL_BIN} -U $DB_USER -d postgres -c "SELECT * FROM pg_ls_waldir();" 2>&1
   ${PSQL_BIN} -U $DB_USER -d postgres -c "SELECT pg_switch_wal();" 2>&1
   ${PSQL_BIN} -U $DB_USER -d $DB_NAME -c "SELECT COUNT(*) FROM sbtest1;" 2>&1
+  if [[ "$PG_TDE" == "ON" ]]; then
+    ${PSQL_BIN} -U $DB_USER -d $DB_NAME -c "SELECT tablename, pg_tde_is_encrypted(tablename::regclass)
+                                            AS is_encrypted FROM pg_tables WHERE schemaname = 'public';" 2>&1
+    ${PSQL_BIN} -U $DB_USER -d $DB_NAME -c "SELECT pg_tde_is_encrypted('sbtest1');" 2>&1
+  fi
 
   timeout=${PS_START_TIMEOUT:-60}  # Default to 60 seconds if variable is unset
   interval=2  # Check every 2 seconds
@@ -100,7 +94,8 @@ function shutdown_postgres() {
 }
 
 function postgres_prepare_datadir() {
-  local TEMPLATE_DIR=${TEMPLATE_PATH}/${ENGINE}_${SERVER_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
+  PG_TDE=${PG_TDE:-OFF}
+  local TEMPLATE_DIR=${TEMPLATE_PATH}/${ENGINE}_${SERVER_VERSION%-*}_${NUM_TABLES}x${DATASIZE}_TDE=${PG_TDE}
 
   if [[ ${WRITES_TIME_SECONDS} == 0 ]]; then return; fi
 
@@ -110,9 +105,28 @@ function postgres_prepare_datadir() {
     echo "Creating template data directory in ${TEMPLATE_DIR}"
     sudo mkdir -p ${TEMPLATE_PATH} > /dev/null 2>&1
     sudo chown $USER:$USER ${TEMPLATE_PATH}
-    ${INITDB_BIN} -D ${TEMPLATE_DIR} # 2>&1
 
     LOG_NAME_SERVERD=${LOGS_CONFIG}/prepare.${SERVER_TYPE}d
+    ${INITDB_BIN} -D ${TEMPLATE_DIR} 2>&1
+
+    if [[ "$PG_TDE" == "ON" ]]; then
+      #export TDE_MODE=1
+      ${PG_CTL_BIN} start -D ${TEMPLATE_DIR} 2>&1
+      ${PSQL_BIN} -U $DB_USER -d postgres -c "ALTER SYSTEM SET shared_preload_libraries = 'pg_tde';" 2>&1
+      ${PG_CTL_BIN} restart -D ${TEMPLATE_DIR} 2>&1
+
+      ${PSQL_BIN} -U $DB_USER -d template1 -c 'CREATE EXTENSION pg_tde;'
+      ${PSQL_BIN} -U $DB_USER -d postgres -c "
+            CREATE EXTENSION IF NOT EXISTS pg_tde;
+            SELECT pg_tde_add_global_key_provider_file('reg_file-global', '$BENCH_DIR/pg_tde_test_keyring.per');
+            SELECT pg_tde_set_default_principal_key_using_global_key_provider('server-principal-key', 'reg_file-global');
+       "
+      ${PSQL_BIN} -U $DB_USER -d postgres -c "ALTER SYSTEM SET pg_tde.wal_encrypt = on;"
+      ${PSQL_BIN} -U $DB_USER -d postgres -c "ALTER SYSTEM SET default_table_access_method = 'tde_heap';"
+      #${PSQL_BIN} -U $DB_USER -d postgres -c "ALTER SYSTEM SET search_path = $DB_USER,public,tde;"
+      ${PG_CTL_BIN} stop -m smart -D ${TEMPLATE_DIR} 2>&1
+    fi
+
     start_postgres "-D ${TEMPLATE_DIR}" "-c synchronous_commit=off"
     ${PSQL_BIN} -U $DB_USER -d postgres -c "CREATE DATABASE $DB_NAME;" 2>&1
 
