@@ -5,7 +5,7 @@
 # data_funcs.inc - data processing functions
 #**********************************************************************************************
 
-source ${SCRIPT_DIR}/db_bench/workloads.inc
+source ${SCRIPT_DIR}/db-bench/workloads.inc
 
 # Function to process workload names and return WORKLOAD_ARRAY[] and WORKLOAD_PARAMS[] arrays
 function process_workload_names() {

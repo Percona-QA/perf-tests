@@ -44,11 +44,11 @@ export DSTAT_INTERVAL=10
 #MYEXTRA=${MYEXTRA:=--disable-log-bin}
 #PERF_EXTRA=${PERF_EXTRA:=--performance-schema-instrument='wait/synch/mutex/innodb/%=ON'}
 
-source ${SCRIPT_DIR}/db_bench/data_funcs.inc
-source ${SCRIPT_DIR}/db_bench/main_funcs.inc
-source ${SCRIPT_DIR}/db_bench/system_funcs.inc
-source ${SCRIPT_DIR}/db_bench/mysql.inc
-source ${SCRIPT_DIR}/db_bench/postgres.inc
+source ${SCRIPT_DIR}/db-bench/data_funcs.inc
+source ${SCRIPT_DIR}/db-bench/main_funcs.inc
+source ${SCRIPT_DIR}/db-bench/system_funcs.inc
+source ${SCRIPT_DIR}/db-bench/mysql.inc
+source ${SCRIPT_DIR}/db-bench/postgres.inc
 
 db_bench_init
 

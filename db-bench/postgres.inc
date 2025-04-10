@@ -103,7 +103,7 @@ function postgres_prepare_datadir() {
 
   if [ "${REBUILD_TEMPLATE}" == "ON" ] || [ ! -d ${TEMPLATE_DIR} ]; then
     echo "Creating template data directory in ${TEMPLATE_DIR}"
-    sudo rm -rf ${TEMPLATE_PATH}
+    sudo rm -rf ${TEMPLATE_DIR}
     sudo mkdir -p ${TEMPLATE_PATH} > /dev/null 2>&1
     sudo chown $USER:$USER ${TEMPLATE_PATH}
 

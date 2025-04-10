@@ -130,10 +130,10 @@ echo "PS_GIT_HASH=$PS_GIT_HASH SERVER_REPO_URL=$SERVER_REPO_URL SERVER_BRANCH=$S
 
 build_sysbench $SYSBENCH_REPO_DIR | tee $SERVER_BUILD_DIR/sysbench-make.log
 if [[ ${ENGINE} == "postgres" ]]; then
-    source ${DBBENCH_REPO_DIR}/db_bench/postgres.inc
+    source ${DBBENCH_REPO_DIR}/db-bench/postgres.inc
     build_postgres $SERVER_REPO_DIR $SERVER_BUILD_DIR | tee $SERVER_BUILD_DIR/make.log
 else
-    source ${DBBENCH_REPO_DIR}/db_bench/mysql.inc
+    source ${DBBENCH_REPO_DIR}/db-bench/mysql.inc
     mysql_call_cmake $SERVER_REPO_DIR $SERVER_BIN_DIR | tee $SERVER_BUILD_DIR/cmake.log
     build_mysql $SERVER_BIN_DIR | tee $SERVER_BUILD_DIR/make.log
 fi
