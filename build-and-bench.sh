@@ -1,11 +1,11 @@
 #!/bin/bash
 # usage:
-#   sudo nice --adjustment=-10 env SERVER_BRANCH=8.0 WRITES_TIME_SECONDS=30 THREADS_LIST="8" WORKLOAD_NAMES=POINT_SELECT ROOT_DIR=/mnt/optane/auto-perf-test /mnt/optane/auto-perf-test/perf-tests/auto-db-bench.sh
+#   sudo nice --adjustment=-10 env SERVER_BRANCH=8.0 WRITES_TIME_SECONDS=30 THREADS_LIST="8" WORKLOAD_NAMES=POINT_SELECT ROOT_DIR=/mnt/optane/auto-perf-test /mnt/optane/auto-perf-test/perf-tests/build-and-bench.sh
 # or add with "crontab -e":
-# 0 18 * * * sudo nice --adjustment=-10 env SERVER_BRANCH=8.0 WORKLOAD_NAMES=reads,writes TEMPLATE_PATH=/mnt/fast/template_datadir /mnt/fast/przemek/perf-tests/auto-db-bench.sh
+# 0 18 * * * sudo nice --adjustment=-10 env SERVER_BRANCH=8.0 WORKLOAD_NAMES=reads,writes TEMPLATE_PATH=/mnt/fast/template_datadir /mnt/fast/przemek/perf-tests/build-and-bench.sh
 #            sudo nice --adjustment=-10 bash -c "./run-ACID-shm.sh >run-ACID-shm.txt 2>&1"
 #
-# to kill all deps: sudo killall -9 db-bench.sh auto-db-bench.sh mysqld postgres sysbench dstat iostat
+# to kill all deps: sudo killall -9 db-bench.sh build-and-bench.sh mysqld postgres sysbench dstat iostat
 
 function install_deps_debian() {
     export DEBIAN_FRONTEND=noninteractive
@@ -91,7 +91,7 @@ function run_perf_tests() {
 
 SELECTED_CC=${SELECTED_CC:-gcc-13}
 SELECTED_CXX=${SELECTED_CXX:-g++-13}
-ROOT_DIR=${ROOT_DIR:-/mnt/fast/auto-db-bench}
+ROOT_DIR=${ROOT_DIR:-/mnt/fast/build-and-bench}
 export RESULTS_EMAIL=${RESULTS_EMAIL:-przemyslaw.skibinski@percona.com}
 
 if [[ ${ENGINE} == "postgres" ]]; then
