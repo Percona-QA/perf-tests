@@ -47,6 +47,7 @@ function start_postgres() {
 #  fi
   echo "Starting Postgres with options $PG_PARAMS -o \"$PG_CONF_PARAMS\"" | tee -a $LOG_NAME_SERVERD
   ${PG_CTL_BIN} start $PG_PARAMS -o "$PG_CONF_PARAMS" 2>&1
+  if [[ $? != 0 ]]; then echo "ERROR: Start of Postgres failed"; exit -1; fi
   echo "PostgreSQL is up and running!"
 
   ${PSQL_BIN} -U $DB_USER -d postgres -c "ALTER SYSTEM SET shared_buffers = '${ENGINE_CACHE}B';"
@@ -68,10 +69,11 @@ function shutdown_postgres() {
   #${PSQL_BIN} -U $DB_USER -d postgres -c "SELECT * FROM pg_ls_waldir();" 2>&1
   ${PSQL_BIN} -U $DB_USER -d postgres -c "SELECT pg_switch_wal();" 2>&1
   ${PSQL_BIN} -U $DB_USER -d $DB_NAME -c "SELECT COUNT(*) FROM sbtest1;" 2>&1
-  if [[ "$PG_TDE" == "ON" ]]; then
+  if [[ "$PG_TDE" == "ON" ]] || [[ "$PG_TDE" == "TABLE" ]]; then
     ${PSQL_BIN} -U $DB_USER -d $DB_NAME -c "SELECT tablename, pg_tde_is_encrypted(tablename::regclass)
                                             AS is_encrypted FROM pg_tables WHERE schemaname = 'public';" 2>&1
     ${PSQL_BIN} -U $DB_USER -d $DB_NAME -c "SELECT pg_tde_is_encrypted('sbtest1');" 2>&1
+    ${PSQL_BIN} -U $DB_USER -d postgres -c "SHOW pg_tde.wal_encrypt;" 2>&1
   fi
 
   timeout=${PS_START_TIMEOUT:-60}  # Default to 60 seconds if variable is unset
@@ -110,7 +112,7 @@ function postgres_prepare_datadir() {
     LOG_NAME_SERVERD=${LOGS_CONFIG}/prepare.${SERVER_TYPE}d
     ${INITDB_BIN} -D ${TEMPLATE_DIR} 2>&1
 
-    if [[ "$PG_TDE" == "ON" ]]; then
+    if [[ "$PG_TDE" == "ON" ]] || [[ "$PG_TDE" == "TABLE" ]]; then
       #export TDE_MODE=1
       ${PG_CTL_BIN} start -D ${TEMPLATE_DIR} 2>&1
       ${PSQL_BIN} -U $DB_USER -d postgres -c "ALTER SYSTEM SET shared_preload_libraries = 'pg_tde';" 2>&1
@@ -119,10 +121,15 @@ function postgres_prepare_datadir() {
       ${PSQL_BIN} -U $DB_USER -d template1 -c 'CREATE EXTENSION pg_tde;'
       ${PSQL_BIN} -U $DB_USER -d postgres -c "
             CREATE EXTENSION IF NOT EXISTS pg_tde;
-            SELECT pg_tde_add_global_key_provider_file('reg_file-global', '$BENCH_DIR/pg_tde_test_keyring.per');
+            SELECT pg_tde_add_global_key_provider_file('reg_file-global', '$TEMPLATE_DIR/pg_tde_test_keyring.per');
             SELECT pg_tde_set_default_principal_key_using_global_key_provider('server-principal-key', 'reg_file-global');
        "
-      ${PSQL_BIN} -U $DB_USER -d postgres -c "ALTER SYSTEM SET pg_tde.wal_encrypt = on;"
+      if [[ "$PG_TDE" == "ON" ]]; then
+        ${PSQL_BIN} -U $DB_USER -d postgres -c "ALTER SYSTEM SET pg_tde.wal_encrypt = on;"
+        echo "TDE: wal_encrypt is ON"
+      else
+        echo "TDE: wal_encrypt is OFF"
+      fi
       ${PSQL_BIN} -U $DB_USER -d postgres -c "ALTER SYSTEM SET default_table_access_method = 'tde_heap';"
       #${PSQL_BIN} -U $DB_USER -d postgres -c "ALTER SYSTEM SET search_path = $DB_USER,public,tde;"
       ${PG_CTL_BIN} stop -m smart -D ${TEMPLATE_DIR} 2>&1
