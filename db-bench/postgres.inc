@@ -139,6 +139,7 @@ function postgres_prepare_datadir() {
     ${PSQL_BIN} -U $DB_USER -d postgres -c "CREATE DATABASE $DB_NAME;" 2>&1
 
     pushd $SYSBENCH_LUA
+    echo "Starting sysbench with options $SYSBENCH_WRITE --threads=$NUM_TABLES --rand-seed=$RAND_SEED $SYSBENCH_OPTIONS prepare"
     (time $SYSBENCH_BIN $SYSBENCH_WRITE --threads=$NUM_TABLES --rand-seed=$RAND_SEED $SYSBENCH_OPTIONS prepare) 2>&1
     popd
     echo "Data directory in ${TEMPLATE_DIR} created"
