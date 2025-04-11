@@ -1,0 +1,236 @@
+- job-template:
+    name: perf-bench-{name}
+    node: '{node}'  # restricted to specific node
+    description: |
+        Performance regression testing for MySQL/Percona Server<BR><BR>
+        <b>Do not make changes to the pipeline definition via the web interface!<br>
+        (Do not use 'Configure' option on the left for changing the pipeline definition)<br></b>
+        Change <a href="https://github.com/Percona-QA/perf-tests/blob/3.0/jenkins/perf-bench-MySQL.yml">perf-bench-MySQL.yml</a> instead.</b><br>
+        Then update pipeline with "jenkins-jobs --server ps80.cd update jenkins/perf-bench-MySQL.yml".
+    properties:
+    - build-discarder:
+        days-to-keep: -1
+        num-to-keep: 16
+        artifact-days-to-keep: -1
+        artifact-num-to-keep: 16
+    parameters:
+    - string:
+        name: RUN_NAME
+        description: "The additional field for results cache to force results to be distinguished in a separate bucket (please don't use 'nightly')"
+        default: "{run_name}"
+        trim: false
+    - string:
+        name: SERVER_REPO_URL
+        description: "https://github.com/percona/percona-server<BR>\nhttps://github.com/mysql/mysql-server"
+        default: "https://github.com/percona/percona-server"   
+        trim: false
+    - string:
+        name: SERVER_BRANCH
+        description: "mysql-8.0.39\nmysql-8.0.40\nrelease-8.0.39-30\nrelease-8.0.40-31\nrelease-8.0.41-32<BR>\nmysql-8.4.2\nmysql-8.4.3\nmysql-8.4.4\nrelease-8.4.2-2\nrelease-8.4.3-3\nrelease-8.4.4-4<BR>\nmysql-9.0.1\nmysql-9.1.0\nrelease-9.0.1-1\nrelease-9.1.0-1\nrelease-9.2.0-1<BR>"
+        default: "release-8.0.41-32"
+        trim: false
+    - string:
+        name: WORKLOAD_NAMES
+        description: "Workload names separated by comma from\n<a href=\"https://github.com/Percona-QA/perf-tests/blob/3.0/db_bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.0/db_bench/workloads.inc</a>\n<BR>\n<b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES\n<BR><b>writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS, WR_DELETE,WR_INSERT,WR_REPLACE\n"
+        default: "reads,writes"
+        trim: false
+    - string:
+        name: CNFFILE_NAME
+        description: "MySQL config file from\n<a href=\"https://github.com/Percona-QA/perf-tests/tree/3.0/cnf\">https://github.com/Percona-QA/perf-tests/tree/3.0/cnf</a>\n<BR>\n<b>stable-noACID.cnf</b> is non-ACID compliant as it uses \"sync_binlog=1024; innodb_flush_log_at_trx_commit=0\"<BR>\n<b>stable-innodb.cnf</b> is ACID compliant"
+        default: "{config_file}"
+        trim: false
+    - string:
+        name: MYEXTRA
+        description: "Extra params for MySQL"
+        trim: false
+    - string:
+        name: CXXFLAGS
+        description: "Additional flags used during compilation"
+        default: "{compiler_flags}"
+        trim: false
+    - string:
+        name: RESULTS_EMAIL
+        description: "List of e-mails separated by commas"
+        default: "przemyslaw.skibinski@percona.com"
+        trim: false
+    - string:
+        name: THREADS_LIST
+        default: "8 16 32 64"
+        trim: false
+    - string:
+        name: WRITES_TIME_SECONDS
+        description: "WRITES_TIME_SECONDS will be spent for writes only. Only half of given time will be spent for reads."
+        default: "300"
+        trim: false
+    - string:
+        name: NUM_TABLES
+        default: "16"
+        trim: false
+    - string:
+        name: DATASIZE
+        default: "10M"
+        trim: false
+    - string:
+        name: ENGINE_CACHE
+        default: "96G"
+        trim: false
+    - string:
+        name: ENGINE
+        default: "{engine}"
+        description: only "innodb" and "rocksdb" are supported
+    - string:
+        name: SELECTED_CC
+        default: "{cc_compiler}"
+        trim: false
+    - string:
+        name: SELECTED_CXX
+        default: "{cxx_compiler}"
+        trim: false
+    - string:
+        name: SCALING_GOVERNOR
+        description: "Available cpufreq governors: conservative ondemand userspace powersave performance schedutil"
+        default: "performance"
+        trim: false
+    - string:
+        name: REPEAT_NUM
+        description: "How many times to repeat perf benchmarking"
+        default: "1"
+        trim: false
+    - choice:
+        name: REBUILD_TEMPLATE
+        choices:
+        - "OFF"
+        - "ON"
+    - choice:
+        name: DBBENCH_SSL
+        choices:
+        - "off"
+        - "on"
+    - choice:
+        name: DATA_DIR
+        choices:
+        - ""
+        - "/dev/shm"
+    - string:
+        name: SYSBENCH_HOST
+        description: "Switch sysbench to connect using TCP/IP connection to $SYSBENCH_HOST"
+        trim: false
+    can_roam: false
+    disabled: false
+    block_build_when_downstream_building: false
+    block_build_when_upstream_building: false
+    triggers: []
+    concurrent_build: false
+    builders:
+      - shell:
+          command: |
+            uname -a
+            df -h
+            ls -la
+            rm -rf *
+            ls -la
+
+            export BACKUP_DIR=$WORKSPACE
+            unset WORKSPACE
+
+            echo "User: $(whoami) USER=$USER"
+            echo SERVER_REPO_URL=$SERVER_REPO_URL
+            echo SERVER_BRANCH=$SERVER_BRANCH
+            echo MYEXTRA=$MYEXTRA
+            echo CXXFLAGS=$CXXFLAGS
+            echo WORKLOAD_NAMES=$WORKLOAD_NAMES
+            echo CNFFILE_NAME=$CNFFILE_NAME
+            echo RESULTS_EMAIL=$RESULTS_EMAIL
+            echo THREADS_LIST=$THREADS_LIST
+            echo WRITES_TIME_SECONDS=$WRITES_TIME_SECONDS
+            echo NUM_TABLES=$NUM_TABLES
+            echo DATASIZE=$DATASIZE
+            echo ENGINE_CACHE=$ENGINE_CACHE
+            echo SELECTED_CC=$SELECTED_CC
+            echo SELECTED_CXX=$SELECTED_CXX
+            echo SCALING_GOVERNOR=$SCALING_GOVERNOR
+            echo REPEAT_NUM=$REPEAT_NUM
+            echo REBUILD_TEMPLATE=$REBUILD_TEMPLATE
+            echo RUN_NAME=$RUN_NAME
+            echo DATA_DIR=$DATA_DIR
+            echo DBBENCH_SSL=$DBBENCH_SSL
+
+            #export DB_USER=$USER
+            export TEMPLATE_PATH={template_path}
+            export ROOT_DIR={root_dir}
+            export CACHE_DIR=$ROOT_DIR/results_cache
+
+            sudo mkdir -p $ROOT_DIR
+            sudo chown $USER:$USER $ROOT_DIR
+            cd $ROOT_DIR
+            rm -f build-and-bench.sh
+            wget https://raw.githubusercontent.com/Percona-QA/perf-tests/refs/heads/3.0/build-and-bench.sh
+            chmod a+x build-and-bench.sh
+            nice --adjustment=-10 bash -xe ./build-and-bench.sh
+
+    publishers:
+      - archive:
+          artifacts: "*.tar.gz, *.csv, *.html"
+          allow_empty_archive: false
+          only_if_successful: false
+          fingerprint: false
+          default_excludes: true
+          case_sensitive: true
+          follow_symlinks: false
+    build_wrappers: []
+
+- project:
+    name: InnoDB-smblade04
+    node: sm-blade04
+    engine: innodb
+    template_path: /mnt/data/template_datadir
+    root_dir: /mnt/fast/bench-mysql
+    run_name: node04-innodb
+    config_file: cnf/stable-noACID.cnf
+    cc_compiler: gcc-13
+    cxx_compiler: g++-13
+    compiler_flags: -march=westmere
+    jobs:
+      - perf-bench-{name}
+
+- project:
+    name: InnoDB-epyc9654
+    node: as-1015cs-tnr
+    engine: innodb
+    template_path: /mnt/storage/template_datadir
+    root_dir: /mnt/storage2/bench-mysql
+    run_name: 9654-innodb
+    config_file: cnf/stable-noACID.cnf
+    cc_compiler: gcc-14
+    cxx_compiler: g++-14
+    compiler_flags:
+    jobs:
+      - perf-bench-{name}
+
+- project:
+    name: RocksDB-smblade04
+    node: sm-blade04
+    engine: rocksdb
+    template_path: /mnt/data/template_datadir
+    root_dir: /mnt/fast/bench-mysql
+    run_name: node04-myrocks
+    config_file: cnf/rocksdb-noACID.cnf
+    cc_compiler: gcc-13
+    cxx_compiler: g++-13
+    compiler_flags: -march=westmere
+    jobs:
+      - perf-bench-{name}
+
+- project:
+    name: RocksDB-epyc9654
+    node: as-1015cs-tnr
+    engine: rocksdb
+    template_path: /mnt/storage/template_datadir
+    root_dir: /mnt/storage2/bench-mysql
+    run_name: 9654-myrocks
+    config_file: cnf/rocksdb-noACID.cnf
+    cc_compiler: gcc-14
+    cxx_compiler: g++-14
+    compiler_flags:
+    jobs:
+      - perf-bench-{name}
