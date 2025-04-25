@@ -34,8 +34,8 @@ function setup_git_repo() {
 
     git reset --hard
     git clean -xdf
-    git checkout "origin/${GIT_BRANCH}" || git checkout "tags/${GIT_BRANCH}" || git checkout "${GIT_BRANCH}"
-    if [[ $? != 0 ]]; then echo "git checkout ${GIT_BRANCH} failed"; exit -1; fi
+    git checkout "origin/${GIT_BRANCH}" || git checkout "tags/${GIT_BRANCH}" || git checkout "${GIT_BRANCH}" || {
+        echo "git checkout ${GIT_BRANCH} failed"; exit 1; }
 
     git submodule update --init
     popd
@@ -118,6 +118,7 @@ if [[ "${DBBENCH_SSL,,}" == "on" || "${DBBENCH_SSL}" == "1" ]]; then
     export SSL_CERTS_PATH=${DBBENCH_REPO_DIR}/cert
 fi
 
+set -o pipefail
 mkdir -p ${ROOT_DIR} > /dev/null 2>&1
 mkdir -p ${SERVER_BUILD_DIR} > /dev/null 2>&1
 install_deps_debian | tee $SERVER_BUILD_DIR/install-deps.log
