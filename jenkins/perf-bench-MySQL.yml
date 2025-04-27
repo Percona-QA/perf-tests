@@ -26,8 +26,8 @@
         trim: false
     - string:
         name: SERVER_BRANCH
-        description: "mysql-8.0.39\nmysql-8.0.40\nrelease-8.0.39-30\nrelease-8.0.40-31\nrelease-8.0.41-32<BR>\nmysql-8.4.2\nmysql-8.4.3\nmysql-8.4.4\nrelease-8.4.2-2\nrelease-8.4.3-3\nrelease-8.4.4-4<BR>\nmysql-9.0.1\nmysql-9.1.0\nrelease-9.0.1-1\nrelease-9.1.0-1\nrelease-9.2.0-1<BR>"
-        default: "release-8.0.41-32"
+        description: "mysql-8.0.40\nmysql-8.0.41\nmysql-8.0.42\n<BR>release-8.0.40-31\nrelease-8.0.41-32\nrelease-8.0.42-33<BR>\nmysql-8.4.3\nmysql-8.4.4\nmysql-8.4.5\n<BR>release-8.4.3-3\nrelease-8.4.4-4\nrelease-8.4.5-5<BR>\nmysql-9.1.0\nmysql-9.2.0\nmysql-9.3.0\n<BR>release-9.1.0-1\nrelease-9.2.0-1\nrelease-9.3.0-1<BR>"
+        default: "release-8.0.42-33"
         trim: false
     - string:
         name: WORKLOAD_NAMES
@@ -186,7 +186,7 @@
     template_path: /mnt/data/template_datadir
     root_dir: /mnt/fast/bench-mysql
     run_name: node04-innodb
-    config_file: cnf/stable-noACID.cnf
+    config_file: cnf/stable8x-noACID.cnf
     cc_compiler: gcc-13
     cxx_compiler: g++-13
     compiler_flags: -march=westmere
@@ -200,7 +200,7 @@
     template_path: /mnt/storage/template_datadir
     root_dir: /mnt/storage2/bench-mysql
     run_name: 9654-innodb
-    config_file: cnf/stable-noACID.cnf
+    config_file: cnf/stable8x-noACID.cnf
     cc_compiler: gcc-14
     cxx_compiler: g++-14
     compiler_flags:

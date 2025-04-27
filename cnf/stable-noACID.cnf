@@ -16,7 +16,7 @@ table_open_cache_instances=64
 # InnoDB
 innodb_open_files=4K
 #innodb_redo_log_capacity=16G
-innodb_log_file_size=2G
+loose-innodb_log_file_size=2G
 innodb_log_files_in_group=8
 innodb_fast_shutdown=0
 
