@@ -18,8 +18,6 @@ table_open_cache_instances=64
 
 
 # RocksDB
-transaction-isolation=READ-COMMITTED     # REPEATABLE-READ
-#rocksdb_block_cache_size=8G              # 512 MB
 rocksdb_max_background_jobs=16           # 2
 rocksdb_cache_high_pri_pool_ratio=0.5    # 0.0
 
@@ -38,3 +36,4 @@ rocksdb_default_cf_options=max_write_buffer_number=4;write_buffer_size=32m;max_b
 # Non-ACID compliant options but improve stability of results
 sync_binlog=1024
 rocksdb_flush_log_at_trx_commit=0
+# transaction-isolation=READ-COMMITTED     # REPEATABLE-READ

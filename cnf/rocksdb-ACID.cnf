@@ -18,26 +18,16 @@ table_open_cache_instances=64
 
 
 # RocksDB
-rocksdb_max_open_files=-1
-rocksdb_max_background_jobs=4
-rocksdb_max_total_wal_size=4G
-# rocksdb_block_size=16K
-# rocksdb_table_cache_numshardbits=6
-rocksdb_merge_buf_size=1G
+rocksdb_max_background_jobs=16           # 2
+rocksdb_cache_high_pri_pool_ratio=0.5    # 0.0
 
-# rate limiter
-# rocksdb_bytes_per_sync=16M
-# rocksdb_wal_bytes_per_sync=4M
-# rocksdb_rate_limiter_bytes_per_sec=100MB
+rocksdb_max_open_files=-1                # 1000
+rocksdb_max_total_wal_size=4G            # 2G
+rocksdb_merge_buf_size=1G                # 64M
 
-rocksdb_default_cf_options=write_buffer_size=512M;target_file_size_base=1G;max_bytes_for_level_base=512M;level0_file_num_compaction_trigger=4;level0_slowdown_writes_trigger=10;level0_stop_writes_trigger=15;max_write_buffer_number=2;compression=kLZ4Compression;bottommost_compression=kLZ4Compression;compression_opts=-14:4:0;block_based_table_factory={cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=0};level_compaction_dynamic_level_bytes=true;optimize_filters_for_hits=true;memtable_prefix_bloom_size_ratio=0.05;prefix_extractor=capped:12;compaction_pri=kMinOverlappingRatio
+rocksdb_max_subcompactions=4             # 1
+rocksdb_compaction_readahead_size=16m    # 0
+# rocksdb_write_policy=write_unprepared  # slower reads, faster writes
 
-# rocksdb_max_subcompactions=4
-# rocksdb_compaction_readahead_size=16m
-rocksdb_use_direct_reads=ON
-rocksdb_use_direct_io_for_flush_and_compaction=ON
-
-# rocksdb_write_disable_wal=1
-# rocksdb_wal_recovery_mode=2
-# rocksdb_write_policy=write_unprepared
-# transaction-isolation=READ-COMMITTED
+# Mark's + compression=kLZ4Compression
+rocksdb_default_cf_options=max_write_buffer_number=4;write_buffer_size=32m;max_bytes_for_level_base=256m;compression=kLZ4Compression;bottommost_compression=kLZ4Compression;level_compaction_dynamic_level_bytes=true;block_based_table_factory={cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=1};optimize_filters_for_hits=true
