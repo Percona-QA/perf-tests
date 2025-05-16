@@ -36,7 +36,7 @@
         trim: false
     - string:
         name: CNFFILE_NAME
-        description: "MySQL config file from\n<a href=\"https://github.com/Percona-QA/perf-tests/tree/3.0/cnf\">https://github.com/Percona-QA/perf-tests/tree/3.0/cnf</a>\n<BR>\n<b>stable-noACID.cnf</b> is non-ACID compliant as it uses \"sync_binlog=1024; innodb_flush_log_at_trx_commit=0\"<BR>\n<b>stable-innodb.cnf</b> is ACID compliant"
+        description: "MySQL config file from\n<a href=\"https://github.com/Percona-QA/perf-tests/tree/3.0/cnf\">https://github.com/Percona-QA/perf-tests/tree/3.0/cnf</a>\n<BR>\n<b>stable8x-noACID.cnf</b> is non-ACID compliant as it uses \"sync_binlog=1024; innodb_flush_log_at_trx_commit=0\"<BR>\n<b>stable8x-innodb.cnf</b> is ACID compliant for Percona Server 8.0 and newer but gives less stable results<BR>\n<b>stable-noACID.cnf</b> is non-ACID compliant for Percona Server 5.7 and newer"
         default: "{config_file}"
         trim: false
     - string:
@@ -107,6 +107,10 @@
         - "off"
         - "on"
     - choice:
+        name: ROOT_DIR
+        description: "Path to directory where benchmarks are run (depends on the specific machine)"
+        choices: "{root_dir}"
+    - choice:
         name: DATA_DIR
         choices:
         - ""
@@ -153,11 +157,11 @@
             echo REBUILD_TEMPLATE=$REBUILD_TEMPLATE
             echo RUN_NAME=$RUN_NAME
             echo DATA_DIR=$DATA_DIR
+            echo ROOT_DIR=$ROOT_DIR
             echo DBBENCH_SSL=$DBBENCH_SSL
 
             #export DB_USER=$USER
             export TEMPLATE_PATH={template_path}
-            export ROOT_DIR={root_dir}
             export CACHE_DIR=$ROOT_DIR/results_cache
 
             sudo mkdir -p $ROOT_DIR
@@ -184,7 +188,9 @@
     node: sm-blade04
     engine: innodb
     template_path: /mnt/data/template_datadir
-    root_dir: /mnt/fast/bench-mysql
+    root_dir:
+      - /mnt/fast/bench-mysql
+      - /mnt/data/bench-mysql
     run_name: node04-innodb
     config_file: cnf/stable8x-noACID.cnf
     cc_compiler: gcc-13
@@ -198,7 +204,8 @@
     node: as-1015cs-tnr
     engine: innodb
     template_path: /mnt/storage/template_datadir
-    root_dir: /mnt/storage2/bench-mysql
+    root_dir:
+      - /mnt/storage2/bench-mysql
     run_name: 9654-innodb
     config_file: cnf/stable8x-noACID.cnf
     cc_compiler: gcc-14
@@ -212,7 +219,9 @@
     node: sm-blade04
     engine: rocksdb
     template_path: /mnt/data/template_datadir
-    root_dir: /mnt/fast/bench-mysql
+    root_dir:
+      - /mnt/fast/bench-mysql
+      - /mnt/data/bench-mysql
     run_name: node04-myrocks
     config_file: cnf/rocksdb-noACID.cnf
     cc_compiler: gcc-13
@@ -226,7 +235,8 @@
     node: as-1015cs-tnr
     engine: rocksdb
     template_path: /mnt/storage/template_datadir
-    root_dir: /mnt/storage2/bench-mysql
+    root_dir:
+      - /mnt/storage2/bench-mysql
     run_name: 9654-myrocks
     config_file: cnf/rocksdb-noACID.cnf
     cc_compiler: gcc-14
