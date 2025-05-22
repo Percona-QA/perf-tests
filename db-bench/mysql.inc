@@ -150,10 +150,13 @@ function set_mysql_sysbench_options() {
 }
 
 function mysql_before_shutdown() {
-    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE $ENGINE STATUS\G; SHOW ENGINE $ENGINE MUTEX" >> ${LOG_NAME_SERVER} 2>&1
-    if [[ ${PERF_EXTRA} != "" ]]; then
-        ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT/1000000000 SUM_TIMER_WAIT_MS FROM performance_schema.events_waits_summary_global_by_event_name WHERE SUM_TIMER_WAIT > 0 AND EVENT_NAME LIKE 'wait/synch/mutex/innodb/%' ORDER BY COUNT_STAR DESC" >> ${LOG_NAME_SERVER} 2>&1
-    fi
+  if [ "$ENGINE" == "rocksdb" ]; then
+    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT @@rocksdb_block_cache_size" 2>&1
+  fi
+  ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT @@innodb_flush_method; SHOW GLOBAL STATUS; SHOW ENGINE $ENGINE STATUS\G; SHOW ENGINE $ENGINE MUTEX" >> ${LOG_NAME_SERVER} 2>&1
+  if [[ ${PERF_EXTRA} != "" ]]; then
+      ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT/1000000000 SUM_TIMER_WAIT_MS FROM performance_schema.events_waits_summary_global_by_event_name WHERE SUM_TIMER_WAIT > 0 AND EVENT_NAME LIKE 'wait/synch/mutex/innodb/%' ORDER BY COUNT_STAR DESC" >> ${LOG_NAME_SERVER} 2>&1
+  fi
 }
 
 function check_mysql_binaries() {
