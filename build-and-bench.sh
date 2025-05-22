@@ -9,11 +9,11 @@
 
 function install_deps_debian() {
     export DEBIAN_FRONTEND=noninteractive
-    local PACKAGES_TO_INSTALL="smartmontools g++ dstat mutt ca-certificates git pkg-config dpkg-dev make cmake ccache bison python-is-python3 python3-pip linux-tools-$(uname -r)"
+    local PACKAGES_TO_INSTALL="smartmontools g++ dstat mutt ca-certificates git pkg-config dpkg-dev make cmake ccache bison linux-tools-$(uname -r) "
+    PACKAGES_TO_INSTALL+="python-is-python3 python3-pip python3-pandas python3-requests"
     command -v sendmail >/dev/null 2>&1 || { PACKAGES_TO_INSTALL+=" sendmail"; }
     sudo apt update
     sudo apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $SELECTED_CXX
-    pip install requests pandas tabulate
 }
 
 function setup_git_repo() {
