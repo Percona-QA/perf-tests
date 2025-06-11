@@ -7,8 +7,8 @@
         Then update pipeline with "jenkins-jobs --server ps80.cd update jenkins/perf-bench-cron.yml".
     name: "perf-bench-cron"
     project-type: "pipeline"
-    use-groovy-sandbox: true  # Marking "Use Groovy Sandbox"
-    concurrent: true          # Unmarking "Do not allow concurrent builds"
+    sandbox: true        # Marking "Use Groovy Sandbox"
+    concurrent: true     # Unmarking "Do not allow concurrent builds"
     keepDependencies: false
     triggers:
       - timed: "0 21 * * *"
@@ -40,7 +40,7 @@
                 } else if (dayOfWeek in ['2']) {
                     // Tuesday
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'release-9.2.0-1'),
+                        string(name: 'SERVER_BRANCH', value: 'release-9.3.0-1'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/percona/percona-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
@@ -48,7 +48,7 @@
                 } else if (dayOfWeek == '5') {
                     // Friday - First build
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'release-9.2.0-1'),
+                        string(name: 'SERVER_BRANCH', value: 'release-9.3.0-1'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/percona/percona-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
