@@ -54,8 +54,8 @@ function on_exit(){
   local DURATION=$((END_TIME - START_TIME))
   local TIME_HMS=$(printf "%02d:%02d:%02d" $((DURATION / 3600)) $(((DURATION % 3600) / 60)) $((DURATION % 60)))
 
-  HEADER="WORKLOAD"
-  for num_threads in ${THREADS_LIST}; do HEADER+=", ${num_threads} THDS"; done
+  HEADER="WORKLOAD,MODE,MEASUREMENT,BRANCH,PG_TDE"
+  for num_threads in ${THREADS_LIST}; do HEADER+=",${num_threads} THDS"; done
 
   echo "Create .csv files"
   echo "${HEADER}" > ${LOG_BASE_FULL_RESULTS}.csv
@@ -244,17 +244,17 @@ function run_sysbench() {
 
   local LOG_RESULTS_PATH="${CACHE_DIR}/${BENCH_ID}_${CONFIG_BASE^^}_$(basename "${WORKLOAD_NAMES}" .txt)_${RUN_NAME}"
   local LOG_RESULTS_CACHE="${LOG_RESULTS_PATH}/${WORKLOAD_NAME}_${SCALING_GOVERNOR}_${THREADS_LIST// /_}.csv"
-  local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}"
-  local RESULTS_LINE="${BENCH_WITH_CONFIG}_qps"
+  local BENCH_WITH_CONFIG="${BENCH_ID},${CONFIG_BASE},${WORKLOAD_NAME},${BENCH_NAME},${PG_TDE}"
+  local RESULTS_LINE="${BENCH_WITH_CONFIG}"
   for number in "${result_set[@]}"; do RESULTS_LINE+=", ${number}"; done
 
   mkdir -p $LOG_RESULTS_PATH
   echo "${RESULTS_LINE}" > ${LOG_NAME_RESULTS}
   cat ${LOG_NAME_RESULTS} >> ${LOG_RESULTS_CACHE}
   cat ${LOG_NAME_RESULTS} >> ${LOGS_QPS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_qps.csv
-  echo "${BENCH_WITH_CONFIG}_diff$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS_DIFF}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_diff.csv
-  echo "${BENCH_WITH_CONFIG}_stddev$(standard_deviation_percent "${LOG_RESULTS_CACHE}")" >> ${LOGS_STDDEV}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_stddev.csv
-  echo "${BENCH_WITH_CONFIG}_avg$(average "${LOG_RESULTS_CACHE}")" >> ${LOGS_AVG}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_avg.csv
+  echo "${BENCH_WITH_CONFIG}$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS_DIFF}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_diff.csv
+  echo "${BENCH_WITH_CONFIG}$(standard_deviation_percent "${LOG_RESULTS_CACHE}")" >> ${LOGS_STDDEV}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_stddev.csv
+  echo "${BENCH_WITH_CONFIG}$(average "${LOG_RESULTS_CACHE}")" >> ${LOGS_AVG}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_avg.csv
   unset result_set
   fi
 }
