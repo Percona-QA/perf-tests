@@ -92,7 +92,6 @@ function run_perf_tests() {
 SELECTED_CC=${SELECTED_CC:-gcc-13}
 SELECTED_CXX=${SELECTED_CXX:-g++-13}
 ROOT_DIR=${ROOT_DIR:-/mnt/fast/build-and-bench}
-export RESULTS_EMAIL=${RESULTS_EMAIL:-przemyslaw.skibinski@percona.com}
 
 if [[ ${ENGINE} == "postgres" ]]; then
     SERVER_REPO_DIR=${SERVER_REPO_DIR:-$ROOT_DIR/postgres}
