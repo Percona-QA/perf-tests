@@ -15,7 +15,9 @@ function mysql_call_cmake() {
 
     local PACKAGES_LIBS="libtirpc-dev libgflags-dev libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev libedit-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
     local PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
-    sudo apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_LIBS $PACKAGES_PROTOBUF
+    if [ -f /etc/lsb-release ]; then
+        sudo apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_LIBS $PACKAGES_PROTOBUF
+    fi
 
     rm -rf $BUILD_DIR
     mkdir -p $BUILD_DIR

@@ -12,8 +12,10 @@ function install_deps_debian() {
     local PACKAGES_TO_INSTALL="smartmontools g++ dstat mutt ca-certificates git pkg-config dpkg-dev make cmake ccache bison linux-tools-$(uname -r) "
     PACKAGES_TO_INSTALL+="python-is-python3 python3-pip python3-pandas python3-requests"
     command -v sendmail >/dev/null 2>&1 || { PACKAGES_TO_INSTALL+=" sendmail"; }
-    sudo apt update
-    sudo apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $SELECTED_CXX
+    if [ -f /etc/lsb-release ]; then
+        sudo apt update
+        sudo apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $SELECTED_CXX
+    fi
 }
 
 function setup_git_repo() {
@@ -45,7 +47,9 @@ function build_sysbench() {
     if [ $# -lt 1 ]; then echo "Usage: build_sysbench <BUILD_DIR>"; return 1; fi
     local BUILD_DIR=$1
 
-    sudo apt -y install make automake libtool pkg-config libaio-dev libmysqlclient-dev libpq-dev libssl-dev
+    if [ -f /etc/lsb-release ]; then
+        sudo apt -y install make automake libtool pkg-config libaio-dev libmysqlclient-dev libpq-dev libssl-dev
+    fi
 
     pushd $BUILD_DIR
     ./autogen.sh
