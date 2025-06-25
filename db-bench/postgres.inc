@@ -17,13 +17,10 @@ function build_postgres() {
     echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
     NPROC=`nproc --all`
     echo "Using $NPROC threads for compilation"
-    make -j${NPROC}
-    if [[ $? != 0 ]]; then echo "make -j${NPROC} failed"; exit -1; fi
-    sudo make install
-    cd contrib/pg_tde
-    make -j${NPROC}
-    if [[ $? != 0 ]]; then echo "pg_tde: make -j${NPROC} failed"; exit -1; fi
-    sudo make install
+    make -j${NPROC} world
+    if [[ $? != 0 ]]; then echo "make world -j${NPROC} failed"; exit -1; fi
+    sudo make install-world
+    if [[ $? != 0 ]]; then echo "make install-world -j${NPROC} failed"; exit -1; fi
     ccache --show-stats
     df -Th
     popd
@@ -122,7 +119,9 @@ function postgres_prepare_datadir() {
       ${PSQL_BIN} -U $DB_USER -d postgres -c "
             CREATE EXTENSION IF NOT EXISTS pg_tde;
             SELECT pg_tde_add_global_key_provider_file('reg_file-global', '$TEMPLATE_DIR/pg_tde_test_keyring.per');
-            SELECT pg_tde_set_default_principal_key_using_global_key_provider('server-principal-key', 'reg_file-global');
+            SELECT pg_tde_create_key_using_global_key_provider('server-principal-key', 'reg_file-global');
+            SELECT pg_tde_set_default_key_using_global_key_provider('server-principal-key', 'reg_file-global');
+            SELECT pg_tde_set_server_key_using_global_key_provider('server-principal-key', 'reg_file-global');
        "
       if [[ "$PG_TDE" == "ON" ]]; then
         ${PSQL_BIN} -U $DB_USER -d postgres -c "ALTER SYSTEM SET pg_tde.wal_encrypt = on;"
