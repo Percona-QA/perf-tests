@@ -59,6 +59,12 @@ function get_mysql_build_info() {
   SERVER_TYPE="mysql"
 }
 
+function print_mysql_variables() {
+  local ENDLINE=$1
+  variables=("MYEXTRA")
+  for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
+}
+
 # start_mysqld $MORE_PARAMS
 function start_mysqld() {
   if [ "$ENGINE" == "rocksdb" ]; then

@@ -36,6 +36,12 @@ function get_postgres_build_info() {
   SERVER_TYPE="postgres"
 }
 
+function print_postgres_variables() {
+  local ENDLINE=$1
+  variables=("PG_TDE")
+  for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
+}
+
 # start_postgres <EXTRA_PARAMS> <EXTRA_CONFIG_PARAMS>
 function start_postgres() {
   PG_PARAMS="$PERF_EXTRA $MYEXTRA $1 -l $LOG_NAME_SERVERD"
