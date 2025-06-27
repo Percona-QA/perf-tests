@@ -78,27 +78,27 @@ function print_variables_and_workloads() {
 function diff_to_average() {
     local csv_file="$1"
     diff_output=$(awk -F ',' 'BEGIN {
-        for (i=2; i<=NF; i++) {
+        for (i=6; i<=NF; i++) {
             sum[i] = 0
             count[i] = 0
         }
     }
     {
         if (FNR != total_rows) { # Process all rows except the last one
-            for (i=2; i<=NF; i++) {
+            for (i=6; i<=NF; i++) {
                 if ($i != "") {
                     count[i]++
                     sum[i] += $i
                 }
             }
         } else { # Process the last row
-            for (i=2; i<=NF; i++) {
+            for (i=6; i<=NF; i++) {
                 last_row_data[i] = $i
             }
         }
     }
     END {
-        for (i=2; i<=NF; i++) {
+        for (i=6; i<=NF; i++) {
           avg[i] = (count[i] > 0) ? sum[i] / count[i] : 0
           printf ", %.2f%%", (count[i] > 0) ? ((last_row_data[i] - avg[i]) / avg[i]) * 100 : 0
         }
@@ -111,13 +111,13 @@ function diff_to_average() {
 function average() {
     local csv_file="$1"
     awk -F ',' 'BEGIN {
-        for (i=2; i<=NF; i++) {
+        for (i=6; i<=NF; i++) {
             sum[i] = 0
             count[i] = 0
         }
     }
     {
-        for (i=2; i<=NF; i++) {
+        for (i=6; i<=NF; i++) {
             if ($i != "") {
                 count[i]++
                 sum[i] += $i
@@ -125,7 +125,7 @@ function average() {
         }
     }
     END {
-        for (i=2; i<=NF; i++) {
+        for (i=6; i<=NF; i++) {
            avg[i] = (count[i] > 0) ? sum[i] / count[i] : 0
            printf ", %.2f", avg[i]
         }
@@ -137,14 +137,14 @@ function average() {
 function standard_deviation_percent() {
     local csv_file="$1"
     awk -F ',' 'BEGIN {
-        for (i=2; i<=NF; i++) {
+        for (i=6; i<=NF; i++) {
             sum[i] = 0
             count[i] = 0
             sumsq[i] = 0
         }
     }
     {
-        for (i=2; i<=NF; i++) {
+        for (i=6; i<=NF; i++) {
             if ($i != "") {
                 count[i]++
                 sum[i] += $i
@@ -153,7 +153,7 @@ function standard_deviation_percent() {
         }
     }
     END {
-        for (i=2; i<=NF; i++) {
+        for (i=6; i<=NF; i++) {
            avg[i] = (count[i] > 0) ? sum[i] / count[i] : 0
            printf ", %.2f%%", (count[i] > 0) ? (sqrt((sumsq[i]/count[i]) - (avg[i])**2) / avg[i]) * 100 : 0
         }
