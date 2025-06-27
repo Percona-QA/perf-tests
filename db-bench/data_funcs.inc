@@ -45,18 +45,28 @@ function process_workload_names() {
   done
 }
 
-function print_parameters() {
+function print_system_variables() {
   local ENDLINE=$1
   variables=("ENGINE" "RUN_NAME" "WORKLOAD_NAMES" "BENCH_NAME" "BUILD_PATH" "CONFIG_FILES" "ENGINE_CACHE" "NUM_TABLES" "DATASIZE" "THREADS_LIST"
              "WRITES_TIME_SECONDS" "READS_TIME_SECONDS" "WARMUP_TIME_SECONDS" "WORKLOAD_WARMUP_TIME" "WORKSPACE" "TEMPLATE_PATH" "CACHE_DIR"
              "BENCH_DIR" "DATA_DIR" "BACKUP_DIR" "CXXFLAGS" "MYEXTRA" "SYSBENCH_EXTRA" "SYSBENCH_HOST" "SCALING_GOVERNOR" "RESULTS_EMAIL"
              "START_DATE" "SERVER_REPO_URL" "SERVER_BRANCH" "SERVER_GIT_HASH")
   for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
-  echo "==========${ENDLINE}"
+}
+
+function print_workloads() {
+  local ENDLINE=$1
   for ((i=0; i<${#WORKLOAD_ARRAY[@]}; i++)); do
     WORKLOAD_PARAMETERS=$(eval echo ${WORKLOAD_PARAMS[i]})
     echo "${WORKLOAD_ARRAY[i]}=${WORKLOAD_PARAMETERS}${ENDLINE}"
   done
+}
+
+function print_variables_and_workloads() {
+  local ENDLINE=$1
+  print_system_variables "${ENDLINE}"
+  echo "==========${ENDLINE}"
+  print_workloads "${ENDLINE}"
 }
 
 function diff_to_average() {

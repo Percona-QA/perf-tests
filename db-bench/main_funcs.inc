@@ -69,7 +69,7 @@ function on_exit(){
 
   echo "Create .html files"
   echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR>\n<BR>\n" > ${LOG_BASE_FULL_RESULTS}.html
-  print_parameters "<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
+  print_variables_and_workloads "<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
   echo -e "<BR>QPS results:<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
   csv_to_html_table ${LOG_BASE_FULL_RESULTS}.csv >> ${LOG_BASE_FULL_RESULTS}.html
   echo "Average QPS:<BR>" > ${LOG_BASE_AVG}.html
@@ -317,7 +317,7 @@ function db_bench_init() {
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL}"
     local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-    print_parameters "" | mutt -s "Start ($RUN_NAME) $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
+    print_variables_and_workloads "" | mutt -s "Start ($RUN_NAME) $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
   fi
 
   local LOG_SYS_INFO=$LOGS/sys_info_start.txt
@@ -334,8 +334,11 @@ function db_bench_init() {
   fi
 
   local LOGS_BUILD_INFO=${LOGS}/build_info.txt
+  local LOGS_VARIABLES_INC=${LOGS}/variables.inc.sh
   echo -e "Date: `date +'%d-%m-%Y %H:%M'`\nNode: $(uname -n)\n${SERVER_TYPE} version: ${SERVER_NAME}${SERVER_VERSION} = ${SERVER_VERSION_LONG}\n" | tee ${LOGS_BUILD_INFO}
-  print_parameters "" | tee -a ${LOGS_BUILD_INFO}
+  print_system_variables "" | tee -a ${LOGS_VARIABLES_INC}
+  echo "=========="
+  print_workloads "" | tee -a ${LOGS_BUILD_INFO}
   echo "=========="
 
   echo "Storing Sysbench results in ${WORKSPACE}"
