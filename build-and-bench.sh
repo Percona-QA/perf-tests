@@ -84,7 +84,8 @@ function run_perf_tests() {
     REPEAT_NUM=${REPEAT_NUM:-1}
     for i in $(seq $REPEAT_NUM); do
         local NICE_DATE=$(date +"%Y-%m-%d_%H:%M")
-        export BENCH_NAME=${SERVER_BRANCH:0:30}@${PS_GIT_HASH}_${NICE_DATE}
+        export START_DATE=$(date +"%Y-%m-%d_%H:%M:%S")
+        export BENCH_NAME=${SERVER_BRANCH:0:30}@${SERVER_GIT_HASH}_${NICE_DATE}
         ${PERFTEST_PATH}/db-bench.sh
     done
 }
@@ -96,12 +97,12 @@ export RESULTS_EMAIL=${RESULTS_EMAIL:-przemyslaw.skibinski@percona.com}
 
 if [[ ${ENGINE} == "postgres" ]]; then
     SERVER_REPO_DIR=${SERVER_REPO_DIR:-$ROOT_DIR/postgres}
-    SERVER_REPO_URL=${SERVER_REPO_URL:-https://github.com/percona/postgres}
-    SERVER_BRANCH=${SERVER_BRANCH:-TDE_REL_17_STABLE}
+    export SERVER_REPO_URL=${SERVER_REPO_URL:-https://github.com/percona/postgres}
+    export SERVER_BRANCH=${SERVER_BRANCH:-TDE_REL_17_STABLE}
 else
     SERVER_REPO_DIR=${SERVER_REPO_DIR:-$ROOT_DIR/src_mysql}
-    SERVER_REPO_URL=${SERVER_REPO_URL:-https://github.com/percona/percona-server}
-    SERVER_BRANCH=${SERVER_BRANCH:-8.0}
+    export SERVER_REPO_URL=${SERVER_REPO_URL:-https://github.com/percona/percona-server}
+    export SERVER_BRANCH=${SERVER_BRANCH:-8.0}
 fi
 SERVER_BUILD_DIR=${SERVER_BUILD_DIR:-$ROOT_DIR/$SERVER_BRANCH-rel-$SELECTED_CC}
 SERVER_BIN_DIR=${SERVER_BUILD_DIR}/bin
@@ -126,8 +127,8 @@ setup_git_repo $DBBENCH_REPO_DIR $DBBENCH_BRANCH $DBBENCH_REPO_URL | tee $SERVER
 setup_git_repo $SYSBENCH_REPO_DIR $SYSBENCH_BRANCH $SYSBENCH_REPO_URL | tee $SERVER_BUILD_DIR/setup-sysbench-repo.log
 setup_git_repo $SERVER_REPO_DIR $SERVER_BRANCH $SERVER_REPO_URL| tee $SERVER_BUILD_DIR/setup-ps-repo.log
 
-pushd $SERVER_REPO_DIR; PS_GIT_HASH=$(git rev-parse --short HEAD); popd
-echo "PS_GIT_HASH=$PS_GIT_HASH SERVER_REPO_URL=$SERVER_REPO_URL SERVER_BRANCH=$SERVER_BRANCH"
+pushd $SERVER_REPO_DIR; export SERVER_GIT_HASH=$(git rev-parse --short HEAD); popd
+echo "SERVER_GIT_HASH=$SERVER_GIT_HASH SERVER_REPO_URL=$SERVER_REPO_URL SERVER_BRANCH=$SERVER_BRANCH"
 
 build_sysbench $SYSBENCH_REPO_DIR | tee $SERVER_BUILD_DIR/sysbench-make.log
 if [[ ${ENGINE} == "postgres" ]]; then
