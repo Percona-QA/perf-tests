@@ -185,7 +185,7 @@
 
 - project:
     name: smblade04
-    node: smblade04
+    node: sm-blade04
     template_path: /mnt/data/template_datadir
     root_dir: /mnt/fast/bench-postgres
     run_name: node04-postgres

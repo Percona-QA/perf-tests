@@ -11,7 +11,7 @@ function build_postgres() {
     local BIN_DIR=$2
 
     if [ -f /etc/lsb-release ]; then
-        sudo apt -y install build-essential libreadline-dev zlib1g-dev flex bison
+        sudo apt -y install build-essential libreadline-dev zlib1g-dev flex bison libxml2-utils
     fi
 
     pushd $REPO_DIR
