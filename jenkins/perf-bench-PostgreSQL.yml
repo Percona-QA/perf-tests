@@ -35,6 +35,7 @@
         - "OFF"
         - "TABLE"
         - "ON"
+        description: "OFF = no encryption; TABLE = encrypt tables; ON = encrypt tables + WAL"
     - string:
         name: WORKLOAD_NAMES
         description: "Workload names separated by comma from\n<a href=\"https://github.com/Percona-QA/perf-tests/blob/3.0/db_bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.0/db_bench/workloads.inc</a>\n<BR>\n<b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES\n<BR><b>pg_writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS,WR_DELETE,WR_INSERT\n"
