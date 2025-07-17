@@ -79,6 +79,7 @@ function start_mysqld() {
     MYSQLD_OPTIONS+=" --ssl-ca=$SSL_CERTS_PATH/ca-cert.pem --ssl-cert=$SSL_CERTS_PATH/server-cert.pem --ssl-key=$SSL_CERTS_PATH/server-key.pem --require_secure_transport=ON"
   fi
   echo "Starting Percona Server with options $MYSQLD_OPTIONS" | tee -a $LOG_NAME_SERVERD
+#  gnome-terminal -- bash -c "gdb -ex 'break mysql_audit_notify' -ex run --args ${MYSQLD_BIN} $MYSQLD_OPTIONS; exec bash"
   ${TASKSET_MYSQLD} ${MYSQLD_BIN} $MYSQLD_OPTIONS >> $LOG_NAME_SERVERD 2>&1 &
 
   echo "- Waiting for start of mysqld"
@@ -101,10 +102,19 @@ function start_mysqld() {
     echo "- Run $SETUP_SQL_PATH sql file"
     ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET --table < $SETUP_SQL_PATH
   fi
+
+  if [ "$PROFILER" == "1" ]; then
+    BENCHMARK_LOGGING=N
+    sudo perf record -F 99 -e cpu-cycles -g -p $(pidof mysqld) sleep $((WRITES_TIME_SECONDS + 10)) &
+  fi
 }
 
 # shutdown_mysqld
 function shutdown_mysqld() {
+  if [ "$PROFILER" == "1" ]; then
+    sudo pkill -SIGINT -f "perf record"
+  fi
+
   if [[ "$SERVER_VERSION" < "81" ]]; then
     ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET MASTER" 2>&1
   else
@@ -120,6 +130,12 @@ function shutdown_mysqld() {
   echo "Shutting mysqld down"
   (time ${MYSQLADMIN_BIN} -uroot --socket=$MYSQL_SOCKET shutdown) 2>&1
   print_database_size
+
+  if [ "$PROFILER" == "1" ]; then
+    sudo perf script > out.perf
+    ${FLAMEGRAPH_PATH}/stackcollapse-perf.pl out.perf > out.folded
+    ${FLAMEGRAPH_PATH}/flamegraph.pl out.folded > flamegraph.svg
+  fi
 }
 
 function mysql_prepare_datadir() {
