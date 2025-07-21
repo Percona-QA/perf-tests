@@ -103,7 +103,7 @@ function shutdown_postgres() {
 
 function postgres_prepare_datadir() {
   PG_TDE=${PG_TDE:-OFF}
-  local TEMPLATE_DIR=${TEMPLATE_PATH}/${ENGINE}_${SERVER_VERSION%-*}_${NUM_TABLES}x${DATASIZE}_TDE=${PG_TDE}
+  local TEMPLATE_DIR=${TEMPLATE_PATH}/${ENGINE}_${SERVER_VERSION%%-*}_${NUM_TABLES}x${DATASIZE}_TDE=${PG_TDE}
 
   if [[ ${WRITES_TIME_SECONDS} == 0 ]]; then return; fi
 

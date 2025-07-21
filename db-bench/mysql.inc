@@ -114,7 +114,7 @@ function shutdown_mysqld() {
 }
 
 function mysql_prepare_datadir() {
-  local TEMPLATE_DIR=${TEMPLATE_PATH}/${ENGINE}_${SERVER_VERSION%-*}_${NUM_TABLES}x${DATASIZE}
+  local TEMPLATE_DIR=${TEMPLATE_PATH}/${ENGINE}_${SERVER_VERSION%%-*}_${NUM_TABLES}x${DATASIZE}
 
   if [[ ${WRITES_TIME_SECONDS} == 0 ]]; then return; fi
 
@@ -170,6 +170,7 @@ function mysql_before_shutdown() {
 function check_mysql_binaries() {
   export MYSQLD_BIN=$BUILD_PATH/bin/mysqld
   if [ ! -x ${MYSQLD_BIN} ]; then export MYSQLD_BIN=$BUILD_PATH/sql/mysqld; fi
+  if [ ! -x ${MYSQLD_BIN} ]; then export MYSQLD_BIN=$BUILD_PATH/bin/mysqld-debug; fi
   if [ ! -x ${MYSQLD_BIN} ]; then usage "ERROR: Executable ${MYSQLD_BIN} not found."; fi
 
   export MYSQLADMIN_BIN=${BUILD_PATH}/bin/mysqladmin
