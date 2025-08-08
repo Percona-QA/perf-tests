@@ -254,10 +254,10 @@ function run_sysbench() {
   mkdir -p $LOG_RESULTS_PATH
   echo "${RESULTS_LINE}" > ${LOG_NAME_RESULTS}
   cat ${LOG_NAME_RESULTS} >> ${LOG_RESULTS_CACHE}
-  cat ${LOG_NAME_RESULTS} >> ${LOGS_QPS}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_qps.csv
-  echo "${BENCH_WITH_CONFIG}_diff$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS_DIFF}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_diff.csv
-  echo "${BENCH_WITH_CONFIG}_stddev$(standard_deviation_percent "${LOG_RESULTS_CACHE}")" >> ${LOGS_STDDEV}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_stddev.csv
-  echo "${BENCH_WITH_CONFIG}_avg$(average "${LOG_RESULTS_CACHE}")" >> ${LOGS_AVG}/${BENCH_ID}_${WORKLOAD_NAME}_${BENCH_NAME}_avg.csv
+  cat ${LOG_NAME_RESULTS} >> ${LOGS_QPS}/${BENCH_ID}_${WORKLOAD_NAME}-${BENCH_NAME}_qps.csv
+  echo "${BENCH_WITH_CONFIG}_diff$(diff_to_average "${LOG_RESULTS_CACHE}")" >> ${LOGS_DIFF}/${BENCH_ID}_${WORKLOAD_NAME}-${BENCH_NAME}_diff.csv
+  echo "${BENCH_WITH_CONFIG}_stddev$(standard_deviation_percent "${LOG_RESULTS_CACHE}")" >> ${LOGS_STDDEV}/${BENCH_ID}_${WORKLOAD_NAME}-${BENCH_NAME}_stddev.csv
+  echo "${BENCH_WITH_CONFIG}_avg$(average "${LOG_RESULTS_CACHE}")" >> ${LOGS_AVG}/${BENCH_ID}_${WORKLOAD_NAME}-${BENCH_NAME}_avg.csv
   unset result_set
   fi
 }
