@@ -46,7 +46,8 @@ function on_exit(){
     fi
   fi
 
-  local LOG_BASE_FULL_RESULTS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_qps
+  local ALL_LOGS_BASE=${LOGS}/${BENCH_ID}_${BENCH_NAME}
+  local LOG_BASE_QPS=${LOGS}/${BENCH_ID}_${BENCH_NAME}_qps
   local LOG_BASE_DIFF=${LOGS}/${BENCH_ID}_${BENCH_NAME}_diff
   local LOG_BASE_STDDEV=${LOGS}/${BENCH_ID}_${BENCH_NAME}_stddev
   local LOG_BASE_AVG=${LOGS}/${BENCH_ID}_${BENCH_NAME}_avg
@@ -58,8 +59,8 @@ function on_exit(){
   for num_threads in ${THREADS_LIST}; do HEADER+=", ${num_threads} THDS"; done
 
   echo "Create .csv files"
-  echo "${HEADER}" > ${LOG_BASE_FULL_RESULTS}.csv
-  cat ${LOGS_QPS}/*${BENCH_NAME}_qps.csv >> ${LOG_BASE_FULL_RESULTS}.csv
+  echo "${HEADER}" > ${LOG_BASE_QPS}.csv
+  cat ${LOGS_QPS}/*${BENCH_NAME}_qps.csv >> ${LOG_BASE_QPS}.csv
   echo "${HEADER}" > ${LOG_BASE_DIFF}.csv
   cat ${LOGS_DIFF}/*${BENCH_NAME}_diff.csv >> ${LOG_BASE_DIFF}.csv
   echo "${HEADER}" > ${LOG_BASE_STDDEV}.csv
@@ -68,16 +69,18 @@ function on_exit(){
   cat ${LOGS_AVG}/*${BENCH_NAME}_avg.csv >> ${LOG_BASE_AVG}.csv
 
   echo "Create .html files"
-  echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR>\n<BR>\n" > ${LOG_BASE_FULL_RESULTS}.html
-  print_variables_and_workloads "<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
-  echo -e "<BR>QPS results:<BR>" >> ${LOG_BASE_FULL_RESULTS}.html
-  csv_to_html_table ${LOG_BASE_FULL_RESULTS}.csv >> ${LOG_BASE_FULL_RESULTS}.html
+  echo -e "Script executed in $TIME_HMS ($DURATION seconds)<BR>\n<BR>\n" > ${ALL_LOGS_BASE}.html
+  print_variables_and_workloads "<BR>" >> ${ALL_LOGS_BASE}.html
+  echo -e "<BR>" >> ${ALL_LOGS_BASE}.html
+  echo -e "QPS results:<BR>" >> ${LOG_BASE_QPS}.html
+  csv_to_html_table ${LOG_BASE_QPS}.csv >> ${LOG_BASE_QPS}.html
   echo "Average QPS:<BR>" > ${LOG_BASE_AVG}.html
   csv_to_html_table ${LOG_BASE_AVG}.csv >> ${LOG_BASE_AVG}.html
   echo "Difference in percentages to the average QPS:<BR>" > ${LOG_BASE_DIFF}.html
   csv_to_html_table ${LOG_BASE_DIFF}.csv "color" >> ${LOG_BASE_DIFF}.html
   echo "Standard deviation as a percentage of the average QPS:<BR>" > ${LOG_BASE_STDDEV}.html
   csv_to_html_table ${LOG_BASE_STDDEV}.csv "color" >> ${LOG_BASE_STDDEV}.html
+  create_html_page ${LOG_BASE_QPS}.html ${LOG_BASE_AVG}.html ${LOG_BASE_DIFF}.html ${LOG_BASE_STDDEV}.html >> ${ALL_LOGS_BASE}.html
 
   local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
   local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
@@ -85,11 +88,11 @@ function on_exit(){
 
   if [[ ${SLACK_WEBHOOK_URL} != "" ]]; then
     echo "- Sending slack message"
-    SLACK_MESSAGE="${SUBJECT}\nScript executed in $TIME_HMS ($DURATION seconds)\nWORKLOAD_NAMES=${WORKLOAD_NAMES}\nBUILD_PATH=${BUILD_PATH}\nDATA_DIR=${DATA_DIR}\n" ${SCRIPT_DIR}/db-bench/publish_to_slack.py ${LOG_BASE_FULL_RESULTS}.csv ${LOG_BASE_DIFF}.csv ${LOG_BASE_STDDEV}.csv
+    SLACK_MESSAGE="${SUBJECT}\nScript executed in $TIME_HMS ($DURATION seconds)\nWORKLOAD_NAMES=${WORKLOAD_NAMES}\nBUILD_PATH=${BUILD_PATH}\nDATA_DIR=${DATA_DIR}\n" ${SCRIPT_DIR}/db-bench/publish_to_slack.py ${LOG_BASE_QPS}.csv ${LOG_BASE_DIFF}.csv ${LOG_BASE_STDDEV}.csv
   fi
 
-  echo "Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_FULL_RESULTS}.csv
-  echo "-----" && cat ${LOG_BASE_FULL_RESULTS}.csv && echo "-----" && cat ${LOG_BASE_AVG}.csv && echo "-----" && cat ${LOG_BASE_DIFF}.csv && echo "-----" && cat ${LOG_BASE_STDDEV}.csv && echo "-----"
+  echo "Script executed in $TIME_HMS ($DURATION seconds)" | tee -a ${LOG_BASE_QPS}.csv
+  echo "-----" && cat ${LOG_BASE_QPS}.csv && echo "-----" && cat ${LOG_BASE_AVG}.csv && echo "-----" && cat ${LOG_BASE_DIFF}.csv && echo "-----" && cat ${LOG_BASE_STDDEV}.csv && echo "-----"
 
   cd $WORKSPACE
   tar czvf ${tarFileName} ${BENCH_NAME} --force-local --transform "s+^${BENCH_NAME}++"
@@ -98,12 +101,12 @@ function on_exit(){
     echo "- Copying ${tarFileName} to ${BACKUP_DIR}"
     cp ${tarFileName} ${BACKUP_DIR}/
     cp ${LOGS}/${BENCH_ID}_${BENCH_NAME}*.csv ${BACKUP_DIR}/
-    create_html_page ${LOG_BASE_FULL_RESULTS}.html ${LOG_BASE_AVG}.html ${LOG_BASE_DIFF}.html ${LOG_BASE_STDDEV}.html > ${BACKUP_DIR}/${BENCH_ID}_${BENCH_NAME}.html
+    cat ${ALL_LOGS_BASE}.html > ${BACKUP_DIR}/${BENCH_ID}_${BENCH_NAME}.html
   fi
 
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
-    create_html_page ${LOG_BASE_FULL_RESULTS}.html ${LOG_BASE_AVG}.html ${LOG_BASE_DIFF}.html ${LOG_BASE_STDDEV}.html | mutt -s "${SUBJECT}" -e "set content_type=text/html" -a ${tarFileName} -- ${RESULTS_EMAIL}
+    cat ${ALL_LOGS_BASE}.html | mutt -s "${SUBJECT}" -e "set content_type=text/html" -a ${tarFileName} -- ${RESULTS_EMAIL}
   fi
 }
 
