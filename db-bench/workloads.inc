@@ -19,6 +19,15 @@ aliases["write_single"]="WRITE_RUN_INLIST_UPDATE,WRITE_RUN_INLIST_UPDATE_HOTSPOT
 aliases["windmills_snapshot"]="RUN_INLIST_UPDATE,RUN_INLIST_UPDATE_HOTSPOT,RUN_UPDATE_NO_INDEX_SINGLE,RUN_UPDATE_WITH_INDEX_SINGLE,RUN_INSERT_DELETE_SINGLE,RUN_REPLACE_DELETE_SINGLE,snapshot"
 
 declare -A load=(
+# mixed read/write workloads
+WRITE_ONLY   "oltp_write_only.lua --skip_trx=off --index-updates=1  --non-index-updates=1  --delete_inserts=1"
+WRITE10_ONLY "oltp_write_only.lua --skip_trx=off --index-updates=10 --non-index-updates=10 --delete_inserts=10"
+READ_ONLY    "oltp_read_only.lua  --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1"
+READ10_ONLY  "oltp_read_only.lua  --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=10 --sum-ranges=10 --order-ranges=10 --distinct-ranges=10"
+READ_WRITE   "oltp_read_write.lua --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1  --index-updates=1  --non-index-updates=1  --delete_inserts=1"
+READ10_WRITE "oltp_read_write.lua --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=10 --sum-ranges=10 --order-ranges=10 --distinct-ranges=10 --index-updates=1  --non-index-updates=1  --delete_inserts=1"
+READ_WRITE10 "oltp_read_write.lua --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1  --index-updates=10 --non-index-updates=10 --delete_inserts=10"
+
 # reads
 POINT_SELECT         "oltp_point_select.lua"
 SELECT_RANDOM_POINTS "oltp_inlist_select.lua"
