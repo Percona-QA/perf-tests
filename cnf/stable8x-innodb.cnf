@@ -37,3 +37,5 @@ innodb_flush_method=O_DIRECT
 innodb_adaptive_hash_index=OFF
 innodb_numa_interleave=1
 innodb_io_capacity=10000
+gtid_mode=OFF
+enforce_gtid_consistency=OFF
