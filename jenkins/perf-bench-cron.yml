@@ -32,7 +32,7 @@
                 } else if (dayOfWeek in ['1', '4']) {
                     // Monday, Thursday
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'release-8.4.6-6'),
+                        string(name: 'SERVER_BRANCH', value: 'release-8.4.7-7'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/percona/percona-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
@@ -40,7 +40,7 @@
                 } else if (dayOfWeek in ['2']) {
                     // Tuesday
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'release-9.4.0-1'),
+                        string(name: 'SERVER_BRANCH', value: 'release-9.5.0-1'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/percona/percona-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
@@ -48,7 +48,7 @@
                 } else if (dayOfWeek == '5') {
                     // Friday - First build
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'release-9.4.0-1'),
+                        string(name: 'SERVER_BRANCH', value: 'release-9.5.0-1'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/percona/percona-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
