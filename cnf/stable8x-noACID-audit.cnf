@@ -44,10 +44,10 @@ enforce_gtid_consistency=OFF
 sync_binlog=1024
 innodb_flush_log_at_trx_commit=0
 
-# audit_log_filter
+# audit_log_filter PLUGIN
 loose-audit_log_filter_disable        = OFF
 loose-audit_log_filter_database       = mysql
-loose-audit_log_filter_file           = /data/db-res/audit_filter.log
+loose-audit_log_filter_file           = /data/db-res/audit_filter80b/audit_filter80_filter_all.json_
 loose-audit_log_filter_format         = JSON
 #loose-audit_log_filter_format         = NEW
 #loose-audit_log_filter_format         = OLD
@@ -61,9 +61,37 @@ loose-audit_log_filter_compression    = NONE
 #loose-audit_log_filter_read_buffer_size = 1M
 #loose-audit_log_filter_handler=SYSLOG
 
+# audit_log_filter COMPONENT
+loose-audit_log_filter.disable        = OFF
+loose-audit_log_filter.database       = mysql
+#loose-audit_log_filter.file           = /data/db-res/audit_filter84d/audit_filter84_PS-10198_all.json_
+#loose-audit_log_filter.file           = /data/db-res/audit_filter84d/audit_filter84_PS-10324_all.json_
+#loose-audit_log_filter.file           = /data/db-res/audit_filter84d/audit_filter84_PS-10324_filter3.json_
+#loose-audit_log_filter.file           = /data/db-res/audit_filter84e/audit_filter84_filter_genQuery.json_
+#loose-audit_log_filter.file           = /data/db-res/audit_filter84e/audit_filter84_filter_genSelect.json_
+#loose-audit_log_filter.file           = /data/db-res/audit_filter84e/audit_filter84_filter_tabSelect.json_
+loose-audit_log_filter.file           = /data/db-res/audit_filter84e/audit_filter84_filter_all.json_
+loose-audit_log_filter.file           = /data/db-res/audit_filter84e/audit_filter84_filter_gen.json_
+loose-audit_log_filter.file           = /data/db-res/audit_filter84e/audit_filter84_filter_gen_que.json_
+loose-audit_log_filter.file           = /data/db-res/audit_filter84e/audit_filter84_filter_genSelect_tabSelectPS.json_
+loose-audit_log_filter.format         = JSON
+loose-audit_log_filter.rotate_on_size = 4G
+loose-audit_log_filter.max_size       = 16G
+loose-audit_log_filter.strategy       = ASYNCHRONOUS
+loose-audit_log_filter.compression    = NONE
+
 # audit_log
-loose-audit_log_file = /data/db-res/audit_old.log
+#loose-audit_log_file = /data/db-res/audit_old.log
+#loose-audit_log_file = /data/db-res/audit_commercial4/audit_commercial_filter_all.json_
+loose-audit_log_file = /data/db-res/audit_commercial4/audit_commercial_filter_genQuery.json_
+#loose-audit_log_file = /data/db-res/audit_commercial4/audit_commercial_filter_genSelect.json_
+#loose-audit_log_file = /data/db-res/audit_commercial4/audit_commercial_filter_tabSelect.json_
+#loose-audit_log_file = /data/db-res/audit_commercial4/audit_commercial_filter_genSelect_tabSelect.json_
+#loose-audit_log_file = /data/db-res/audit_commercial4/audit_commercial_filter_LEGACY.json_
+loose-audit_log_file      = /data/db-res/audit_filter80b/audit_filter80old_plugin.json_
 #loose-audit_log_format = NEW
 loose-audit_log_format = JSON
 loose-audit_log_buffer_size = 256M
 loose-audit_log_rotate_on_size = 4G
+loose-audit-log=FORCE_PLUS_PERMANENT
+loose-audit_log_strategy=ASYNCHRONOUS

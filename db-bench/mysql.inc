@@ -94,13 +94,23 @@ function start_mysqld() {
   ${MYSQLADMIN_BIN} -uroot -S$MYSQL_SOCKET ping > /dev/null 2>&1 || { cat $LOG_NAME_SERVERD; echo "Couldn't connect $MYSQL_SOCKET" && exit 0; }
   ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW GLOBAL VARIABLES LIKE 'tls_version'; SHOW VARIABLES LIKE 'require_secure_transport'" 2>&1
 
-  if [[ "$INSTALL_SQL_PATH" != "" ]]; then
-    echo "- Run $INSTALL_SQL_PATH sql file"
-    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET --table < $INSTALL_SQL_PATH
-  fi
-  if [[ "$SETUP_SQL_PATH" != "" ]]; then
-    echo "- Run $SETUP_SQL_PATH sql file"
-    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET --table < $SETUP_SQL_PATH
+  if [[ ${TEMPLATE_MODE} == 1 ]]; then
+    echo "- In a template mode"
+  else
+    echo "- Not a template mode"
+    if [[ "$INSTALL_SQL_PATH" != "" ]]; then
+      echo "- Run $INSTALL_SQL_PATH sql file"
+      ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET --table < $INSTALL_SQL_PATH
+    fi
+    if [[ "$SETUP_SQL_PATH" != "" ]]; then
+      echo "- Run $SETUP_SQL_PATH sql file"
+      ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET --table < $SETUP_SQL_PATH
+    fi
+    if [[ "$RUN_SQL_COMMANDS" != "" ]]; then
+      echo "- Run $RUN_SQL_COMMANDS sql file"
+      ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "$RUN_SQL_COMMANDS" 2>&1
+    fi
+
   fi
 
   if [ "$PROFILER" == "1" ]; then
@@ -159,7 +169,9 @@ function mysql_prepare_datadir() {
     else
         EXTRA_PARAMS="--innodb_flush_log_at_trx_commit=0"
     fi
+    TEMPLATE_MODE=1
     start_mysqld "--datadir=${TEMPLATE_DIR} --disable-log-bin $EXTRA_PARAMS --innodb_fast_shutdown=0"
+    TEMPLATE_MODE=0
     ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "CREATE DATABASE IF NOT EXISTS $DB_NAME" 2>&1
     pushd $SYSBENCH_LUA
     # --rocksdb_bulk_load_sync_size  # Number of rows to sync bulk load
