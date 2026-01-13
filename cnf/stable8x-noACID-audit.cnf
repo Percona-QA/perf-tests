@@ -74,6 +74,7 @@ loose-audit_log_filter.file           = /data/db-res/audit_filter84e/audit_filte
 loose-audit_log_filter.file           = /data/db-res/audit_filter84e/audit_filter84_filter_gen.json_
 loose-audit_log_filter.file           = /data/db-res/audit_filter84e/audit_filter84_filter_gen_que.json_
 loose-audit_log_filter.file           = /data/db-res/audit_filter84e/audit_filter84_filter_genSelect_tabSelectPS.json_
+loose-audit_log_filter.file           = /data/db-res/audit_filter84f/audit_filter84_filter.json_
 loose-audit_log_filter.format         = JSON
 loose-audit_log_filter.rotate_on_size = 4G
 loose-audit_log_filter.max_size       = 16G
