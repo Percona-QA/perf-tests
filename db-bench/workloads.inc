@@ -27,6 +27,7 @@ aliases["reads"]="POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COV
 aliases["writes"]="WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS,WR_DELETE,WR_INSERT,WR_REPLACE"
 aliases["pg_writes"]="WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS,WR_DELETE,WR_INSERT"
 aliases["mixed"]="READ_ONLY,READ10_ONLY,READ_WRITE,READ10_WRITE,READ_WRITE10,WRITE_ONLY,WRITE10_ONLY"
+aliases["mixed_trx"]="READ_ONLY_TRX,READ10_ONLY_TRX,READ_WRITE_TRX,READ10_WRITE_TRX,READ_WRITE10_TRX,WRITE_ONLY_TRX,WRITE10_ONLY_TRX"
 aliases["make_snapshot"]="INLIST_UPDATE,UPDATE_INDEX,UPDATE_NON_INDEX,DELETE_INSERTS,snapshot"
 
 # Aliases for windmills
@@ -37,14 +38,21 @@ aliases["windmills_snapshot"]="RUN_INLIST_UPDATE,RUN_INLIST_UPDATE_HOTSPOT,RUN_U
 
 declare -A load=(
 # mixed read/write workloads
-READ_ONLY    "oltp_read_only.lua  --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1"
-READ10_ONLY  "oltp_read_only.lua  --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=10 --sum-ranges=10 --order-ranges=10 --distinct-ranges=10"
-READ_WRITE   "oltp_read_write.lua --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1  --index-updates=1  --non-index-updates=1  --delete_inserts=1"
-READ10_WRITE "oltp_read_write.lua --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=10 --sum-ranges=10 --order-ranges=10 --distinct-ranges=10 --index-updates=1  --non-index-updates=1  --delete_inserts=1"
-READ_WRITE10 "oltp_read_write.lua --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1  --index-updates=10 --non-index-updates=10 --delete_inserts=10"
-WRITE_ONLY   "oltp_write_only.lua --skip_trx=off --index-updates=1  --non-index-updates=1  --delete_inserts=1"
-WRITE10_ONLY "oltp_write_only.lua --skip_trx=off --index-updates=10 --non-index-updates=10 --delete_inserts=10"
+READ_ONLY    "oltp_read_only.lua  --skip-trx=on --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1"
+READ10_ONLY  "oltp_read_only.lua  --skip-trx=on --point-selects=10 --range_selects=on --simple-ranges=10 --sum-ranges=10 --order-ranges=10 --distinct-ranges=10"
+READ_WRITE   "oltp_read_write.lua --skip-trx=on --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1  --index-updates=1  --non-index-updates=1  --delete_inserts=1"
+READ10_WRITE "oltp_read_write.lua --skip-trx=on --point-selects=10 --range_selects=on --simple-ranges=10 --sum-ranges=10 --order-ranges=10 --distinct-ranges=10 --index-updates=1  --non-index-updates=1  --delete_inserts=1"
+READ_WRITE10 "oltp_read_write.lua --skip-trx=on --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1  --index-updates=10 --non-index-updates=10 --delete_inserts=10"
+WRITE_ONLY   "oltp_write_only.lua --skip-trx=on --index-updates=1  --non-index-updates=1  --delete_inserts=1"
+WRITE10_ONLY "oltp_write_only.lua --skip-trx=on --index-updates=10 --non-index-updates=10 --delete_inserts=10"
 
+READ_ONLY_TRX    "oltp_read_only.lua  --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1"
+READ10_ONLY_TRX  "oltp_read_only.lua  --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=10 --sum-ranges=10 --order-ranges=10 --distinct-ranges=10"
+READ_WRITE_TRX   "oltp_read_write.lua --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1  --index-updates=1  --non-index-updates=1  --delete_inserts=1"
+READ10_WRITE_TRX "oltp_read_write.lua --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=10 --sum-ranges=10 --order-ranges=10 --distinct-ranges=10 --index-updates=1  --non-index-updates=1  --delete_inserts=1"
+READ_WRITE10_TRX "oltp_read_write.lua --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1  --index-updates=10 --non-index-updates=10 --delete_inserts=10"
+WRITE_ONLY_TRX   "oltp_write_only.lua --skip-trx=off --index-updates=1  --non-index-updates=1  --delete_inserts=1"
+WRITE10_ONLY_TRX "oltp_write_only.lua --skip-trx=off --index-updates=10 --non-index-updates=10 --delete_inserts=10"
 
 
 # reads
