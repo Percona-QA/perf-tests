@@ -5,11 +5,28 @@
 # workloads.inc - parameters for sysbench workloads
 #**********************************************************************************************
 
+# WRITE options:
+#  --delete_inserts=N              Number of DELETE/INSERT combinations per transaction [1]
+#  --index_updates=N               Number of UPDATE index queries per transaction [1]
+#  --non_index_updates=N           Number of UPDATE non-index queries per transaction [1]
+# SELECT OPTIONS:
+#  --limit_size=N                  Limit size for queries with LIMIT [10]
+#  --point_selects=N               Number of point SELECT queries per transaction [10]
+# RANGE SELECT OPTIONS:
+#  --range_selects[=on|off]        Enable/disable all range SELECT queries [on]
+#  --range_size=N                  Range size for range SELECT queries [100]
+#  --count_ranges=N                Number of SELECT COUNT queries per transaction [1]
+#  --distinct_ranges=N             Number of SELECT DISTINCT queries per transaction [1]
+#  --order_ranges=N                Number of SELECT ORDER BY queries per transaction [1]
+#  --simple_ranges=N               Number of simple range SELECT queries per transaction [1]
+#  --sum_ranges=N                  Number of SELECT SUM() queries per transaction [1]
+
 # Define aliases for workloads
 declare -A aliases
 aliases["reads"]="POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI,RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES"
 aliases["writes"]="WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS,WR_DELETE,WR_INSERT,WR_REPLACE"
 aliases["pg_writes"]="WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS,WR_DELETE,WR_INSERT"
+aliases["mixed"]="READ_ONLY,READ10_ONLY,READ_WRITE,READ10_WRITE,READ_WRITE10,WRITE_ONLY,WRITE10_ONLY"
 aliases["make_snapshot"]="INLIST_UPDATE,UPDATE_INDEX,UPDATE_NON_INDEX,DELETE_INSERTS,snapshot"
 
 # Aliases for windmills
@@ -20,13 +37,15 @@ aliases["windmills_snapshot"]="RUN_INLIST_UPDATE,RUN_INLIST_UPDATE_HOTSPOT,RUN_U
 
 declare -A load=(
 # mixed read/write workloads
-WRITE_ONLY   "oltp_write_only.lua --skip_trx=off --index-updates=1  --non-index-updates=1  --delete_inserts=1"
-WRITE10_ONLY "oltp_write_only.lua --skip_trx=off --index-updates=10 --non-index-updates=10 --delete_inserts=10"
 READ_ONLY    "oltp_read_only.lua  --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1"
 READ10_ONLY  "oltp_read_only.lua  --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=10 --sum-ranges=10 --order-ranges=10 --distinct-ranges=10"
 READ_WRITE   "oltp_read_write.lua --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1  --index-updates=1  --non-index-updates=1  --delete_inserts=1"
 READ10_WRITE "oltp_read_write.lua --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=10 --sum-ranges=10 --order-ranges=10 --distinct-ranges=10 --index-updates=1  --non-index-updates=1  --delete_inserts=1"
 READ_WRITE10 "oltp_read_write.lua --skip-trx=off --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1  --index-updates=10 --non-index-updates=10 --delete_inserts=10"
+WRITE_ONLY   "oltp_write_only.lua --skip_trx=off --index-updates=1  --non-index-updates=1  --delete_inserts=1"
+WRITE10_ONLY "oltp_write_only.lua --skip_trx=off --index-updates=10 --non-index-updates=10 --delete_inserts=10"
+
+
 
 # reads
 POINT_SELECT         "oltp_point_select.lua"
@@ -95,7 +114,7 @@ WR_INLIST_UPDATE_HOT_POINTS_8   "oltp_inlist_update.lua --random_points=8 --hot_
 WR_INLIST_UPDATE_HOT_POINTS_32  "oltp_inlist_update.lua --random_points=32 --hot_points=true --reset_binlog=64000000"
 WR_INLIST_UPDATE_HOT_POINTS_128 "oltp_inlist_update.lua --random_points=128 --hot_points=true --reset_binlog=64000000"
 
-# misc workloads0
+# misc workloads
 CONNECTIONS_1                    "connections.lua --frequency=1"
 CONNECTIONS_10                   "connections.lua --frequency=10"
 CONNECTIONS_100                  "connections.lua --frequency=100"
