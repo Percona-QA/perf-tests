@@ -28,7 +28,7 @@ aliases["writes"]="WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,
 aliases["pg_writes"]="WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS,WR_DELETE,WR_INSERT"
 aliases["mixed"]="READ_ONLY,READ10_ONLY,READ_WRITE,READ10_WRITE,READ_WRITE10,WRITE_ONLY,WRITE10_ONLY"
 aliases["mixed_trx"]="READ_ONLY_TRX,READ10_ONLY_TRX,READ_WRITE_TRX,READ10_WRITE_TRX,READ_WRITE10_TRX,WRITE_ONLY_TRX,WRITE10_ONLY_TRX"
-aliases["prod_trx"]="READ_ONLY_TRX,READ_HEAVY_TRX,READ_WRITE_TRX,BALANCED_TRX,WRITE_ONLY_TRX,WRITE_HEAVY_TRX"
+aliases["prod_trx"]="READ_ONLY_TRX,READ_HEAVY_TRX,READ_WRITE_TRX,READ_WRITE_MIX_TRX,WRITE_ONLY_TRX,WRITE_HEAVY_TRX"
 aliases["make_snapshot"]="INLIST_UPDATE,UPDATE_INDEX,UPDATE_NON_INDEX,DELETE_INSERTS,snapshot"
 
 # Aliases for windmills
@@ -39,9 +39,9 @@ aliases["windmills_snapshot"]="RUN_INLIST_UPDATE,RUN_INLIST_UPDATE_HOTSPOT,RUN_U
 
 declare -A load=(
 # simulate common production environments
-READ_HEAVY_TRX  "oltp_read_only.lua  --skip-trx=off --point-selects=4 --simple-ranges=2 --sum-ranges=1 --order-ranges=1 --distinct-ranges=1"
-BALANCED_TRX    "oltp_read_write.lua --skip-trx=off --point-selects=4 --simple-ranges=2 --sum-ranges=1 --order-ranges=1 --distinct-ranges=1 --index-updates=2 --non-index-updates=2 --delete_inserts=1"
-WRITE_HEAVY_TRX "oltp_write_only.lua --skip-trx=off --index-updates=2 --non-index-updates=2 --delete_inserts=1"
+READ_HEAVY_TRX     "oltp_read_only.lua  --skip-trx=off --point-selects=4 --simple-ranges=2 --sum-ranges=1 --order-ranges=1 --distinct-ranges=1"
+READ_WRITE_MIX_TRX "oltp_read_write.lua --skip-trx=off --point-selects=4 --simple-ranges=2 --sum-ranges=1 --order-ranges=1 --distinct-ranges=1 --index-updates=2 --non-index-updates=2 --delete_inserts=1"
+WRITE_HEAVY_TRX    "oltp_write_only.lua --skip-trx=off --index-updates=2 --non-index-updates=2 --delete_inserts=1"
 
 # mixed read/write workloads
 READ_ONLY    "oltp_read_only.lua  --skip-trx=on --point-selects=10 --range_selects=on --simple-ranges=1  --sum-ranges=1  --order-ranges=1  --distinct-ranges=1"
