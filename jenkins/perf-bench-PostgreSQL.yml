@@ -201,7 +201,7 @@
     name: epyc9654
     node: as-1015cs-tnr
     template_path: /mnt/storage/template_datadir
-    root_dir: /mnt/storage2/bench-postgres
+    root_dir: /mnt/scratch/bench-postgres
     run_name: 9654-postgres
     config_file: cnf-pg/pg-stable-noACID.cnf
     cc_compiler: gcc-14

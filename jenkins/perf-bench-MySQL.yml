@@ -206,7 +206,7 @@
     engine: innodb
     template_path: /mnt/storage/template_datadir
     root_dir:
-      - /mnt/storage2/bench-mysql
+      - /mnt/scratch/bench-mysql
     run_name: 9654-innodb
     config_file: cnf/stable8x-noACID.cnf
     cc_compiler: gcc-14
@@ -237,7 +237,7 @@
     engine: rocksdb
     template_path: /mnt/storage/template_datadir
     root_dir:
-      - /mnt/storage2/bench-mysql
+      - /mnt/scratch/bench-mysql
     run_name: 9654-myrocks
     config_file: cnf/rocksdb-noACID.cnf
     cc_compiler: gcc-14
