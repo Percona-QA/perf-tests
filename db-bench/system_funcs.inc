@@ -106,8 +106,7 @@ function print_system_info() {
   free -m; echo
   df -Th
   mount | grep /mnt
-  echo -e "\n$SYSTEM_LOAD\n$UPTIME_HOUR\n\nUSER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND"
-  ps aux | sort -rn -k +3 | head
+  ps aux --sort=-%cpu | head -n 20 2>/dev/null || true
   sudo systemctl --type=service --state=running
   ulimit -a
   sysctl -a 2>/dev/null | grep "\bvm."

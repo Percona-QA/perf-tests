@@ -125,7 +125,7 @@ function report_thread(){
     echo "${DATE}" >> ${LOG_NAME_VMSTAT}
     cat /proc/vmstat >> ${LOG_NAME_VMSTAT}
     echo "${DATE}" >> ${LOG_NAME_PS}
-    ps aux | sort -rn -k +3 | head >> ${LOG_NAME_PS}
+    ps aux --sort=-%cpu | head -n 20 >> ${LOG_NAME_PS} 2>/dev/null || true
     echo "${DATE} $SMART_DEVICE" >> ${LOG_NAME_SMART}
     sudo smartctl -A $SMART_DEVICE >> ${LOG_NAME_SMART} 2>&1
     sleep ${REPORT_INTERVAL}
