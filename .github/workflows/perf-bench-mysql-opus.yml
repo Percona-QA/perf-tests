@@ -1,0 +1,348 @@
+# Performance regression testing for MySQL/Percona Server
+# Converted from Jenkins: jenkins/perf-bench-MySQL.yml
+#
+# This workflow supports multiple configurations via the 'configuration' input.
+# Each configuration maps to a specific self-hosted runner and engine settings.
+
+name: MySQL Perf Bench Opus 4.5
+
+on:
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: 'Benchmark configuration (node + engine)'
+        required: true
+        type: choice
+        options:
+          - InnoDB-smblade04
+          - InnoDB-epyc9654
+          - RocksDB-smblade04
+          - RocksDB-epyc9654
+      run_name:
+        description: 'Results cache bucket name (avoid "nightly")'
+        required: false
+        type: string
+      server_repo_url:
+        description: 'MySQL Server repository URL'
+        required: false
+        default: 'https://github.com/percona/percona-server'
+        type: string
+      server_branch:
+        description: 'Server branch/tag to build'
+        required: false
+        default: 'release-8.4.7-7'
+        type: string
+      workload_names:
+        description: 'Workload names (comma-separated) from db_bench/workloads.inc'
+        required: false
+        default: 'prod_trx'
+        type: string
+      cnffile_name:
+        description: 'MySQL config file from cnf/ directory'
+        required: false
+        type: string
+      myextra:
+        description: 'Extra params for MySQL'
+        required: false
+        type: string
+      cxxflags:
+        description: 'Additional compilation flags'
+        required: false
+        type: string
+      results_email:
+        description: 'Email addresses for results (comma-separated)'
+        required: false
+        default: 'przemyslaw.skibinski@percona.com'
+        type: string
+      threads_list:
+        description: 'Thread counts to benchmark'
+        required: false
+        default: '8 16 32 64'
+        type: string
+      writes_time_seconds:
+        description: 'Time for writes (reads get half)'
+        required: false
+        default: '300'
+        type: string
+      num_tables:
+        description: 'Number of tables'
+        required: false
+        default: '16'
+        type: string
+      datasize:
+        description: 'Data size per table'
+        required: false
+        default: '10M'
+        type: string
+      engine_cache:
+        description: 'Engine cache size'
+        required: false
+        default: '96G'
+        type: string
+      scaling_governor:
+        description: 'CPU frequency governor'
+        required: false
+        default: 'performance'
+        type: choice
+        options:
+          - performance
+          - schedutil
+          - ondemand
+          - conservative
+          - powersave
+          - userspace
+      repeat_num:
+        description: 'Number of benchmark repetitions'
+        required: false
+        default: '1'
+        type: string
+      rebuild_template:
+        description: 'Rebuild template datadir'
+        required: false
+        default: 'OFF'
+        type: choice
+        options:
+          - 'OFF'
+          - 'ON'
+      dbbench_ssl:
+        description: 'Enable SSL for benchmarks'
+        required: false
+        default: 'off'
+        type: choice
+        options:
+          - 'off'
+          - 'on'
+      root_dir:
+        description: 'Override ROOT_DIR (leave empty for default based on configuration)'
+        required: false
+        type: string
+      data_dir:
+        description: 'Data directory override'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - '/dev/shm'
+      sysbench_host:
+        description: 'Sysbench TCP/IP host (leave empty for socket)'
+        required: false
+        type: string
+
+# Only allow one benchmark per configuration at a time
+concurrency:
+  group: perf-bench-${{ inputs.configuration }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: ${{ inputs.configuration }}
+    runs-on: ${{ fromJSON(format('["{0}"]', 
+      inputs.configuration == 'InnoDB-smblade04' && 'sm-blade04' ||
+      inputs.configuration == 'InnoDB-epyc9654' && 'as-1015cs-tnr' ||
+      inputs.configuration == 'RocksDB-smblade04' && 'sm-blade04' ||
+      inputs.configuration == 'RocksDB-epyc9654' && 'as-1015cs-tnr' ||
+      'self-hosted')) }}
+    timeout-minutes: 1440  # 24 hours max
+
+    env:
+      # Configuration-specific defaults
+      ENGINE: ${{ contains(inputs.configuration, 'RocksDB') && 'rocksdb' || 'innodb' }}
+      
+      # InnoDB-smblade04
+      INNODB_SMBLADE04_TEMPLATE_PATH: /mnt/data/template_datadir
+      INNODB_SMBLADE04_ROOT_DIR: /mnt/fast/bench-mysql
+      INNODB_SMBLADE04_RUN_NAME: node04-innodb
+      INNODB_SMBLADE04_CONFIG_FILE: cnf/stable8x-noACID.cnf
+      INNODB_SMBLADE04_CC: gcc-13
+      INNODB_SMBLADE04_CXX: g++-13
+      INNODB_SMBLADE04_CXXFLAGS: -march=westmere
+      
+      # InnoDB-epyc9654
+      INNODB_EPYC9654_TEMPLATE_PATH: /mnt/storage/template_datadir
+      INNODB_EPYC9654_ROOT_DIR: /mnt/scratch/bench-mysql
+      INNODB_EPYC9654_RUN_NAME: 9654-innodb
+      INNODB_EPYC9654_CONFIG_FILE: cnf/stable8x-noACID.cnf
+      INNODB_EPYC9654_CC: gcc-14
+      INNODB_EPYC9654_CXX: g++-14
+      INNODB_EPYC9654_CXXFLAGS: ''
+      
+      # RocksDB-smblade04
+      ROCKSDB_SMBLADE04_TEMPLATE_PATH: /mnt/data/template_datadir
+      ROCKSDB_SMBLADE04_ROOT_DIR: /mnt/fast/bench-mysql
+      ROCKSDB_SMBLADE04_RUN_NAME: node04-myrocks
+      ROCKSDB_SMBLADE04_CONFIG_FILE: cnf/rocksdb-noACID.cnf
+      ROCKSDB_SMBLADE04_CC: gcc-13
+      ROCKSDB_SMBLADE04_CXX: g++-13
+      ROCKSDB_SMBLADE04_CXXFLAGS: -march=westmere
+      
+      # RocksDB-epyc9654
+      ROCKSDB_EPYC9654_TEMPLATE_PATH: /mnt/storage/template_datadir
+      ROCKSDB_EPYC9654_ROOT_DIR: /mnt/scratch/bench-mysql
+      ROCKSDB_EPYC9654_RUN_NAME: 9654-myrocks
+      ROCKSDB_EPYC9654_CONFIG_FILE: cnf/rocksdb-noACID.cnf
+      ROCKSDB_EPYC9654_CC: gcc-14
+      ROCKSDB_EPYC9654_CXX: g++-14
+      ROCKSDB_EPYC9654_CXXFLAGS: ''
+
+    steps:
+      - name: Set configuration variables
+        id: config
+        run: |
+          CONFIG="${{ inputs.configuration }}"
+          CONFIG_KEY="${CONFIG//-/_}"  # Replace - with _
+          CONFIG_KEY="${CONFIG_KEY^^}" # Uppercase
+          
+          echo "Configuration: $CONFIG -> $CONFIG_KEY"
+          
+          # Set variables based on configuration
+          case "$CONFIG" in
+            "InnoDB-smblade04")
+              echo "TEMPLATE_PATH=/mnt/data/template_datadir" >> $GITHUB_OUTPUT
+              echo "DEFAULT_ROOT_DIR=/mnt/fast/bench-mysql" >> $GITHUB_OUTPUT
+              echo "DEFAULT_RUN_NAME=node04-innodb" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CONFIG_FILE=cnf/stable8x-noACID.cnf" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CC=gcc-13" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CXX=g++-13" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CXXFLAGS=-march=westmere" >> $GITHUB_OUTPUT
+              echo "ENGINE=innodb" >> $GITHUB_OUTPUT
+              ;;
+            "InnoDB-epyc9654")
+              echo "TEMPLATE_PATH=/mnt/storage/template_datadir" >> $GITHUB_OUTPUT
+              echo "DEFAULT_ROOT_DIR=/mnt/scratch/bench-mysql" >> $GITHUB_OUTPUT
+              echo "DEFAULT_RUN_NAME=9654-innodb" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CONFIG_FILE=cnf/stable8x-noACID.cnf" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CC=gcc-14" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CXX=g++-14" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CXXFLAGS=" >> $GITHUB_OUTPUT
+              echo "ENGINE=innodb" >> $GITHUB_OUTPUT
+              ;;
+            "RocksDB-smblade04")
+              echo "TEMPLATE_PATH=/mnt/data/template_datadir" >> $GITHUB_OUTPUT
+              echo "DEFAULT_ROOT_DIR=/mnt/fast/bench-mysql" >> $GITHUB_OUTPUT
+              echo "DEFAULT_RUN_NAME=node04-myrocks" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CONFIG_FILE=cnf/rocksdb-noACID.cnf" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CC=gcc-13" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CXX=g++-13" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CXXFLAGS=-march=westmere" >> $GITHUB_OUTPUT
+              echo "ENGINE=rocksdb" >> $GITHUB_OUTPUT
+              ;;
+            "RocksDB-epyc9654")
+              echo "TEMPLATE_PATH=/mnt/storage/template_datadir" >> $GITHUB_OUTPUT
+              echo "DEFAULT_ROOT_DIR=/mnt/scratch/bench-mysql" >> $GITHUB_OUTPUT
+              echo "DEFAULT_RUN_NAME=9654-myrocks" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CONFIG_FILE=cnf/rocksdb-noACID.cnf" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CC=gcc-14" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CXX=g++-14" >> $GITHUB_OUTPUT
+              echo "DEFAULT_CXXFLAGS=" >> $GITHUB_OUTPUT
+              echo "ENGINE=rocksdb" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Display system information
+        run: |
+          echo "=== System Information ==="
+          uname -a
+          df -h
+          echo "User: $(whoami) USER=$USER"
+
+      - name: Clean workspace
+        run: |
+          echo "=== Cleaning workspace ==="
+          ls -la || true
+          rm -rf * || true
+          ls -la
+
+      - name: Run benchmark
+        env:
+          # Use input values or fall back to configuration defaults
+          RUN_NAME: ${{ inputs.run_name || steps.config.outputs.DEFAULT_RUN_NAME }}
+          SERVER_REPO_URL: ${{ inputs.server_repo_url }}
+          SERVER_BRANCH: ${{ inputs.server_branch }}
+          WORKLOAD_NAMES: ${{ inputs.workload_names }}
+          CNFFILE_NAME: ${{ inputs.cnffile_name || steps.config.outputs.DEFAULT_CONFIG_FILE }}
+          MYEXTRA: ${{ inputs.myextra }}
+          CXXFLAGS: ${{ inputs.cxxflags || steps.config.outputs.DEFAULT_CXXFLAGS }}
+          RESULTS_EMAIL: ${{ inputs.results_email }}
+          THREADS_LIST: ${{ inputs.threads_list }}
+          WRITES_TIME_SECONDS: ${{ inputs.writes_time_seconds }}
+          NUM_TABLES: ${{ inputs.num_tables }}
+          DATASIZE: ${{ inputs.datasize }}
+          ENGINE_CACHE: ${{ inputs.engine_cache }}
+          ENGINE: ${{ steps.config.outputs.ENGINE }}
+          SELECTED_CC: ${{ steps.config.outputs.DEFAULT_CC }}
+          SELECTED_CXX: ${{ steps.config.outputs.DEFAULT_CXX }}
+          SCALING_GOVERNOR: ${{ inputs.scaling_governor }}
+          REPEAT_NUM: ${{ inputs.repeat_num }}
+          REBUILD_TEMPLATE: ${{ inputs.rebuild_template }}
+          DBBENCH_SSL: ${{ inputs.dbbench_ssl }}
+          ROOT_DIR: ${{ inputs.root_dir || steps.config.outputs.DEFAULT_ROOT_DIR }}
+          DATA_DIR: ${{ inputs.data_dir }}
+          SYSBENCH_HOST: ${{ inputs.sysbench_host }}
+          TEMPLATE_PATH: ${{ steps.config.outputs.TEMPLATE_PATH }}
+          BACKUP_DIR: ${{ github.workspace }}
+        run: |
+          echo "=== Benchmark Configuration ==="
+          echo "RUN_NAME=$RUN_NAME"
+          echo "SERVER_REPO_URL=$SERVER_REPO_URL"
+          echo "SERVER_BRANCH=$SERVER_BRANCH"
+          echo "MYEXTRA=$MYEXTRA"
+          echo "CXXFLAGS=$CXXFLAGS"
+          echo "WORKLOAD_NAMES=$WORKLOAD_NAMES"
+          echo "CNFFILE_NAME=$CNFFILE_NAME"
+          echo "RESULTS_EMAIL=$RESULTS_EMAIL"
+          echo "THREADS_LIST=$THREADS_LIST"
+          echo "WRITES_TIME_SECONDS=$WRITES_TIME_SECONDS"
+          echo "NUM_TABLES=$NUM_TABLES"
+          echo "DATASIZE=$DATASIZE"
+          echo "ENGINE_CACHE=$ENGINE_CACHE"
+          echo "ENGINE=$ENGINE"
+          echo "SELECTED_CC=$SELECTED_CC"
+          echo "SELECTED_CXX=$SELECTED_CXX"
+          echo "SCALING_GOVERNOR=$SCALING_GOVERNOR"
+          echo "REPEAT_NUM=$REPEAT_NUM"
+          echo "REBUILD_TEMPLATE=$REBUILD_TEMPLATE"
+          echo "ROOT_DIR=$ROOT_DIR"
+          echo "DATA_DIR=$DATA_DIR"
+          echo "DBBENCH_SSL=$DBBENCH_SSL"
+          echo "TEMPLATE_PATH=$TEMPLATE_PATH"
+          
+          export CACHE_DIR=$ROOT_DIR/results_cache
+          
+          # Create and prepare benchmark directory
+          sudo mkdir -p $ROOT_DIR
+          sudo chown $USER:$USER $ROOT_DIR
+          cd $ROOT_DIR
+          
+          # Download and execute benchmark script
+          rm -f build-and-bench.sh
+          wget https://raw.githubusercontent.com/Percona-QA/perf-tests/refs/heads/3.0/build-and-bench.sh
+          chmod a+x build-and-bench.sh
+          nice --adjustment=-10 bash -xe ./build-and-bench.sh
+
+      - name: Collect artifacts
+        if: always()
+        run: |
+          ROOT_DIR="${{ inputs.root_dir || steps.config.outputs.DEFAULT_ROOT_DIR }}"
+          mkdir -p ${{ github.workspace }}/artifacts
+          
+          # Copy result files to artifacts directory
+          find $ROOT_DIR -maxdepth 1 -name "*.tar.gz" -exec cp {} ${{ github.workspace }}/artifacts/ \; 2>/dev/null || true
+          find $ROOT_DIR -maxdepth 1 -name "*.csv" -exec cp {} ${{ github.workspace }}/artifacts/ \; 2>/dev/null || true
+          find $ROOT_DIR -maxdepth 1 -name "*.html" -exec cp {} ${{ github.workspace }}/artifacts/ \; 2>/dev/null || true
+          
+          # Also check workspace backup directory
+          find ${{ github.workspace }} -maxdepth 1 -name "*.tar.gz" -exec cp {} ${{ github.workspace }}/artifacts/ \; 2>/dev/null || true
+          find ${{ github.workspace }} -maxdepth 1 -name "*.csv" -exec cp {} ${{ github.workspace }}/artifacts/ \; 2>/dev/null || true
+          find ${{ github.workspace }} -maxdepth 1 -name "*.html" -exec cp {} ${{ github.workspace }}/artifacts/ \; 2>/dev/null || true
+          
+          ls -la ${{ github.workspace }}/artifacts/ || echo "No artifacts found"
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ inputs.configuration }}-${{ github.run_number }}
+          path: ${{ github.workspace }}/artifacts/
+          retention-days: 30
+          if-no-files-found: warn

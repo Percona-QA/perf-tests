@@ -1,0 +1,323 @@
+name: MySQL Perf Bench GPT 5.2
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Which hardware/profile to run on"
+        type: choice
+        required: true
+        default: all
+        options:
+          - all
+          - InnoDB-smblade04
+          - InnoDB-epyc9654
+          - RocksDB-smblade04
+          - RocksDB-epyc9654
+
+      # Jenkins parameters (mostly 1:1)
+      run_name:
+        description: "Extra field for results cache bucket (please don't use 'nightly')"
+        type: string
+        required: false
+        default: ""
+      server_repo_url:
+        description: "Server git repo URL (ex: https://github.com/percona/percona-server)"
+        type: string
+        required: true
+        default: "https://github.com/percona/percona-server"
+      server_branch:
+        description: "Server git branch/tag (ex: release-8.4.7-7)"
+        type: string
+        required: true
+        default: "release-8.4.7-7"
+      workload_names:
+        description: "Comma-separated workload names/aliases (ex: prod_trx, reads,writes)"
+        type: string
+        required: true
+        default: "prod_trx"
+      cnffile_name:
+        description: "Config file path (relative to perf-tests repo), leave empty to use profile default"
+        type: string
+        required: false
+        default: ""
+      myextra:
+        description: "Extra params for MySQL"
+        type: string
+        required: false
+        default: ""
+      cxxflags:
+        description: "Additional flags used during compilation"
+        type: string
+        required: false
+        default: ""
+      results_email:
+        description: "List of e-mails separated by commas (leave empty to disable email sending)"
+        type: string
+        required: false
+        default: ""
+      threads_list:
+        description: "Space-separated thread counts"
+        type: string
+        required: true
+        default: "8 16 32 64"
+      writes_time_seconds:
+        description: "Time spent for writes (reads use half)"
+        type: string
+        required: true
+        default: "300"
+      num_tables:
+        type: string
+        required: true
+        default: "16"
+      datasize:
+        type: string
+        required: true
+        default: "10M"
+      engine_cache:
+        type: string
+        required: true
+        default: "96G"
+      selected_cc:
+        description: "C compiler (leave empty to use profile default)"
+        type: string
+        required: false
+        default: ""
+      selected_cxx:
+        description: "C++ compiler (leave empty to use profile default)"
+        type: string
+        required: false
+        default: ""
+      scaling_governor:
+        description: "CPUfreq governor (leave empty to skip governor/ASLR/turbo changes)"
+        type: string
+        required: false
+        default: "performance"
+      repeat_num:
+        description: "How many times to repeat perf benchmarking"
+        type: string
+        required: true
+        default: "1"
+      rebuild_template:
+        type: choice
+        required: true
+        default: OFF
+        options:
+          - OFF
+          - ON
+      dbbench_ssl:
+        type: choice
+        required: true
+        default: off
+        options:
+          - off
+          - on
+      root_dir:
+        description: "Override ROOT_DIR (leave empty to use profile default)"
+        type: string
+        required: false
+        default: ""
+      data_dir:
+        description: "Override DATA_DIR base (ex: /dev/shm), leave empty for default"
+        type: string
+        required: false
+        default: ""
+      sysbench_host:
+        description: "If set, sysbench connects via TCP to this host instead of unix socket"
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Prepare matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Build matrix from inputs.profile
+        id: set-matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PROFILE="${{ inputs.profile }}"
+          case "${PROFILE}" in
+            all)
+              MATRIX='{"include":[
+                {"profile":"InnoDB-smblade04","node":"sm-blade04","engine":"innodb","template_path":"/mnt/data/template_datadir","default_root_dir":"/mnt/fast/bench-mysql","default_run_name":"node04-innodb","default_cnffile_name":"cnf/stable8x-noACID.cnf","default_selected_cc":"gcc-13","default_selected_cxx":"g++-13","default_cxxflags":"-march=westmere"},
+                {"profile":"InnoDB-epyc9654","node":"as-1015cs-tnr","engine":"innodb","template_path":"/mnt/storage/template_datadir","default_root_dir":"/mnt/scratch/bench-mysql","default_run_name":"9654-innodb","default_cnffile_name":"cnf/stable8x-noACID.cnf","default_selected_cc":"gcc-14","default_selected_cxx":"g++-14","default_cxxflags":""},
+                {"profile":"RocksDB-smblade04","node":"sm-blade04","engine":"rocksdb","template_path":"/mnt/data/template_datadir","default_root_dir":"/mnt/fast/bench-mysql","default_run_name":"node04-myrocks","default_cnffile_name":"cnf/rocksdb-noACID.cnf","default_selected_cc":"gcc-13","default_selected_cxx":"g++-13","default_cxxflags":"-march=westmere"},
+                {"profile":"RocksDB-epyc9654","node":"as-1015cs-tnr","engine":"rocksdb","template_path":"/mnt/storage/template_datadir","default_root_dir":"/mnt/scratch/bench-mysql","default_run_name":"9654-myrocks","default_cnffile_name":"cnf/rocksdb-noACID.cnf","default_selected_cc":"gcc-14","default_selected_cxx":"g++-14","default_cxxflags":""}
+              ]}'
+              ;;
+            InnoDB-smblade04)
+              MATRIX='{"include":[
+                {"profile":"InnoDB-smblade04","node":"sm-blade04","engine":"innodb","template_path":"/mnt/data/template_datadir","default_root_dir":"/mnt/fast/bench-mysql","default_run_name":"node04-innodb","default_cnffile_name":"cnf/stable8x-noACID.cnf","default_selected_cc":"gcc-13","default_selected_cxx":"g++-13","default_cxxflags":"-march=westmere"}
+              ]}'
+              ;;
+            InnoDB-epyc9654)
+              MATRIX='{"include":[
+                {"profile":"InnoDB-epyc9654","node":"as-1015cs-tnr","engine":"innodb","template_path":"/mnt/storage/template_datadir","default_root_dir":"/mnt/scratch/bench-mysql","default_run_name":"9654-innodb","default_cnffile_name":"cnf/stable8x-noACID.cnf","default_selected_cc":"gcc-14","default_selected_cxx":"g++-14","default_cxxflags":""}
+              ]}'
+              ;;
+            RocksDB-smblade04)
+              MATRIX='{"include":[
+                {"profile":"RocksDB-smblade04","node":"sm-blade04","engine":"rocksdb","template_path":"/mnt/data/template_datadir","default_root_dir":"/mnt/fast/bench-mysql","default_run_name":"node04-myrocks","default_cnffile_name":"cnf/rocksdb-noACID.cnf","default_selected_cc":"gcc-13","default_selected_cxx":"g++-13","default_cxxflags":"-march=westmere"}
+              ]}'
+              ;;
+            RocksDB-epyc9654)
+              MATRIX='{"include":[
+                {"profile":"RocksDB-epyc9654","node":"as-1015cs-tnr","engine":"rocksdb","template_path":"/mnt/storage/template_datadir","default_root_dir":"/mnt/scratch/bench-mysql","default_run_name":"9654-myrocks","default_cnffile_name":"cnf/rocksdb-noACID.cnf","default_selected_cc":"gcc-14","default_selected_cxx":"g++-14","default_cxxflags":""}
+              ]}'
+              ;;
+            *)
+              echo "Unknown profile: ${PROFILE}" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "matrix=${MATRIX}" >> "${GITHUB_OUTPUT}"
+
+  perf-bench:
+    name: ${{ matrix.profile }}
+    needs: prepare
+    runs-on:
+      - self-hosted
+      - ${{ matrix.node }}
+
+    # Jenkins had concurrent_build: false. This keeps at most one run per node.
+    concurrency:
+      group: perf-bench-mysql-${{ matrix.node }}
+      cancel-in-progress: false
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+
+    steps:
+      - name: Checkout perf-tests
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          clean: true
+
+      - name: Run build-and-bench.sh
+        shell: bash
+        env:
+          # Inputs
+          SERVER_REPO_URL: ${{ github.event.inputs.server_repo_url }}
+          SERVER_BRANCH: ${{ github.event.inputs.server_branch }}
+          WORKLOAD_NAMES: ${{ github.event.inputs.workload_names }}
+          MYEXTRA: ${{ github.event.inputs.myextra }}
+          RESULTS_EMAIL: ${{ github.event.inputs.results_email }}
+          THREADS_LIST: ${{ github.event.inputs.threads_list }}
+          WRITES_TIME_SECONDS: ${{ github.event.inputs.writes_time_seconds }}
+          NUM_TABLES: ${{ github.event.inputs.num_tables }}
+          DATASIZE: ${{ github.event.inputs.datasize }}
+          ENGINE_CACHE: ${{ github.event.inputs.engine_cache }}
+          SCALING_GOVERNOR: ${{ github.event.inputs.scaling_governor }}
+          REPEAT_NUM: ${{ github.event.inputs.repeat_num }}
+          REBUILD_TEMPLATE: ${{ github.event.inputs.rebuild_template }}
+          DBBENCH_SSL: ${{ github.event.inputs.dbbench_ssl }}
+          DATA_DIR: ${{ github.event.inputs.data_dir }}
+          SYSBENCH_HOST: ${{ github.event.inputs.sysbench_host }}
+
+          # Profile defaults (can be overridden below in the script)
+          ENGINE: ${{ matrix.engine }}
+          TEMPLATE_PATH: ${{ matrix.template_path }}
+
+          # Back to GH Actions workspace for artifact upload
+          BACKUP_DIR: ${{ github.workspace }}/artifacts/${{ matrix.profile }}
+        run: |
+          set -euo pipefail
+
+          uname -a
+          df -h
+          echo "User: $(whoami) USER=${USER:-}"
+
+          # Resolve per-profile defaults + optional overrides
+          ROOT_DIR="${{ github.event.inputs.root_dir }}"
+          if [[ -z "${ROOT_DIR}" ]]; then ROOT_DIR="${{ matrix.default_root_dir }}"; fi
+          export ROOT_DIR
+
+          RUN_NAME="${{ github.event.inputs.run_name }}"
+          if [[ -z "${RUN_NAME}" ]]; then RUN_NAME="${{ matrix.default_run_name }}"; fi
+          export RUN_NAME
+
+          CNFFILE_NAME="${{ github.event.inputs.cnffile_name }}"
+          if [[ -z "${CNFFILE_NAME}" ]]; then CNFFILE_NAME="${{ matrix.default_cnffile_name }}"; fi
+          export CNFFILE_NAME
+
+          SELECTED_CC="${{ github.event.inputs.selected_cc }}"
+          if [[ -z "${SELECTED_CC}" ]]; then SELECTED_CC="${{ matrix.default_selected_cc }}"; fi
+          export SELECTED_CC
+
+          SELECTED_CXX="${{ github.event.inputs.selected_cxx }}"
+          if [[ -z "${SELECTED_CXX}" ]]; then SELECTED_CXX="${{ matrix.default_selected_cxx }}"; fi
+          export SELECTED_CXX
+
+          if [[ -z "${CXXFLAGS:-}" ]]; then
+            export CXXFLAGS="${{ matrix.default_cxxflags }}"
+          fi
+
+          echo "SERVER_REPO_URL=${SERVER_REPO_URL}"
+          echo "SERVER_BRANCH=${SERVER_BRANCH}"
+          echo "ENGINE=${ENGINE}"
+          echo "WORKLOAD_NAMES=${WORKLOAD_NAMES}"
+          echo "CNFFILE_NAME=${CNFFILE_NAME}"
+          echo "THREADS_LIST=${THREADS_LIST}"
+          echo "WRITES_TIME_SECONDS=${WRITES_TIME_SECONDS}"
+          echo "NUM_TABLES=${NUM_TABLES}"
+          echo "DATASIZE=${DATASIZE}"
+          echo "ENGINE_CACHE=${ENGINE_CACHE}"
+          echo "SELECTED_CC=${SELECTED_CC}"
+          echo "SELECTED_CXX=${SELECTED_CXX}"
+          echo "CXXFLAGS=${CXXFLAGS}"
+          echo "SCALING_GOVERNOR=${SCALING_GOVERNOR}"
+          echo "REPEAT_NUM=${REPEAT_NUM}"
+          echo "REBUILD_TEMPLATE=${REBUILD_TEMPLATE}"
+          echo "RUN_NAME=${RUN_NAME}"
+          echo "DATA_DIR=${DATA_DIR}"
+          echo "ROOT_DIR=${ROOT_DIR}"
+          echo "DBBENCH_SSL=${DBBENCH_SSL}"
+          echo "SYSBENCH_HOST=${SYSBENCH_HOST}"
+          echo "TEMPLATE_PATH=${TEMPLATE_PATH}"
+          echo "BACKUP_DIR=${BACKUP_DIR}"
+
+          mkdir -p "${BACKUP_DIR}"
+
+          # Mirror Jenkins behavior: don't let CI's WORKSPACE override db-bench WORKSPACE logic.
+          unset WORKSPACE || true
+
+          # Ensure ROOT_DIR exists and is writable (expected on self-hosted runners).
+          if command -v sudo >/dev/null 2>&1; then
+            sudo mkdir -p "${ROOT_DIR}"
+            sudo chown "$(id -un):$(id -gn)" "${ROOT_DIR}" || true
+          else
+            mkdir -p "${ROOT_DIR}"
+          fi
+
+          cd "${ROOT_DIR}"
+
+          # Try to run with higher priority; fall back gracefully if not permitted.
+          if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+            sudo nice -n -10 bash -xe "${GITHUB_WORKSPACE}/build-and-bench.sh"
+          else
+            nice -n 0 bash -xe "${GITHUB_WORKSPACE}/build-and-bench.sh"
+          fi
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-bench-mysql-${{ matrix.profile }}-${{ github.run_id }}
+          path: |
+            ${{ github.workspace }}/artifacts/${{ matrix.profile }}/*.tar.gz
+            ${{ github.workspace }}/artifacts/${{ matrix.profile }}/*.csv
+            ${{ github.workspace }}/artifacts/${{ matrix.profile }}/*.html
+          if-no-files-found: error
+          retention-days: 16
