@@ -18,7 +18,7 @@ function build_postgres() {
     pushd $REPO_DIR
     ./configure --prefix=$BIN_DIR
     echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
-    NPROC=`nproc --all`
+    NPROC=`nproc`
     echo "Using $NPROC threads for compilation"
     make -j${NPROC} world
     if [[ $? != 0 ]]; then echo "make world -j${NPROC} failed"; exit -1; fi

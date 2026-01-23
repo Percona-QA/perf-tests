@@ -111,7 +111,7 @@ function print_system_info() {
   sudo systemctl --type=service --state=running
   ulimit -a
   sysctl -a 2>/dev/null | grep "\bvm."
-  echo "===== nproc=$(nproc --all)"
+  echo "===== nproc=$(nproc)"
   cat /proc/cpuinfo
 }
 

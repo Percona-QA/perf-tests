@@ -41,7 +41,7 @@ function build_mysql() {
 
     echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
     pushd $BUILD_DIR
-    NPROC=`nproc --all`
+    NPROC=`nproc`
     echo "Using $NPROC threads for compilation"
     make -j${NPROC}
     if [[ $? != 0 ]]; then echo "make -j${NPROC} failed"; exit -1; fi
