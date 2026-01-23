@@ -6,7 +6,7 @@ on:
       run_name:
         description: 'Run Name'
         type: string
-        default: '9654kvm-rocksdb'
+        default: '9654kvm-rocks'
       server_repo_url:
         description: 'Server Repo URL'
         type: string
@@ -18,7 +18,7 @@ on:
       workload_names:
         description: 'Workload Names'
         type: string
-        default: 'prod_trx'
+        default: 'heavy_trx'
       cnffile_name:
         description: 'Config File Name'
         type: string
