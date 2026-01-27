@@ -33,7 +33,7 @@
         name: WORKLOAD_NAMES
         description: "Workload names separated by comma from <a href=\"https://github.com/Percona-QA/perf-tests/blob/3.0/db_bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.0/db_bench/workloads.inc</a><BR><b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES<BR><b>writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS, WR_DELETE,WR_INSERT,WR_REPLACE"
 #        default: "reads,writes"
-        default: "prod_trx"
+        default: "heavy_trx"
         trim: false
     - string:
         name: CNFFILE_NAME
@@ -65,11 +65,11 @@
         trim: false
     - string:
         name: NUM_TABLES
-        default: "16"
+        default: "32"
         trim: false
     - string:
         name: DATASIZE
-        default: "10M"
+        default: "20M"
         trim: false
     - string:
         name: ENGINE_CACHE
@@ -206,9 +206,10 @@
     engine: innodb
     template_path: /mnt/storage/template_datadir
     root_dir:
-      - /mnt/scratch/bench-mysql
+      - /mnt/work/bench-innodb
     run_name: 9654-innodb
-    config_file: cnf/stable8x-noACID.cnf
+    # config_file: cnf/stable8x-noACID.cnf
+    config_file: cnf/stable8x-innodb.cnf
     cc_compiler: gcc-14
     cxx_compiler: g++-14
     compiler_flags:
@@ -237,9 +238,10 @@
     engine: rocksdb
     template_path: /mnt/storage/template_datadir
     root_dir:
-      - /mnt/scratch/bench-mysql
+      - /mnt/work/bench-rocks
     run_name: 9654-myrocks
-    config_file: cnf/rocksdb-noACID.cnf
+    #config_file: cnf/rocksdb-noACID.cnf
+    config_file: cnf/rocksdb-ACID.cnf
     cc_compiler: gcc-14
     cxx_compiler: g++-14
     compiler_flags:

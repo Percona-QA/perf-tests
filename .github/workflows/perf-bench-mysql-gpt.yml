@@ -149,9 +149,9 @@ jobs:
             all)
               MATRIX='{"include":[
                 {"profile":"InnoDB-smblade04","node":"sm-blade04","engine":"innodb","template_path":"/mnt/data/template_datadir","default_root_dir":"/mnt/fast/bench-mysql","default_run_name":"node04-innodb","default_cnffile_name":"cnf/stable8x-noACID.cnf","default_selected_cc":"gcc-13","default_selected_cxx":"g++-13","default_cxxflags":"-march=westmere"},
-                {"profile":"InnoDB-epyc9654","node":"as-1015cs-tnr","engine":"innodb","template_path":"/mnt/storage/template_datadir","default_root_dir":"/mnt/scratch/bench-mysql","default_run_name":"9654-innodb","default_cnffile_name":"cnf/stable8x-noACID.cnf","default_selected_cc":"gcc-14","default_selected_cxx":"g++-14","default_cxxflags":""},
+                {"profile":"InnoDB-epyc9654","node":"as-1015cs-tnr","engine":"innodb","template_path":"/mnt/storage/template_datadir","default_root_dir":"/mnt/work/bench-mysql","default_run_name":"9654-innodb","default_cnffile_name":"cnf/stable8x-noACID.cnf","default_selected_cc":"gcc-14","default_selected_cxx":"g++-14","default_cxxflags":""},
                 {"profile":"RocksDB-smblade04","node":"sm-blade04","engine":"rocksdb","template_path":"/mnt/data/template_datadir","default_root_dir":"/mnt/fast/bench-mysql","default_run_name":"node04-myrocks","default_cnffile_name":"cnf/rocksdb-noACID.cnf","default_selected_cc":"gcc-13","default_selected_cxx":"g++-13","default_cxxflags":"-march=westmere"},
-                {"profile":"RocksDB-epyc9654","node":"as-1015cs-tnr","engine":"rocksdb","template_path":"/mnt/storage/template_datadir","default_root_dir":"/mnt/scratch/bench-mysql","default_run_name":"9654-myrocks","default_cnffile_name":"cnf/rocksdb-noACID.cnf","default_selected_cc":"gcc-14","default_selected_cxx":"g++-14","default_cxxflags":""}
+                {"profile":"RocksDB-epyc9654","node":"as-1015cs-tnr","engine":"rocksdb","template_path":"/mnt/storage/template_datadir","default_root_dir":"/mnt/work/bench-mysql","default_run_name":"9654-myrocks","default_cnffile_name":"cnf/rocksdb-noACID.cnf","default_selected_cc":"gcc-14","default_selected_cxx":"g++-14","default_cxxflags":""}
               ]}'
               ;;
             InnoDB-smblade04)
@@ -161,7 +161,7 @@ jobs:
               ;;
             InnoDB-epyc9654)
               MATRIX='{"include":[
-                {"profile":"InnoDB-epyc9654","node":"as-1015cs-tnr","engine":"innodb","template_path":"/mnt/storage/template_datadir","default_root_dir":"/mnt/scratch/bench-mysql","default_run_name":"9654-innodb","default_cnffile_name":"cnf/stable8x-noACID.cnf","default_selected_cc":"gcc-14","default_selected_cxx":"g++-14","default_cxxflags":""}
+                {"profile":"InnoDB-epyc9654","node":"as-1015cs-tnr","engine":"innodb","template_path":"/mnt/storage/template_datadir","default_root_dir":"/mnt/work/bench-mysql","default_run_name":"9654-innodb","default_cnffile_name":"cnf/stable8x-noACID.cnf","default_selected_cc":"gcc-14","default_selected_cxx":"g++-14","default_cxxflags":""}
               ]}'
               ;;
             RocksDB-smblade04)
@@ -171,7 +171,7 @@ jobs:
               ;;
             RocksDB-epyc9654)
               MATRIX='{"include":[
-                {"profile":"RocksDB-epyc9654","node":"as-1015cs-tnr","engine":"rocksdb","template_path":"/mnt/storage/template_datadir","default_root_dir":"/mnt/scratch/bench-mysql","default_run_name":"9654-myrocks","default_cnffile_name":"cnf/rocksdb-noACID.cnf","default_selected_cc":"gcc-14","default_selected_cxx":"g++-14","default_cxxflags":""}
+                {"profile":"RocksDB-epyc9654","node":"as-1015cs-tnr","engine":"rocksdb","template_path":"/mnt/storage/template_datadir","default_root_dir":"/mnt/work/bench-mysql","default_run_name":"9654-myrocks","default_cnffile_name":"cnf/rocksdb-noACID.cnf","default_selected_cc":"gcc-14","default_selected_cxx":"g++-14","default_cxxflags":""}
               ]}'
               ;;
             *)

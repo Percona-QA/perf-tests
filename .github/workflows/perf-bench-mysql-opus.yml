@@ -160,7 +160,7 @@ jobs:
       
       # InnoDB-epyc9654
       INNODB_EPYC9654_TEMPLATE_PATH: /mnt/storage/template_datadir
-      INNODB_EPYC9654_ROOT_DIR: /mnt/scratch/bench-mysql
+      INNODB_EPYC9654_ROOT_DIR: /mnt/work/bench-mysql
       INNODB_EPYC9654_RUN_NAME: 9654-innodb
       INNODB_EPYC9654_CONFIG_FILE: cnf/stable8x-noACID.cnf
       INNODB_EPYC9654_CC: gcc-14
@@ -178,7 +178,7 @@ jobs:
       
       # RocksDB-epyc9654
       ROCKSDB_EPYC9654_TEMPLATE_PATH: /mnt/storage/template_datadir
-      ROCKSDB_EPYC9654_ROOT_DIR: /mnt/scratch/bench-mysql
+      ROCKSDB_EPYC9654_ROOT_DIR: /mnt/work/bench-mysql
       ROCKSDB_EPYC9654_RUN_NAME: 9654-myrocks
       ROCKSDB_EPYC9654_CONFIG_FILE: cnf/rocksdb-noACID.cnf
       ROCKSDB_EPYC9654_CC: gcc-14
@@ -209,7 +209,7 @@ jobs:
               ;;
             "InnoDB-epyc9654")
               echo "TEMPLATE_PATH=/mnt/storage/template_datadir" >> $GITHUB_OUTPUT
-              echo "DEFAULT_ROOT_DIR=/mnt/scratch/bench-mysql" >> $GITHUB_OUTPUT
+              echo "DEFAULT_ROOT_DIR=/mnt/work/bench-mysql" >> $GITHUB_OUTPUT
               echo "DEFAULT_RUN_NAME=9654-innodb" >> $GITHUB_OUTPUT
               echo "DEFAULT_CONFIG_FILE=cnf/stable8x-noACID.cnf" >> $GITHUB_OUTPUT
               echo "DEFAULT_CC=gcc-14" >> $GITHUB_OUTPUT
@@ -229,7 +229,7 @@ jobs:
               ;;
             "RocksDB-epyc9654")
               echo "TEMPLATE_PATH=/mnt/storage/template_datadir" >> $GITHUB_OUTPUT
-              echo "DEFAULT_ROOT_DIR=/mnt/scratch/bench-mysql" >> $GITHUB_OUTPUT
+              echo "DEFAULT_ROOT_DIR=/mnt/work/bench-mysql" >> $GITHUB_OUTPUT
               echo "DEFAULT_RUN_NAME=9654-myrocks" >> $GITHUB_OUTPUT
               echo "DEFAULT_CONFIG_FILE=cnf/rocksdb-noACID.cnf" >> $GITHUB_OUTPUT
               echo "DEFAULT_CC=gcc-14" >> $GITHUB_OUTPUT
