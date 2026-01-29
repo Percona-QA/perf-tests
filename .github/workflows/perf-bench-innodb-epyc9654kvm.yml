@@ -42,7 +42,7 @@ on:
       writes_time_seconds:
         description: 'Writes Time Seconds'
         type: string
-        default: '300'
+        default: '600'
       num_tables:
         description: 'Num Tables'
         type: string
