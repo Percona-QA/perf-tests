@@ -22,7 +22,7 @@ on:
       cnffile_name:
         description: 'Config File Name'
         type: string
-        default: 'cnf/stable8x-innodb.cnf'
+        default: 'cnf/innodb-ACID-slowIO.cnf'
       myextra:
         description: 'Extra MySQL Params'
         type: string
