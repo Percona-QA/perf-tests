@@ -18,7 +18,11 @@ on:
       workload_names:
         description: 'Workload Names'
         type: string
-        default: 'heavy_trx'
+        default: 'prod_trx'
+      rand_type:
+        description: 'Sysbench Random Type'
+        type: string
+        default: 'uniform'
       cnffile_name:
         description: 'Config File Name'
         type: string
@@ -116,6 +120,7 @@ jobs:
       SERVER_REPO_URL: ${{ inputs.server_repo_url }}
       SERVER_BRANCH: ${{ inputs.server_branch }}
       WORKLOAD_NAMES: ${{ inputs.workload_names }}
+      RAND_TYPE: ${{ inputs.rand_type }}
       CNFFILE_NAME: ${{ inputs.cnffile_name }}
       MYEXTRA: ${{ inputs.myextra }}
       CXXFLAGS: ${{ inputs.cxxflags }}
