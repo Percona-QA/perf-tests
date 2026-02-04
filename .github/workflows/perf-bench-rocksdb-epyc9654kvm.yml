@@ -22,7 +22,7 @@ on:
       rand_type:
         description: 'Sysbench Random Type'
         type: string
-        default: 'uniform'
+        default: 'pareto'
       cnffile_name:
         description: 'Config File Name'
         type: string
@@ -58,7 +58,7 @@ on:
       engine_cache:
         description: 'Engine Cache'
         type: string
-        default: '96G'
+        default: '32G'
       engine:
         description: 'Engine'
         type: string
