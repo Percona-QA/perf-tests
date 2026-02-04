@@ -206,6 +206,7 @@ function run_sysbench() {
     LOG_NAME_SERVER=${LOG_NAME}.${SERVER_TYPE}
     LOG_NAME_SERVERD=${LOG_NAME}.${SERVER_TYPE}d
     LOG_NAME_MEMORY=${LOG_NAME}.memory
+    LOG_NAME_VARIABLES=${LOG_NAME}.variables
     LOG_NAME_IOSTAT=${LOG_NAME}.iostat
     LOG_NAME_VMSTAT=${LOG_NAME}.vmstat
     LOG_NAME_DSTAT=${LOG_NAME}.dstat
