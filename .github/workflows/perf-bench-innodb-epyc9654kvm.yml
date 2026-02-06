@@ -21,8 +21,11 @@ on:
         default: 'prod_trx'
       rand_type:
         description: 'Sysbench Random Type'
-        type: string
-        default: 'pareto'
+        type: choice
+        options:
+          - uniform
+          - pareto
+        default: 'uniform'
       cnffile_name:
         description: 'Config File Name'
         type: string
