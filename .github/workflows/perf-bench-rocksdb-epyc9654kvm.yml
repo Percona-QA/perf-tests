@@ -117,6 +117,7 @@ on:
 jobs:
   bench:
     runs-on: [self-hosted, Linux, X64, epyc9654-kvm]
+    timeout-minutes: 480
     env:
       # Input parameters mapped to environment variables
       RUN_NAME: ${{ inputs.run_name }}
