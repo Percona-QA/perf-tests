@@ -436,8 +436,9 @@ def main():
                 f.write(f"    <th>{t} thds</th>\n")
             f.write("  </tr>\n")
             
-            # Rows
-            rows_data = []
+            # Group by label to merge repeating configs
+            grouped_data = {}
+
             for dir_label in summary_data.keys():
                 if workload in summary_data[dir_label]:
                     # Determine DB Type
@@ -466,13 +467,37 @@ def main():
                         else:
                             label = config_str
                     
-                    rows_data.append({
-                        'db_type': db_type,
-                        'label': label,
-                        'dir_label': dir_label,
-                        'ram': ram_val,
-                        'threads': threads_val
-                    })
+                    if label not in grouped_data:
+                        grouped_data[label] = {
+                            'db_type': db_type,
+                            'ram': ram_val,
+                            'threads': threads_val,
+                            'values': {}
+                        }
+                    
+                    # Collect values for each thread count
+                    for t in sorted_threads:
+                        val = summary_data[dir_label][workload].get(t, "")
+                        if isinstance(val, (int, float)):
+                            if t not in grouped_data[label]['values']:
+                                grouped_data[label]['values'][t] = []
+                            grouped_data[label]['values'][t].append(val)
+
+            rows_data = []
+            for label, info in grouped_data.items():
+                # Calculate averages
+                averaged_values = {}
+                for t, vals in info['values'].items():
+                    if vals:
+                        averaged_values[t] = sum(vals) / len(vals)
+                
+                rows_data.append({
+                    'db_type': info['db_type'],
+                    'label': label,
+                    'ram': info['ram'],
+                    'threads': info['threads'],
+                    'data': averaged_values
+                })
             
             # Sort rows: InnoDB first, then RocksDB, then Other. Secondary sort by RAM, then Threads.
             def sort_key(item):
@@ -481,17 +506,59 @@ def main():
             
             rows_data.sort(key=sort_key)
             
+            # Pre-calculate comparisons
+            comparison_map = {}
             for item in rows_data:
-                dir_label = item['dir_label']
+                if item['db_type'] in ['InnoDB', 'RocksDB']:
+                    key = (item['ram'], item['threads'])
+                    if key not in comparison_map:
+                        comparison_map[key] = {}
+                    comparison_map[key][item['db_type']] = item['data']
+
+            for item in rows_data:
                 label = item['label']
+                data = item['data']
+                db_type = item['db_type']
+                ram = item['ram']
+                threads = item['threads']
                 
                 f.write("  <tr>\n")
                 f.write(f"    <td>{label}</td>\n")
                 
                 for t in sorted_threads:
-                    val = summary_data[dir_label][workload].get(t, "")
+                    val = data.get(t, "")
+                    style = ""
+                    
+                    # Determine color
+                    if isinstance(val, (int, float)) and db_type in ['InnoDB', 'RocksDB']:
+                        key = (ram, threads)
+                        if key in comparison_map:
+                            other_type = 'RocksDB' if db_type == 'InnoDB' else 'InnoDB'
+                            if other_type in comparison_map[key]:
+                                other_val = comparison_map[key][other_type].get(t)
+                                if isinstance(other_val, (int, float)) and other_val > 0:
+                                    diff = (val - other_val) / other_val
+                                    max_diff = 0.5 # 50% difference for max saturation
+                                    
+                                    if diff > 0:
+                                        # Green gradient
+                                        ratio = min(abs(diff) / max_diff, 1.0)
+                                        # White (255,255,255) to Green (87, 187, 138)
+                                        r = int(255 + (87 - 255) * ratio)
+                                        g = int(255 + (187 - 255) * ratio)
+                                        b = int(255 + (138 - 255) * ratio)
+                                        style = f" style='background-color: #{r:02x}{g:02x}{b:02x};'"
+                                    elif diff < 0:
+                                        # Red gradient
+                                        ratio = min(abs(diff) / max_diff, 1.0)
+                                        # White (255,255,255) to Red (224, 102, 102)
+                                        r = int(255 + (224 - 255) * ratio)
+                                        g = int(255 + (102 - 255) * ratio)
+                                        b = int(255 + (102 - 255) * ratio)
+                                        style = f" style='background-color: #{r:02x}{g:02x}{b:02x};'"
+
                     if isinstance(val, (int, float)):
-                        f.write(f"    <td>{val:.2f}</td>\n")
+                        f.write(f"    <td{style}>{val:.2f}</td>\n")
                     else:
                         f.write("    <td></td>\n")
                 f.write("  </tr>\n")
