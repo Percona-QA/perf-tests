@@ -1,2 +1,2 @@
---defaults-file=/data/db-bench/cnf/stable8x-noACID-audit.cnf
+--defaults-file=/data/db-bench/cnf/innodb-80-noACID-audit.cnf
 

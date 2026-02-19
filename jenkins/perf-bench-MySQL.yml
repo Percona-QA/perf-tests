@@ -37,7 +37,7 @@
         trim: false
     - string:
         name: CNFFILE_NAME
-        description: "MySQL config file from <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf\">https://github.com/Percona-QA/perf-tests/tree/3.1/cnf</a><BR><b>stable8x-noACID.cnf</b> is non-ACID compliant as it uses \"sync_binlog=1024; innodb_flush_log_at_trx_commit=0\"<BR><b>stable8x-innodb.cnf</b> is ACID compliant for Percona Server 8.0 and newer but gives less stable results<BR><b>stable-noACID.cnf</b> is non-ACID compliant for Percona Server 5.7 and newer"
+        description: "MySQL config file from <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf\">https://github.com/Percona-QA/perf-tests/tree/3.1/cnf</a><BR><b>innodb-80-noACID.cnf</b> is non-ACID compliant as it uses \"sync_binlog=1024; innodb_flush_log_at_trx_commit=0\"<BR><b>innodb-80-ACID.cnf</b> is ACID compliant for Percona Server 8.0 and newer but gives less stable results<BR><b>innodb-57-noACID.cnf</b> is non-ACID compliant for Percona Server 5.7 and newer"
         default: "{config_file}"
         trim: false
     - string:
@@ -193,7 +193,7 @@
       - /mnt/fast/bench-mysql
       - /mnt/data/bench-mysql
     run_name: node04-innodb
-    config_file: cnf/stable8x-noACID.cnf
+    config_file: cnf/innodb-80-noACID.cnf
     cc_compiler: gcc-13
     cxx_compiler: g++-13
     compiler_flags: -march=westmere
@@ -224,8 +224,8 @@
     root_dir:
       - /mnt/work/bench-innodb
     run_name: 9654-innodb
-    # config_file: cnf/stable8x-noACID.cnf
-    config_file: cnf/stable8x-innodb.cnf
+    config_file: cnf/innodb-80-noACID.cnf
+    # config_file: cnf/innodb-80-ACID.cnf
     cc_compiler: gcc-14
     cxx_compiler: g++-14
     compiler_flags:
@@ -240,8 +240,8 @@
     root_dir:
       - /mnt/work/bench-rocks
     run_name: 9654-myrocks
-    #config_file: cnf/rocksdb-noACID.cnf
-    config_file: cnf/rocksdb-ACID.cnf
+    config_file: cnf/rocksdb-noACID.cnf
+    # config_file: cnf/rocksdb-ACID.cnf
     cc_compiler: gcc-14
     cxx_compiler: g++-14
     compiler_flags:
