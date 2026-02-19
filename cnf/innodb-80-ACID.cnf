@@ -19,17 +19,14 @@ innodb_redo_log_capacity=16G
 innodb_fast_shutdown=0
 
 # Defaults from MySQL 8.0
-innodb_doublewrite_files=16
-innodb_doublewrite_pages=4
 innodb_page_cleaners=4
 innodb_parallel_read_threads=4
 innodb_read_io_threads=4
+innodb_buffer_pool_instances=8
+innodb_doublewrite_files=16
+innodb_doublewrite_pages=4
 innodb_log_buffer_size=16M
 innodb_use_fdatasync=OFF
-innodb_buffer_pool_instances=8
-#temptable_max_ram=1G
-#temptable_max_mmap=1G
-#temptable_use_mmap=ON
 
 # Defaults from MySQL 8.4
 innodb_change_buffering=none
@@ -39,3 +36,16 @@ innodb_numa_interleave=1
 innodb_io_capacity=10000
 gtid_mode=OFF
 enforce_gtid_consistency=OFF
+#innodb_doublewrite_files=2
+#innodb_doublewrite_pages=128
+#innodb_log_buffer_size=64M
+#innodb_use_fdatasync=ON
+
+# Defaults from MySQL 9.x
+#innodb_change_buffering=all
+#gtid_mode=ON
+#enforce_gtid_consistency=ON
+
+# Non-ACID compliant options but improve stability of results
+#sync_binlog=1024
+#innodb_flush_log_at_trx_commit=0

@@ -31,3 +31,7 @@ rocksdb_compaction_readahead_size=16m    # 0
 
 # Mark's + compression=kLZ4Compression
 rocksdb_default_cf_options=max_write_buffer_number=4;write_buffer_size=32m;max_bytes_for_level_base=256m;compression=kLZ4Compression;bottommost_compression=kLZ4Compression;level_compaction_dynamic_level_bytes=true;block_based_table_factory={cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=1};optimize_filters_for_hits=true
+
+# skip file system buffers (Direct IO)
+#rocksdb_use_direct_reads=ON
+#rocksdb_use_direct_io_for_flush_and_compaction=ON

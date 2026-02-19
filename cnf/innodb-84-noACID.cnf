@@ -27,15 +27,8 @@ innodb_buffer_pool_instances=8
 #innodb_doublewrite_pages=4
 #innodb_log_buffer_size=16M
 #innodb_use_fdatasync=OFF
-#temptable_max_ram=1G
-#temptable_max_mmap=1G
-#temptable_use_mmap=ON
 
 # Defaults from MySQL 8.4
-innodb_doublewrite_files=2
-innodb_doublewrite_pages=128
-innodb_log_buffer_size=64M
-innodb_use_fdatasync=ON
 innodb_change_buffering=none
 innodb_flush_method=O_DIRECT
 innodb_adaptive_hash_index=OFF
@@ -43,6 +36,10 @@ innodb_numa_interleave=1
 innodb_io_capacity=10000
 gtid_mode=OFF
 enforce_gtid_consistency=OFF
+innodb_doublewrite_files=2
+innodb_doublewrite_pages=128
+innodb_log_buffer_size=64M
+innodb_use_fdatasync=ON
 
 # Defaults from MySQL 9.x
 #innodb_change_buffering=all
