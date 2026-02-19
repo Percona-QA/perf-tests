@@ -5,7 +5,7 @@
         Performance regression testing for PostgreSQL<BR><BR>
         <b>Do not make changes to the pipeline definition via the web interface!<br>
         (Do not use 'Configure' option on the left for changing the pipeline definition)<br></b>
-        Change <a href="https://github.com/Percona-QA/perf-tests/blob/3.0/jenkins/perf-bench-PostgreSQL.yml">perf-bench-PostgreSQL.yml</a> instead.</b><br>
+        Change <a href="https://github.com/Percona-QA/perf-tests/blob/3.1/jenkins/perf-bench-PostgreSQL.yml">perf-bench-PostgreSQL.yml</a> instead.</b><br>
         Then update pipeline with "jenkins-jobs --server ps80.cd update jenkins/perf-bench-PostgreSQL.yml".
     properties:
     - build-discarder:
@@ -38,12 +38,12 @@
         description: "OFF = no encryption; TABLE = encrypt tables; ON = encrypt tables + WAL"
     - string:
         name: WORKLOAD_NAMES
-        description: "Workload names separated by comma from\n<a href=\"https://github.com/Percona-QA/perf-tests/blob/3.0/db_bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.0/db_bench/workloads.inc</a>\n<BR>\n<b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES\n<BR><b>pg_writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS,WR_DELETE,WR_INSERT\n"
+        description: "Workload names separated by comma from\n<a href=\"https://github.com/Percona-QA/perf-tests/blob/3.1/db_bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.1/db_bench/workloads.inc</a>\n<BR>\n<b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES\n<BR><b>pg_writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS,WR_DELETE,WR_INSERT\n"
         default: "reads,pg_writes"
         trim: false
     - string:
         name: CNFFILE_NAME
-        description: "PostgreSQL config file from\n<a href=\"https://github.com/Percona-QA/perf-tests/tree/3.0/cnf-pg\">https://github.com/Percona-QA/perf-tests/tree/3.0/cnf-pg</a>\n<BR>\n<b>pg-stable-noACID.cnf</b> is non-ACID compliant as it uses \"synchronous_commit=off\"<BR>\n<b>pg-stable.cnf</b> is ACID compliant"
+        description: "PostgreSQL config file from\n<a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf-pg\">https://github.com/Percona-QA/perf-tests/tree/3.1/cnf-pg</a>\n<BR>\n<b>pg-stable-noACID.cnf</b> is non-ACID compliant as it uses \"synchronous_commit=off\"<BR>\n<b>pg-stable.cnf</b> is ACID compliant"
         default: "{config_file}"
         trim: false
     - string:
@@ -169,7 +169,7 @@
             sudo chown $USER:$USER $ROOT_DIR
             cd $ROOT_DIR
             rm -f build-and-bench.sh
-            wget https://raw.githubusercontent.com/Percona-QA/perf-tests/refs/heads/3.0/build-and-bench.sh
+            wget https://raw.githubusercontent.com/Percona-QA/perf-tests/refs/heads/3.1/build-and-bench.sh
             chmod a+x build-and-bench.sh
             nice --adjustment=-10 bash -xe ./build-and-bench.sh
 

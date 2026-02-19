@@ -5,7 +5,7 @@
         Performance regression testing for MySQL/Percona Server<BR><BR>
         <b>Do not make changes to the pipeline definition via the web interface!<br>
         (Do not use 'Configure' option on the left for changing the pipeline definition)<br></b>
-        Change <a href="https://github.com/Percona-QA/perf-tests/blob/3.0/jenkins/perf-bench-MySQL.yml">perf-bench-MySQL.yml</a> instead.</b><br>
+        Change <a href="https://github.com/Percona-QA/perf-tests/blob/3.1/jenkins/perf-bench-MySQL.yml">perf-bench-MySQL.yml</a> instead.</b><br>
         Then update pipeline with "jenkins-jobs --server ps80.cd update jenkins/perf-bench-MySQL.yml".
     properties:
     - build-discarder:
@@ -31,13 +31,13 @@
         trim: false
     - string:
         name: WORKLOAD_NAMES
-        description: "Workload names separated by comma from <a href=\"https://github.com/Percona-QA/perf-tests/blob/3.0/db_bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.0/db_bench/workloads.inc</a><BR><b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES<BR><b>writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS, WR_DELETE,WR_INSERT,WR_REPLACE"
+        description: "Workload names separated by comma from <a href=\"https://github.com/Percona-QA/perf-tests/blob/3.1/db_bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.1/db_bench/workloads.inc</a><BR><b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES<BR><b>writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS, WR_DELETE,WR_INSERT,WR_REPLACE"
         default: "reads,writes"
         #default: "heavy_trx"
         trim: false
     - string:
         name: CNFFILE_NAME
-        description: "MySQL config file from <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.0/cnf\">https://github.com/Percona-QA/perf-tests/tree/3.0/cnf</a><BR><b>stable8x-noACID.cnf</b> is non-ACID compliant as it uses \"sync_binlog=1024; innodb_flush_log_at_trx_commit=0\"<BR><b>stable8x-innodb.cnf</b> is ACID compliant for Percona Server 8.0 and newer but gives less stable results<BR><b>stable-noACID.cnf</b> is non-ACID compliant for Percona Server 5.7 and newer"
+        description: "MySQL config file from <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf\">https://github.com/Percona-QA/perf-tests/tree/3.1/cnf</a><BR><b>stable8x-noACID.cnf</b> is non-ACID compliant as it uses \"sync_binlog=1024; innodb_flush_log_at_trx_commit=0\"<BR><b>stable8x-innodb.cnf</b> is ACID compliant for Percona Server 8.0 and newer but gives less stable results<BR><b>stable-noACID.cnf</b> is non-ACID compliant for Percona Server 5.7 and newer"
         default: "{config_file}"
         trim: false
     - string:
@@ -169,7 +169,7 @@
             sudo chown $USER:$USER $ROOT_DIR
             cd $ROOT_DIR
             rm -f build-and-bench.sh
-            wget https://raw.githubusercontent.com/Percona-QA/perf-tests/refs/heads/3.0/build-and-bench.sh
+            wget https://raw.githubusercontent.com/Percona-QA/perf-tests/refs/heads/3.1/build-and-bench.sh
             chmod a+x build-and-bench.sh
             nice --adjustment=-10 bash -xe ./build-and-bench.sh
 

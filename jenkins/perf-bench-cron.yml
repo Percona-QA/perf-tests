@@ -3,7 +3,7 @@
         Nightly builds for perf regression testing<BR><BR>
         <b>Do not make changes to the pipeline definition via the web interface!<br>
         (Do not use 'Configure' option on the left for changing the pipeline definition)<br></b>
-        Change <a href="https://github.com/Percona-QA/perf-tests/blob/3.0/jenkins/perf-bench-cron.yml">perf-bench-cron.yml</a> instead.</b><br>
+        Change <a href="https://github.com/Percona-QA/perf-tests/blob/3.1/jenkins/perf-bench-cron.yml">perf-bench-cron.yml</a> instead.</b><br>
         Then update pipeline with "jenkins-jobs --server ps80.cd update jenkins/perf-bench-cron.yml".
     name: "perf-bench-cron"
     project-type: "pipeline"

@@ -133,7 +133,7 @@ A wrapper script that automates the full workflow: clone and build the database 
 | Variable | Default | Description |
 |---|---|---|
 | `DBBENCH_REPO_URL` | `https://github.com/Percona-QA/perf-tests.git` | Git URL of the db-bench repository. |
-| `DBBENCH_BRANCH` | `3.0` | Git branch or tag of db-bench to use. |
+| `DBBENCH_BRANCH` | `3.1` | Git branch or tag of db-bench to use. |
 
 ### Build
 
