@@ -1,0 +1,11 @@
+# Settings for MySQL 8.0; settings for 8.4+ depend on number of logical processors
+#innodb_buffer_pool_instances = 8  # 8.4=(range of 1-64) = min((innodb_buffer_pool_size / innodb_buffer_pool_chunk_size [128M]) / 2), 1/4 of available logical procs)
+#innodb_page_cleaners         = 4  # 8.4=number of BP
+#innodb_parallel_read_threads = 4  # 8.4=logical processors / 8 (min 4)
+#innodb_read_io_threads       = 4  # 8.4=logical processors / 2 (min 4)
+
+# fixed settings for 8.4+ with nproc=32
+innodb_buffer_pool_instances = 8
+innodb_page_cleaners         = 8
+innodb_parallel_read_threads = 4
+innodb_read_io_threads       = 16
