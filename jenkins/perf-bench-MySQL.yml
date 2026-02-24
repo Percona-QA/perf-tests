@@ -41,6 +41,11 @@
         default: "{config_file}"
         trim: false
     - string:
+        name: EXTRA_CONFIG_FILES
+        description: "Space-separated list of extra config files (relative to db-bench repo). Concatenated and passed as --defaults-extra-file.<BR>Available files: <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf\">cnf/extra-*.cnf</a>"
+        default: "cnf/extra-no-ACID.cnf cnf/extra-nproc16.cnf"
+        trim: false
+    - string:
         name: MYEXTRA
         description: "Extra params for MySQL"
         trim: false
@@ -145,6 +150,7 @@
             echo CXXFLAGS=$CXXFLAGS
             echo WORKLOAD_NAMES=$WORKLOAD_NAMES
             echo CNFFILE_NAME=$CNFFILE_NAME
+            echo EXTRA_CONFIG_FILES=$EXTRA_CONFIG_FILES
             echo RESULTS_EMAIL=$RESULTS_EMAIL
             echo THREADS_LIST=$THREADS_LIST
             echo WRITES_TIME_SECONDS=$WRITES_TIME_SECONDS

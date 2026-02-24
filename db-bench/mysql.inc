@@ -74,7 +74,11 @@ function start_mysqld() {
   fi
   EXTRA_PARAMS+=" --user=root $PERF_EXTRA $MYEXTRA $1"
   RBASE="$(( RBASE + 100 ))"
-  local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=$LOG_NAME_SERVERD --socket=$MYSQL_SOCKET --port=$RBASE"
+  local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE}"
+  if [[ -n "${EXTRA_CONFIG_FILE}" ]]; then
+    MYSQLD_OPTIONS+=" --defaults-extra-file=${EXTRA_CONFIG_FILE}"
+  fi
+  MYSQLD_OPTIONS+=" --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=$LOG_NAME_SERVERD --socket=$MYSQL_SOCKET --port=$RBASE"
   if [[ "$SSL_CERTS_PATH" != "" ]]; then
     MYSQLD_OPTIONS+=" --ssl-ca=$SSL_CERTS_PATH/ca-cert.pem --ssl-cert=$SSL_CERTS_PATH/server-cert.pem --ssl-key=$SSL_CERTS_PATH/server-key.pem --require_secure_transport=ON"
   fi

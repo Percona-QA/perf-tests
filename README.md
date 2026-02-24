@@ -22,6 +22,7 @@ A sysbench-based database benchmarking script. All options are configured throug
 | `ENGINE` | `innodb` | Database engine type. Supported values: `innodb`, `rocksdb`, `postgres`. |
 | `BUILD_PATH` | *(required)* | Path to the database server binaries (e.g. MySQL/Percona Server or PostgreSQL bin directory). |
 | `CONFIG_FILES` | *(required)* | Space-separated list of server configuration files to iterate over. See [`./cnf/`](cnf/) for available presets. |
+| `EXTRA_CONFIG_FILES` | *(unset)* | Space-separated list of extra config files. All files are concatenated into a single file and passed to mysqld via `--defaults-extra-file`. File names prefixed with `extra-` are shown without the prefix in email subjects (e.g. `cnf/extra-noACID.cnf cnf/extra-nproc64.cnf` appears as `+noACID+nproc64`). |
 | `RUN_NAME` | *(unset)* | Human-readable name for the benchmark run, used in email subjects and Slack messages. |
 | `BENCHMARK_LOGGING` | `Y` | Enable or disable verbose benchmark logging including CPU, memory, iostat, dstat (`Y`/`N`). |
 | `SMART_DEVICE` | `/dev/nvme0n1` | Block device used for S.M.A.R.T. disk statistics collection. |

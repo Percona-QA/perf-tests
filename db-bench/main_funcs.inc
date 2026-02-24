@@ -84,7 +84,7 @@ function on_exit(){
 
   local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
   local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-  local SUBJECT="Done ($RUN_NAME) $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
+  local SUBJECT="Done ($RUN_NAME) [${EXTRA_CONFIG_LABELS}] $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
 
   if [[ ${SLACK_WEBHOOK_URL} != "" ]]; then
     echo "- Sending slack message"
@@ -318,10 +318,25 @@ function db_bench_init() {
   mkdir -p ${LOGS} ${LOGS_AVG} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${CACHE_DIR}
   cd $WORKSPACE
 
+  EXTRA_CONFIG_FILE=""
+  export EXTRA_CONFIG_LABELS=$(basename "${CONFIG_FILES}" .cnf)
+  if [[ -n "${EXTRA_CONFIG_FILES}" ]]; then
+    EXTRA_CONFIG_FILE=${LOGS_CONFIG}/extra-defaults.cnf
+    > $EXTRA_CONFIG_FILE
+    for extra_file in $EXTRA_CONFIG_FILES; do
+      if [ ! -f $extra_file ]; then usage "ERROR: Extra config file $extra_file not found."; fi
+      cat $extra_file >> $EXTRA_CONFIG_FILE
+      echo "" >> $EXTRA_CONFIG_FILE
+      local name=$(basename "$extra_file" .cnf)
+      EXTRA_CONFIG_LABELS+="+${name#extra-}"
+    done
+    echo "Using $EXTRA_CONFIG_FILE as extra config file (merged from: $EXTRA_CONFIG_FILES)"
+  fi
+
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL}"
     local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-    print_variables_and_workloads "" | mutt -s "Start ($RUN_NAME) $(basename "${CONFIG_FILES}" .cnf) $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
+    print_variables_and_workloads "" | mutt -s "Start ($RUN_NAME) [${EXTRA_CONFIG_LABELS}] $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
   fi
 
   local LOG_SYS_INFO=$LOGS/sys_info_start.txt
@@ -352,7 +367,7 @@ function db_bench_init() {
 
 function db_bench_init_config() {
   if [ ! -f $SERVER_CONFIG_FILE ]; then usage "ERROR: Config file $SERVER_CONFIG_FILE not found."; fi
-  CONFIG_BASE=$(basename ${file%.*})
+  CONFIG_BASE=${EXTRA_CONFIG_LABELS}
   LOGS_CONFIG=${LOGS}/${BENCH_NAME}-${CONFIG_BASE}
   mkdir -p ${LOGS_CONFIG}
   CONFIG_FILE=${LOGS_CONFIG}/$(basename $SERVER_CONFIG_FILE)

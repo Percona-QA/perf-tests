@@ -84,6 +84,15 @@ function run_perf_tests() {
     # path to files from https://github.com/Percona-QA/perf-tests/3.1
     CNFFILE_NAME=${CNFFILE_NAME:-cnf/stable-innodb.cnf}
     export CONFIG_FILES=${CONFIG_FILES:-"${PERFTEST_PATH}/${CNFFILE_NAME}"}
+    export EXTRA_CONFIG_FILES=${EXTRA_CONFIG_FILES:-""}
+    if [[ -n "${EXTRA_CONFIG_FILES}" ]]; then
+        local resolved=""
+        for f in $EXTRA_CONFIG_FILES; do
+            [[ "$f" != /* ]] && f="${PERFTEST_PATH}/${f}"
+            resolved+="${f} "
+        done
+        export EXTRA_CONFIG_FILES="${resolved% }"
+    fi
 
     REPEAT_NUM=${REPEAT_NUM:-1}
     for i in $(seq $REPEAT_NUM); do
