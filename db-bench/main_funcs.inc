@@ -14,14 +14,14 @@ function usage(){
   echo "<CONFIG_FILES> - full path to Percona Server's configuration file"
   echo -e "\nUsage example:"
   echo "export WORKSPACE=/data/perf-results"
-  echo "export CONFIG_FILES=/data/perf-tests/cnf/innodb-80.cnf"
+  echo "export CONFIG_FILES=/data/perf-tests/cnf/innodb-84.cnf"
   echo "export BUILD_PATH=/data/release-9.0.1-1-rel-gcc-13"
   echo "export BENCH_NAME=release-9.0.1-1@6feb03ff8ed"
   echo "bash $0"
   exit 1
 }
 
-# depends on $DATA_DIR, $LOGS, $SCALING_GOVERNOR, $BENCH_ID, $BENCH_NAME, $START_TIME, $THREADS_LIST, $CONFIG_FILES, $WORKLOAD_NAMES, $SLACK_WEBHOOK_URL, $WORKSPACE, $BACKUP_DIR, $RESULTS_EMAIL
+# depends on $DATA_DIR, $LOGS, $SCALING_GOVERNOR, $BENCH_ID, $BENCH_NAME, $START_TIME, $THREADS_LIST, $CONFIG_LABELS, $WORKLOAD_NAMES, $SLACK_WEBHOOK_URL, $WORKSPACE, $BACKUP_DIR, $RESULTS_EMAIL
 function on_exit(){
   pkill -f dstat
   pkill -f iostat
@@ -84,7 +84,7 @@ function on_exit(){
 
   local tarFileName="${BENCH_ID}_${BENCH_NAME}.tar.gz"
   local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-  local SUBJECT="Done ($RUN_NAME) [${EXTRA_CONFIG_LABELS}] $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
+  local SUBJECT="Done ($RUN_NAME) [${CONFIG_LABELS}] $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}"
 
   if [[ ${SLACK_WEBHOOK_URL} != "" ]]; then
     echo "- Sending slack message"
@@ -246,9 +246,9 @@ function run_sysbench() {
     sync
   done
 
-  local LOG_RESULTS_PATH="${CACHE_DIR}/${BENCH_ID}_${CONFIG_BASE^^}_$(basename "${WORKLOAD_NAMES}" .txt)_${RUN_NAME}"
+  local LOG_RESULTS_PATH="${CACHE_DIR}/${BENCH_ID}_${CONFIG_LABELS^^}_$(basename "${WORKLOAD_NAMES}" .txt)_${RUN_NAME}"
   local LOG_RESULTS_CACHE="${LOG_RESULTS_PATH}/${WORKLOAD_NAME}_${SCALING_GOVERNOR}_${THREADS_LIST// /_}.csv"
-  local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_BASE}_${WORKLOAD_NAME}_${BENCH_NAME}"
+  local BENCH_WITH_CONFIG="${BENCH_ID}_${CONFIG_LABELS}_${WORKLOAD_NAME}_${BENCH_NAME}"
   local RESULTS_LINE="${BENCH_WITH_CONFIG}_qps"
   for number in "${result_set[@]}"; do RESULTS_LINE+=", ${number}"; done
 
@@ -318,25 +318,21 @@ function db_bench_init() {
   mkdir -p ${LOGS} ${LOGS_AVG} ${LOGS_STDDEV} ${LOGS_DIFF} ${LOGS_QPS} ${CACHE_DIR}
   cd $WORKSPACE
 
-  EXTRA_CONFIG_FILE=""
-  export EXTRA_CONFIG_LABELS=$(basename "${CONFIG_FILES}" .cnf)
+  EXTRA_CONFIG_LABELS=""
   if [[ -n "${EXTRA_CONFIG_FILES}" ]]; then
-    EXTRA_CONFIG_FILE=${LOGS_CONFIG}/extra-defaults.cnf
-    > $EXTRA_CONFIG_FILE
     for extra_file in $EXTRA_CONFIG_FILES; do
       if [ ! -f $extra_file ]; then usage "ERROR: Extra config file $extra_file not found."; fi
-      cat $extra_file >> $EXTRA_CONFIG_FILE
-      echo "" >> $EXTRA_CONFIG_FILE
-      local name=$(basename "$extra_file" .cnf)
+      local name=$(basename "${extra_file%.*}")
       EXTRA_CONFIG_LABELS+="+${name#extra-}"
     done
-    echo "Using $EXTRA_CONFIG_FILE as extra config file (merged from: $EXTRA_CONFIG_FILES)"
   fi
+  export CONFIG_LABELS=$(basename "${CONFIG_FILES%.*}")
+  CONFIG_LABELS+=${EXTRA_CONFIG_LABELS}
 
   if [[ ${RESULTS_EMAIL} != "" ]]; then
     echo "- Sending e-mail to ${RESULTS_EMAIL}"
     local NICE_DATE=$(date +"%Y-%m-%d %H:%M")
-    print_variables_and_workloads "" | mutt -s "Start ($RUN_NAME) [${EXTRA_CONFIG_LABELS}] $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
+    print_variables_and_workloads "" | mutt -s "Start ($RUN_NAME) [${CONFIG_LABELS}] $(basename "${WORKLOAD_NAMES^^}" .TXT) ${BENCH_ID}_${BENCH_NAME} at ${NICE_DATE}" -- ${RESULTS_EMAIL}
   fi
 
   local LOG_SYS_INFO=$LOGS/sys_info_start.txt
@@ -367,12 +363,26 @@ function db_bench_init() {
 
 function db_bench_init_config() {
   if [ ! -f $SERVER_CONFIG_FILE ]; then usage "ERROR: Config file $SERVER_CONFIG_FILE not found."; fi
-  CONFIG_BASE=${EXTRA_CONFIG_LABELS}
-  LOGS_CONFIG=${LOGS}/${BENCH_NAME}-${CONFIG_BASE}
+  CONFIG_LABELS=$(basename "${SERVER_CONFIG_FILE%.*}")
+  CONFIG_LABELS+=${EXTRA_CONFIG_LABELS}
+
+  LOGS_CONFIG=${LOGS}/${BENCH_NAME}-${CONFIG_LABELS}
   mkdir -p ${LOGS_CONFIG}
   CONFIG_FILE=${LOGS_CONFIG}/$(basename $SERVER_CONFIG_FILE)
   cp $SERVER_CONFIG_FILE $CONFIG_FILE
   echo "Using $CONFIG_FILE as ${SERVER_TYPE} config file"
+
+  EXTRA_CONFIG_FILE=""
+  if [[ -n "${EXTRA_CONFIG_FILES}" ]]; then
+    EXTRA_CONFIG_FILE=${LOGS_CONFIG}/${EXTRA_CONFIG_LABELS#+}.cnf
+    > $EXTRA_CONFIG_FILE
+    for extra_file in $EXTRA_CONFIG_FILES; do
+      if [ ! -f $extra_file ]; then usage "ERROR: Extra config file $extra_file not found."; fi
+      cat $extra_file >> $EXTRA_CONFIG_FILE
+      echo "" >> $EXTRA_CONFIG_FILE
+    done
+    echo "Using $EXTRA_CONFIG_FILE as extra config file (merged from: $EXTRA_CONFIG_FILES)"
+  fi
 
   ${SERVER_TYPE}_killall
 }

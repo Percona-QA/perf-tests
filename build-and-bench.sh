@@ -82,7 +82,7 @@ function run_perf_tests() {
     export SYSBENCH_LUA=$SYSBENCH_REPO_DIR/src/lua
 
     # path to files from https://github.com/Percona-QA/perf-tests/3.1
-    CNFFILE_NAME=${CNFFILE_NAME:-cnf/stable-innodb.cnf}
+    CNFFILE_NAME=${CNFFILE_NAME:-cnf/innodb-84.cnf}
     export CONFIG_FILES=${CONFIG_FILES:-"${PERFTEST_PATH}/${CNFFILE_NAME}"}
     export EXTRA_CONFIG_FILES=${EXTRA_CONFIG_FILES:-""}
     if [[ -n "${EXTRA_CONFIG_FILES}" ]]; then
