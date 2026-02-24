@@ -1,0 +1,4 @@
+# For slow I/O with ACID
+innodb_max_dirty_pages_pct=75
+innodb_max_dirty_pages_pct_lwm=50
+innodb_redo_log_capacity=32G

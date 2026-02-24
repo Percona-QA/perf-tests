@@ -14,7 +14,7 @@ function usage(){
   echo "<CONFIG_FILES> - full path to Percona Server's configuration file"
   echo -e "\nUsage example:"
   echo "export WORKSPACE=/data/perf-results"
-  echo "export CONFIG_FILES=/data/perf-tests/cnf/innodb-80-noACID.cnf"
+  echo "export CONFIG_FILES=/data/perf-tests/cnf/innodb-80.cnf"
   echo "export BUILD_PATH=/data/release-9.0.1-1-rel-gcc-13"
   echo "export BENCH_NAME=release-9.0.1-1@6feb03ff8ed"
   echo "bash $0"

@@ -37,12 +37,12 @@
         trim: false
     - string:
         name: CNFFILE_NAME
-        description: "MySQL config file from <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf\">https://github.com/Percona-QA/perf-tests/tree/3.1/cnf</a><BR><b>innodb-80-noACID.cnf</b> is non-ACID compliant as it uses \"sync_binlog=1024; innodb_flush_log_at_trx_commit=0\"<BR><b>innodb-80-ACID.cnf</b> is ACID compliant for Percona Server 8.0 and newer but gives less stable results<BR><b>innodb-57-noACID.cnf</b> is non-ACID compliant for Percona Server 5.7 and newer"
+        description: "MySQL config file from <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf\">https://github.com/Percona-QA/perf-tests/tree/3.1/cnf</a><BR><b>innodb-57.cnf</b> for Percona Server 5.7 and newer<BR><b>innodb-80.cnf</b> for Percona Server 8.0 and newer<BR><b>innodb-84.cnf</b> for Percona Server 8.4 and newer<BR>All config files are ACID compliant; use <b>EXTRA_CONFIG_FILES=extra-no-ACID.cnf</b> to disable ACID and improve performance + stability"
         default: "{config_file}"
         trim: false
     - string:
         name: EXTRA_CONFIG_FILES
-        description: "Space-separated list of extra config files (relative to db-bench repo). Concatenated and passed as --defaults-extra-file.<BR>Available files: <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf\">cnf/extra-*.cnf</a>"
+        description: "Space-separated list of extra config files (relative to db-bench repo). Concatenated and passed as <b>--defaults-extra-file</b>.<BR>Available files: <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf\">cnf/extra-*.cnf</a><BR><b>extra-no-ACID.cnf</b> - disables ACID (sync_binlog=1024, innodb_flush_log_at_trx_commit=0) for more stable results and better performance<BR><b>extra-nproc{{16,32,64,128}}.cnf</b> - fixes InnoDB thread settings (buffer_pool_instances, page_cleaners, read_io_threads, parallel_read_threads) for a given CPU count; use on MySQL/PS 8.4+ where these auto-scale with nproc"
         default: "cnf/extra-no-ACID.cnf cnf/extra-nproc16.cnf"
         trim: false
     - string:
@@ -199,7 +199,7 @@
       - /mnt/fast/bench-mysql
       - /mnt/data/bench-mysql
     run_name: node04-innodb
-    config_file: cnf/innodb-80-noACID.cnf
+    config_file: cnf/innodb-84.cnf
     cc_compiler: gcc-13
     cxx_compiler: g++-13
     compiler_flags: -march=westmere
@@ -215,7 +215,7 @@
       - /mnt/fast/bench-mysql
       - /mnt/data/bench-mysql
     run_name: node04-myrocks
-    config_file: cnf/rocksdb-noACID.cnf
+    config_file: cnf/rocksdb.cnf
     cc_compiler: gcc-13
     cxx_compiler: g++-13
     compiler_flags: -march=westmere
@@ -230,8 +230,7 @@
     root_dir:
       - /mnt/work/bench-innodb
     run_name: 9654-innodb
-    config_file: cnf/innodb-80-noACID.cnf
-    # config_file: cnf/innodb-80-ACID.cnf
+    config_file: cnf/innodb-84.cnf
     cc_compiler: gcc-14
     cxx_compiler: g++-14
     compiler_flags:
@@ -246,8 +245,7 @@
     root_dir:
       - /mnt/work/bench-rocks
     run_name: 9654-myrocks
-    config_file: cnf/rocksdb-noACID.cnf
-    # config_file: cnf/rocksdb-ACID.cnf
+    config_file: cnf/rocksdb.cnf
     cc_compiler: gcc-14
     cxx_compiler: g++-14
     compiler_flags:
