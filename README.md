@@ -160,26 +160,26 @@ These override `db-bench.sh` defaults with values tuned for the build-and-bench 
 
 ```bash
 # Build Percona Server 8.0 and run the default benchmark
-sudo nice --adjustment=-10 env SERVER_BRANCH=8.0 \
+sudo -E nice --adjustment=-10 env SERVER_BRANCH=8.0 \
   ROOT_DIR=/mnt/fast/build-and-bench \
   ./build-and-bench.sh
 
 # Build PostgreSQL and run with custom workloads
-sudo nice --adjustment=-10 env ENGINE=postgres \
+sudo -E nice --adjustment=-10 env ENGINE=postgres \
   SERVER_BRANCH=TDE_REL_17_STABLE \
   WORKLOAD_NAMES=reads,pg_writes \
   WRITES_TIME_SECONDS=120 \
   ./build-and-bench.sh
 
 # Quick test with minimal data
-sudo nice --adjustment=-10 env SERVER_BRANCH=8.0 \
+sudo -E nice --adjustment=-10 env SERVER_BRANCH=8.0 \
   WRITES_TIME_SECONDS=30 THREADS_LIST="8" \
   WORKLOAD_NAMES=POINT_SELECT \
   ROOT_DIR=/mnt/optane/auto-perf-test \
   ./build-and-bench.sh
 
 # Use bash -xe for command tracing (-x) and exit-on-error (-e)
-sudo nice --adjustment=-10 env SERVER_BRANCH=8.0 \
+sudo -E nice --adjustment=-10 env SERVER_BRANCH=8.0 \
   ROOT_DIR=/mnt/fast/build-and-bench \
   bash -xe ./build-and-bench.sh
 ```
