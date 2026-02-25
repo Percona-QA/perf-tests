@@ -171,7 +171,7 @@
             rm -f build-and-bench.sh
             wget https://raw.githubusercontent.com/Percona-QA/perf-tests/refs/heads/3.1/build-and-bench.sh
             chmod a+x build-and-bench.sh
-            nice --adjustment=-10 bash -xe ./build-and-bench.sh
+            sudo nice --adjustment=-10 bash -xe ./build-and-bench.sh
 
     publishers:
       - archive:

@@ -135,7 +135,7 @@ set -o pipefail
 mkdir -p ${ROOT_DIR} > /dev/null 2>&1
 mkdir -p ${SERVER_BUILD_DIR} > /dev/null 2>&1
 install_deps_debian | tee $SERVER_BUILD_DIR/install-deps.log
-setup_git_repo $DBBENCH_REPO_DIR $DBBENCH_BRANCH $DBBENCH_REPO_URL | tee $SERVER_BUILD_DIR/setup-perf-tests-repo.log
+setup_git_repo $DBBENCH_REPO_DIR $DBBENCH_BRANCH $DBBENCH_REPO_URL | tee $SERVER_BUILD_DIR/setup-db-bench-repo.log
 setup_git_repo $SYSBENCH_REPO_DIR $SYSBENCH_BRANCH $SYSBENCH_REPO_URL | tee $SERVER_BUILD_DIR/setup-sysbench-repo.log
 setup_git_repo $SERVER_REPO_DIR $SERVER_BRANCH $SERVER_REPO_URL| tee $SERVER_BUILD_DIR/setup-ps-repo.log
 

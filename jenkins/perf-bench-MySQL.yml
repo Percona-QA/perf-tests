@@ -177,7 +177,7 @@
             rm -f build-and-bench.sh
             wget https://raw.githubusercontent.com/Percona-QA/perf-tests/refs/heads/3.1/build-and-bench.sh
             chmod a+x build-and-bench.sh
-            nice --adjustment=-10 bash -xe ./build-and-bench.sh
+            sudo nice --adjustment=-10 bash -xe ./build-and-bench.sh
 
     publishers:
       - archive:
@@ -196,8 +196,8 @@
     engine: innodb
     template_path: /mnt/data/template_datadir
     root_dir:
-      - /mnt/fast/bench-mysql
-      - /mnt/data/bench-mysql
+      - /mnt/fast/bench-innodb
+      - /mnt/data/bench-innodb
     run_name: node04-innodb
     config_file: cnf/innodb-84.cnf
     cc_compiler: gcc-13
@@ -212,8 +212,8 @@
     engine: rocksdb
     template_path: /mnt/data/template_datadir
     root_dir:
-      - /mnt/fast/bench-mysql
-      - /mnt/data/bench-mysql
+      - /mnt/fast/bench-rocksdb
+      - /mnt/data/bench-rocksdb
     run_name: node04-myrocks
     config_file: cnf/rocksdb.cnf
     cc_compiler: gcc-13
