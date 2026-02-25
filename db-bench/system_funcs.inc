@@ -25,10 +25,12 @@ function disable_turbo_boost(){
     PREVIOUS_TURBO=`cat /sys/devices/system/cpu/intel_pstate/no_turbo`
     sudo sh -c "echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo"
     echo "Changing /sys/devices/system/cpu/intel_pstate/no_turbo from $PREVIOUS_TURBO to `cat /sys/devices/system/cpu/intel_pstate/no_turbo`"
-  else
+  elif [[ -f /sys/devices/system/cpu/cpufreq/boost ]]; then
     PREVIOUS_TURBO=`cat /sys/devices/system/cpu/cpufreq/boost`
     sudo sh -c "echo 0 > /sys/devices/system/cpu/cpufreq/boost"
     echo "Changing /sys/devices/system/cpu/cpufreq/boost from $PREVIOUS_TURBO to `cat /sys/devices/system/cpu/cpufreq/boost`"
+  else
+    echo "WARNING: No known turbo boost control found for scaling driver ${SCALING_DRIVER}"
   fi
 }
 
@@ -38,11 +40,13 @@ function restore_turbo_boost(){
   if [[ ${SCALING_DRIVER} == "intel_pstate" || ${SCALING_DRIVER} == "intel_cpufreq" ]]; then
     CURRENT_TURBO=`cat /sys/devices/system/cpu/intel_pstate/no_turbo`
     sudo sh -c "echo $PREVIOUS_TURBO > /sys/devices/system/cpu/intel_pstate/no_turbo"
-    echo "Resoring /sys/devices/system/cpu/intel_pstate/no_turbo from $CURRENT_TURBO to $PREVIOUS_TURBO"
-  else
+    echo "Restoring /sys/devices/system/cpu/intel_pstate/no_turbo from $CURRENT_TURBO to $PREVIOUS_TURBO"
+  elif [[ -f /sys/devices/system/cpu/cpufreq/boost ]]; then
     CURRENT_TURBO=`cat /sys/devices/system/cpu/cpufreq/boost`
     sudo sh -c "echo $PREVIOUS_TURBO > /sys/devices/system/cpu/cpufreq/boost"
-    echo "Resoring /sys/devices/system/cpu/cpufreq/boost from $CURRENT_TURBO to $PREVIOUS_TURBO"
+    echo "Restoring /sys/devices/system/cpu/cpufreq/boost from $CURRENT_TURBO to $PREVIOUS_TURBO"
+  else
+    echo "WARNING: No known turbo boost control found for scaling driver ${SCALING_DRIVER}"
   fi
 }
 
