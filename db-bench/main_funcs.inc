@@ -368,21 +368,23 @@ function db_bench_init_config() {
 
   LOGS_CONFIG=${LOGS}/${BENCH_NAME}-${CONFIG_LABELS}
   mkdir -p ${LOGS_CONFIG}
-  CONFIG_FILE=${LOGS_CONFIG}/$(basename $SERVER_CONFIG_FILE)
+  CONFIG_FILE=${LOGS_CONFIG}/${CONFIG_LABELS}.cnf
   cp $SERVER_CONFIG_FILE $CONFIG_FILE
   echo "Using $CONFIG_FILE as ${SERVER_TYPE} config file"
 
-  EXTRA_CONFIG_FILE=""
   if [[ -n "${EXTRA_CONFIG_FILES}" ]]; then
-    EXTRA_CONFIG_FILE=${LOGS_CONFIG}/${EXTRA_CONFIG_LABELS#+}.cnf
-    > $EXTRA_CONFIG_FILE
     for extra_file in $EXTRA_CONFIG_FILES; do
       if [ ! -f $extra_file ]; then usage "ERROR: Extra config file $extra_file not found."; fi
-      cat $extra_file >> $EXTRA_CONFIG_FILE
-      echo "" >> $EXTRA_CONFIG_FILE
+      echo "" >> $CONFIG_FILE
+      echo "# ===== Included from $(basename "$extra_file") =====" >> $CONFIG_FILE
+      cat $extra_file >> $CONFIG_FILE
     done
-    echo "Using $EXTRA_CONFIG_FILE as extra config file (merged from: $EXTRA_CONFIG_FILES)"
+    echo "Appended extra config files to $CONFIG_FILE (from: $EXTRA_CONFIG_FILES)"
   fi
+
+  echo "" >> $CONFIG_FILE
+  echo "# ===== Configured by user from \$ENGINE_CACHE=${ENGINE_CACHE} =====" >> $CONFIG_FILE
+  ${SERVER_TYPE}_append_engine_cache
 
   ${SERVER_TYPE}_killall
 }

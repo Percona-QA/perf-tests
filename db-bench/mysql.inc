@@ -67,18 +67,9 @@ function print_mysql_variables() {
 
 # start_mysqld $MORE_PARAMS
 function start_mysqld() {
-  if [ "$ENGINE" == "rocksdb" ]; then
-      EXTRA_PARAMS="--rocksdb_block_cache_size=${ENGINE_CACHE}"
-  else
-      EXTRA_PARAMS="--innodb_buffer_pool_size=${ENGINE_CACHE}"
-  fi
-  EXTRA_PARAMS+=" --user=root $PERF_EXTRA $MYEXTRA $1"
+  EXTRA_PARAMS="--user=root $PERF_EXTRA $MYEXTRA $1"
   RBASE="$(( RBASE + 100 ))"
-  local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE}"
-  if [[ -n "${EXTRA_CONFIG_FILE}" ]]; then
-    MYSQLD_OPTIONS+=" --defaults-extra-file=${EXTRA_CONFIG_FILE}"
-  fi
-  MYSQLD_OPTIONS+=" --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=$LOG_NAME_SERVERD --socket=$MYSQL_SOCKET --port=$RBASE"
+  local MYSQLD_OPTIONS="--defaults-file=${CONFIG_FILE} --basedir=${BUILD_PATH} $EXTRA_PARAMS --log-error=$LOG_NAME_SERVERD --socket=$MYSQL_SOCKET --port=$RBASE"
   if [[ "$SSL_CERTS_PATH" != "" ]]; then
     MYSQLD_OPTIONS+=" --ssl-ca=$SSL_CERTS_PATH/ca-cert.pem --ssl-cert=$SSL_CERTS_PATH/server-cert.pem --ssl-key=$SSL_CERTS_PATH/server-key.pem --require_secure_transport=ON"
   fi
@@ -186,6 +177,14 @@ function mysql_prepare_datadir() {
   fi
 
   copy_datadir "${TEMPLATE_DIR}" "${DATA_DIR}"
+}
+
+function mysql_append_engine_cache() {
+  if [ "$ENGINE" == "rocksdb" ]; then
+    echo "rocksdb_block_cache_size=${ENGINE_CACHE}" >> $CONFIG_FILE
+  else
+    echo "innodb_buffer_pool_size=${ENGINE_CACHE}" >> $CONFIG_FILE
+  fi
 }
 
 function set_mysql_sysbench_options() {

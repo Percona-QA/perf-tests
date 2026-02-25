@@ -1,6 +1,6 @@
-# Non-ACID compliant options but improve stability of results
+# Non-ACID compliant options but improve performance and stability of results
 sync_binlog=1024
 innodb_flush_log_at_trx_commit=0
-rocksdb_flush_log_at_trx_commit=0
+loose-rocksdb_flush_log_at_trx_commit=0
 #transaction-isolation=READ-COMMITTED     # REPEATABLE-READ
 #innodb_doublewrite=0

@@ -46,7 +46,7 @@ function print_postgres_variables() {
 # start_postgres <EXTRA_PARAMS> <EXTRA_CONFIG_PARAMS>
 function start_postgres() {
   PG_PARAMS="$PERF_EXTRA $MYEXTRA $1 -l $LOG_NAME_SERVERD"
-  PG_CONF_PARAMS="-c config_file=${CONFIG_FILE} -c shared_buffers=${ENGINE_CACHE}B $2"
+  PG_CONF_PARAMS="-c config_file=${CONFIG_FILE} $2"
   RBASE="$(( RBASE + 100 ))"
 #  if [[ "$SSL_CERTS_PATH" != "" ]]; then
 #    MYSQLD_OPTIONS+=" --ssl-ca=$SSL_CERTS_PATH/ca-cert.pem --ssl-cert=$SSL_CERTS_PATH/server-cert.pem --ssl-key=$SSL_CERTS_PATH/server-key.pem --require_secure_transport=ON"
@@ -155,6 +155,10 @@ function postgres_prepare_datadir() {
   fi
 
   copy_datadir "${TEMPLATE_DIR}" "${DATA_DIR}"
+}
+
+function postgres_append_engine_cache() {
+  echo "shared_buffers=${ENGINE_CACHE}B" >> $CONFIG_FILE
 }
 
 function set_postgres_sysbench_options() {
