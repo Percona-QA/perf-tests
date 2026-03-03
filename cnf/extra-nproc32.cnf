@@ -9,3 +9,6 @@ innodb_buffer_pool_instances = 8
 innodb_page_cleaners         = 8
 innodb_parallel_read_threads = 4
 innodb_read_io_threads       = 16
+
+#innodb_doublewrite_files = 8
+#innodb_doublewrite_pages = 32
