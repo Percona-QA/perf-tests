@@ -136,6 +136,7 @@ function report_thread(){
 
 # print_database_size
 function print_database_size() {
+  local DATA_DIR=$1
   local DATA_SIZE=`du -s $DATA_DIR | awk '{sum+=$1;} END {printf "%d\n", sum/1024;}'`
   local FILE_COUNT=`ls -aR $DATA_DIR | wc -l`
   echo "- Size of database is $DATA_SIZE MB in $FILE_COUNT files"
@@ -147,7 +148,7 @@ function snapshot_datadir() {
   echo "Copying data directory from ${DATA_DIR} to ${SNAPSHOT_DIR}"
   rm -rf ${SNAPSHOT_DIR}
   (time cp -r ${DATA_DIR} ${SNAPSHOT_DIR}) 2>&1
-  print_database_size
+  print_database_size ${DATA_DIR}
 }
 
 function copy_datadir() {
@@ -158,7 +159,7 @@ function copy_datadir() {
   echo "Copying data directory from ${FROM_DIR} to ${TO_DIR}"
   rm -rf ${TO_DIR}
   (time cp -r ${FROM_DIR} ${TO_DIR}) 2>&1
-  print_database_size
+  print_database_size ${TO_DIR}
 }
 
 function start_server() {

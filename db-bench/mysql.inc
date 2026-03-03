@@ -134,7 +134,7 @@ function shutdown_mysqld() {
 
   echo "Shutting mysqld down"
   (time ${MYSQLADMIN_BIN} -uroot --socket=$MYSQL_SOCKET shutdown) 2>&1
-  print_database_size
+  print_database_size ${DATA_DIR}
 
   if [ "$PROFILER" == "1" ]; then
     sudo perf script > out.perf

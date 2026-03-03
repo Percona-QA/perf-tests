@@ -98,7 +98,7 @@ function shutdown_postgres() {
       ((elapsed+=interval))
   done
 
-  print_database_size
+  print_database_size ${PG_DATA_DIR}
 }
 
 function postgres_prepare_datadir() {
