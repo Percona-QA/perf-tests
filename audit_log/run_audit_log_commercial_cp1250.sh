@@ -1,3 +1,6 @@
+#!/bin/bash
+set -o pipefail
+
 SCRIPT_DIR=/data/pstress/pstress/scripts
 AUDIT_DIR=$SCRIPT_DIR/audit_log
 DATA_DIR=/mnt/black/pstress-run/workdir-8044/audit_log_filter

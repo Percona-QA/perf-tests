@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o pipefail
 # usage:
 #   sudo -E nice --adjustment=-10 env SERVER_BRANCH=8.0 WRITES_TIME_SECONDS=30 THREADS_LIST="8" WORKLOAD_NAMES=POINT_SELECT ROOT_DIR=/mnt/optane/auto-perf-test /mnt/optane/auto-perf-test/perf-tests/build-and-bench.sh
 # or add with "crontab -e":
@@ -131,7 +132,6 @@ if [[ "${DBBENCH_SSL,,}" == "on" || "${DBBENCH_SSL}" == "1" ]]; then
     export SSL_CERTS_PATH=${DBBENCH_REPO_DIR}/cert
 fi
 
-set -o pipefail
 mkdir -p ${ROOT_DIR} > /dev/null 2>&1
 mkdir -p ${SERVER_BUILD_DIR} > /dev/null 2>&1
 install_deps_debian | tee $SERVER_BUILD_DIR/install-deps.log
