@@ -24,7 +24,7 @@
                 if (dayOfWeek in ['7', '3']) {
                     // Sunday, Wednesday
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'release-8.0.45-36'),
+                        string(name: 'SERVER_BRANCH', value: 'release-8.0.46-37'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/percona/percona-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
@@ -32,7 +32,7 @@
                 } else if (dayOfWeek in ['1', '4']) {
                     // Monday, Thursday
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'release-8.4.8-8'),
+                        string(name: 'SERVER_BRANCH', value: 'release-8.4.9-9'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/percona/percona-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
@@ -40,7 +40,7 @@
                 } else if (dayOfWeek in ['2']) {
                     // Tuesday
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'release-9.6.0-1'),
+                        string(name: 'SERVER_BRANCH', value: 'release-9.7.0-1'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/percona/percona-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
@@ -48,7 +48,7 @@
                 } else if (dayOfWeek == '5') {
                     // Friday - First build
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'release-9.6.0-1'),
+                        string(name: 'SERVER_BRANCH', value: 'release-9.7.0-1'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/percona/percona-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
@@ -56,7 +56,7 @@
 
                     // Friday - Second build
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'mysql-8.0.45'),
+                        string(name: 'SERVER_BRANCH', value: 'mysql-8.0.46'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/mysql/mysql-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
@@ -64,7 +64,7 @@
                 } else if (dayOfWeek == '6') {
                     // Saturday - First build
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'mysql-8.4.8'),
+                        string(name: 'SERVER_BRANCH', value: 'mysql-8.4.9'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/mysql/mysql-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
@@ -72,7 +72,7 @@
 
                     // Saturday - Second build
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'mysql-9.6.0'),
+                        string(name: 'SERVER_BRANCH', value: 'mysql-9.7.0'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/mysql/mysql-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')

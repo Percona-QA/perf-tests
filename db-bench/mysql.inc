@@ -132,6 +132,11 @@ function shutdown_mysqld() {
 
   ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "USE $DB_NAME; SELECT COUNT(*) FROM sbtest1" 2>&1
 
+  if [[ "$SHUTDOWN_SQL_COMMANDS" != "" ]]; then
+    echo "- Run $SHUTDOWN_SQL_COMMANDS sql file"
+    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "$SHUTDOWN_SQL_COMMANDS" 2>&1
+  fi
+
   echo "Shutting mysqld down"
   (time ${MYSQLADMIN_BIN} -uroot --socket=$MYSQL_SOCKET shutdown) 2>&1
   print_database_size ${DATA_DIR}
