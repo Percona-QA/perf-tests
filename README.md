@@ -142,6 +142,19 @@ A wrapper script that automates the full workflow: clone and build the database 
 |---|---|---|
 | `SELECTED_CC` | `gcc-13` | C compiler to use for building the server. |
 | `SELECTED_CXX` | `g++-13` | C++ compiler to use for building the server. |
+| `WITH_PGO` | `off` | Set to `on` or `1` to build MySQL/Percona Server with PGO (profile guided optimization). Ignored for `ENGINE=postgres`. |
+| `FPROFILE_DIR` | `$SERVER_BUILD_DIR/bin-profile-data` | Directory with the PGO profile data. Wiped before the instrumented build. |
+| `PGO_TRAIN_TARGET` | `run-profile-suite` | `make` target used to train the profile. |
+
+### PGO (profile guided optimization)
+
+With `WITH_PGO=on` the server is built in three passes:
+
+1. instrumented build (`-DFPROFILE_GENERATE=1`),
+2. training run (`make run-profile-suite`, i.e. mysql-test-run over the suites MySQL selected for profiling), which writes the profile to `$FPROFILE_DIR`,
+3. final build (`-DFPROFILE_USE=1`, which additionally enables LTO) in the very same build directory - gcc matches the profile data by the object file paths, so the path must not change between passes.
+
+`ccache` is not used for PGO builds, and the whole build takes roughly three times longer than a regular one. The extra logs are `cmake-pgo-generate.log`, `make-pgo-generate.log` and `pgo-train.log` in `$SERVER_BUILD_DIR`.
 
 ### Benchmark Overrides
 

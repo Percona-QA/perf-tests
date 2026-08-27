@@ -113,6 +113,12 @@
         - "off"
         - "on"
     - choice:
+        name: WITH_PGO
+        description: "Build MySQL/Percona Server with PGO (profile guided optimization).<BR>It is a 3-pass build: instrumented build, training with <b>make run-profile-suite</b> (mysql-test-run), then the final build with <b>-DFPROFILE_USE=1</b> (which also enables LTO).<BR>ccache is disabled and the build takes about 3x longer."
+        choices:
+        - "off"
+        - "on"
+    - choice:
         name: ROOT_DIR
         description: "Path to directory where benchmarks are run (depends on the specific machine)"
         choices: "{root_dir}"
@@ -166,6 +172,7 @@
             echo DATA_DIR=$DATA_DIR
             echo ROOT_DIR=$ROOT_DIR
             echo DBBENCH_SSL=$DBBENCH_SSL
+            echo WITH_PGO=$WITH_PGO
 
             #export DB_USER=$USER
             export TEMPLATE_PATH={template_path}

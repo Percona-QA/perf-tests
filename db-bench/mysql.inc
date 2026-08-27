@@ -5,13 +5,15 @@
 # mysql.inc - mysql related functions
 #**********************************************************************************************
 
+# PGO_MODE is empty for a regular build, "generate" for the instrumented build (pass 1)
+# and "use" for the final build consuming the collected profile (pass 3).
 function mysql_call_cmake() {
     if [ $# -lt 2 ]; then echo "Usage: call_cmake <REPO_DIR> <BUILD_DIR>"; return 1; fi
     local REPO_DIR=$1
     local BUILD_DIR=$2
     local BUILD_TYPE="RelWithDebInfo"
     local BOOST_DIR="../../_deps"
-    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE"
+    echo "SELECTED_CC=$SELECTED_CC (`which $SELECTED_CC`) SELECTED_CXX=$SELECTED_CXX (`which $SELECTED_CXX`) BUILD_TYPE=$BUILD_TYPE PGO_MODE=$PGO_MODE"
 
     local PACKAGES_LIBS="libtirpc-dev libgflags-dev libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev libedit-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
     local PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
@@ -19,16 +21,32 @@ function mysql_call_cmake() {
         sudo apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_LIBS $PACKAGES_PROTOBUF
     fi
 
+    # the profile data has to survive the removal of $BUILD_DIR done between PGO passes
+    export FPROFILE_DIR=${FPROFILE_DIR:-${BUILD_DIR}-profile-data}
+
     rm -rf $BUILD_DIR
     mkdir -p $BUILD_DIR
     pushd $BUILD_DIR
     OPTIONS_DEBUG="-DCMAKE_C_FLAGS_DEBUG=-g1 -DCMAKE_CXX_FLAGS_DEBUG=-g1"
     OPTIONS_BUILD="-DMYSQL_MAINTAINER_MODE=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_CONFIG=mysql_release -DWITH_PACKAGE_FLAGS=OFF -DDOWNLOAD_BOOST=1 -DWITH_BOOST=$BOOST_DIR"
-    OPTIONS_COMPILER="-DCMAKE_C_COMPILER=$SELECTED_CC -DCMAKE_CXX_COMPILER=$SELECTED_CXX -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+    OPTIONS_COMPILER="-DCMAKE_C_COMPILER=$SELECTED_CC -DCMAKE_CXX_COMPILER=$SELECTED_CXX"
     OPTIONS_COMPONENTS="-DWITH_ROCKSDB=ON -DWITH_COREDUMPER=ON -DWITH_COMPONENT_KEYRING_VAULT=ON -DWITH_PAM=ON -DWITH_NUMA=ON"
     OPTIONS_LIBS="-DWITH_MECAB=system -DWITH_SYSTEM_LIBS=ON -DWITH_EDITLINE=system -DWITH_ZLIB=bundled -DWITH_LZ4=bundled"
     OPTIONS_OPTIMIZED="-DWITH_ROUTER=OFF -DWITH_UNIT_TESTS=OFF"
-    SELECTED_OPTIONS="$OPTIONS_DEBUG $OPTIONS_BUILD $OPTIONS_COMPILER $OPTIONS_COMPONENTS $OPTIONS_LIBS $OPTIONS_OPTIMIZED"
+    OPTIONS_PGO=""
+    if [[ "$PGO_MODE" == "" ]]; then
+        OPTIONS_COMPILER+=" -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+    else
+        # ccache is skipped for PGO builds: it does not handle -fprofile-generate/-fprofile-use
+        # reliably and both PGO passes produce different objects anyway
+        OPTIONS_PGO="-DFPROFILE_DIR=$FPROFILE_DIR"
+        if [[ "$PGO_MODE" == "generate" ]]; then
+            OPTIONS_PGO+=" -DFPROFILE_GENERATE=1"
+        else
+            OPTIONS_PGO+=" -DFPROFILE_USE=1"   # it also turns on WITH_LTO
+        fi
+    fi
+    SELECTED_OPTIONS="$OPTIONS_DEBUG $OPTIONS_BUILD $OPTIONS_COMPILER $OPTIONS_COMPONENTS $OPTIONS_LIBS $OPTIONS_OPTIMIZED $OPTIONS_PGO"
     echo "SELECTED_OPTIONS=$SELECTED_OPTIONS"
     cmake $REPO_DIR $SELECTED_OPTIONS
     cmake -L .
@@ -50,6 +68,25 @@ function build_mysql() {
     popd
 }
 
+# PGO pass 2: run the training workload with the instrumented binaries.
+# The profile data is written to $FPROFILE_DIR, outside of <BUILD_DIR>.
+function mysql_train_pgo() {
+    if [ $# -lt 1 ]; then echo "Usage: mysql_train_pgo <BUILD_DIR>"; return 1; fi
+    local BUILD_DIR=$1
+    local PGO_TRAIN_TARGET=${PGO_TRAIN_TARGET:-run-profile-suite}
+
+    echo "Training PGO with 'make $PGO_TRAIN_TARGET' (FPROFILE_DIR=$FPROFILE_DIR)"
+    pushd $BUILD_DIR
+    make $PGO_TRAIN_TARGET
+    if [[ $? != 0 ]]; then echo "make $PGO_TRAIN_TARGET failed"; fi
+    popd
+
+    local GCDA_COUNT=$(find $FPROFILE_DIR -name '*.gcda' 2>/dev/null | wc -l)
+    echo "Collected $GCDA_COUNT *.gcda profile files in $FPROFILE_DIR"
+    if [[ $GCDA_COUNT -eq 0 ]]; then echo "no profile data collected"; exit -1; fi
+    du -sh $FPROFILE_DIR
+}
+
 function get_mysql_build_info() {
   SERVER_VERSION_LONG=`${MYSQLD_BIN} --version`
   SERVER_VERSION=`echo ${SERVER_VERSION_LONG} | awk '{ print $3}'`
@@ -61,7 +98,7 @@ function get_mysql_build_info() {
 
 function print_mysql_variables() {
   local ENDLINE=$1
-  variables=("MYEXTRA")
+  variables=("MYEXTRA" "WITH_PGO")
   for variable in "${variables[@]}"; do echo "$variable=${!variable}${ENDLINE}"; done
 }
 

@@ -107,6 +107,8 @@ function run_perf_tests() {
 SELECTED_CC=${SELECTED_CC:-gcc-13}
 SELECTED_CXX=${SELECTED_CXX:-g++-13}
 ROOT_DIR=${ROOT_DIR:-/mnt/fast/build-and-bench}
+# profile guided optimization (MySQL/Percona Server only): "on"/"1" enables a 3-pass build
+export WITH_PGO=${WITH_PGO:-off}
 
 if [[ ${ENGINE} == "postgres" ]]; then
     SERVER_REPO_DIR=${SERVER_REPO_DIR:-$ROOT_DIR/postgres}
@@ -148,6 +150,20 @@ if [[ ${ENGINE} == "postgres" ]]; then
     build_postgres $SERVER_REPO_DIR $SERVER_BUILD_DIR | tee $SERVER_BUILD_DIR/make.log
 else
     source ${DBBENCH_REPO_DIR}/db-bench/mysql.inc
+    if [[ "${WITH_PGO,,}" == "on" || "${WITH_PGO}" == "1" ]]; then
+        # PGO pass 1: instrumented build
+        export PGO_MODE=generate
+        # gcc default of FPROFILE_DIR is "${SERVER_BIN_DIR}-profile-data"
+        export FPROFILE_DIR=${FPROFILE_DIR:-${SERVER_BIN_DIR}-profile-data}
+        rm -rf ${FPROFILE_DIR}
+        mysql_call_cmake $SERVER_REPO_DIR $SERVER_BIN_DIR | tee $SERVER_BUILD_DIR/cmake-pgo-generate.log
+        build_mysql $SERVER_BIN_DIR | tee $SERVER_BUILD_DIR/make-pgo-generate.log
+        # PGO pass 2: train
+        mysql_train_pgo $SERVER_BIN_DIR | tee $SERVER_BUILD_DIR/pgo-train.log
+        # PGO pass 3: rebuild consuming the profile; mysql_call_cmake recreates
+        # the very same $SERVER_BIN_DIR path, which gcc requires to find the profile
+        export PGO_MODE=use
+    fi
     mysql_call_cmake $SERVER_REPO_DIR $SERVER_BIN_DIR | tee $SERVER_BUILD_DIR/cmake.log
     build_mysql $SERVER_BIN_DIR | tee $SERVER_BUILD_DIR/make.log
 fi
