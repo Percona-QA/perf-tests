@@ -24,7 +24,7 @@
                 if (dayOfWeek in ['7', '3']) {
                     // Sunday, Wednesday
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'release-8.4.10-10'),
+                        string(name: 'SERVER_BRANCH', value: 'release-8.4.11-11'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/percona/percona-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
@@ -32,7 +32,7 @@
                 } else if (dayOfWeek in ['1', '4']) {
                     // Monday, Thursday
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'release-9.7.1-1'),
+                        string(name: 'SERVER_BRANCH', value: 'release-9.7.2-2'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/percona/percona-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
@@ -56,7 +56,7 @@
 
                     // Friday - Second build
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'mysql-8.4.10'),
+                        string(name: 'SERVER_BRANCH', value: 'mysql-8.4.11'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/mysql/mysql-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')
@@ -64,7 +64,7 @@
                 } else if (dayOfWeek == '6') {
                     // Saturday - First build
                     build job: 'perf-bench-InnoDB-smblade04', parameters: [
-                        string(name: 'SERVER_BRANCH', value: 'mysql-9.7.1'),
+                        string(name: 'SERVER_BRANCH', value: 'mysql-9.7.2'),
                         string(name: 'SERVER_REPO_URL', value: 'https://github.com/mysql/mysql-server'),
                         string(name: 'WORKLOAD_NAMES', value: 'reads,writes'),
                         string(name: 'RUN_NAME', value: 'nightly')

@@ -26,12 +26,12 @@
         trim: false
     - string:
         name: SERVER_BRANCH
-        description: "mysql-8.0.42 mysql-8.0.43 mysql-8.0.44 mysql-8.0.45<BR>release-8.0.42-33 release-8.0.43-34 release-8.0.44-35 release-8.0.45-36<BR>mysql-8.4.4 mysql-8.4.5 mysql-8.4.6 mysql-8.4.7<BR>release-8.4.5-5 release-8.4.6-6 release-8.4.7-7 release-8.4.8-8<BR>mysql-9.3.0 mysql-9.4.0 mysql-9.5.0 mysql-9.6.0<BR>release-9.3.0-1 release-9.4.0-1 release-9.5.0-1 release-9.6.0-1<BR>"
-        default: "release-8.4.8-8"
+        description: "mysql-8.4.11<BR>release-8.4.11-11<BR>mysql-9.7.2<BR>release-9.7.2-2<BR>mysql-26.7.0<BR>release-26.7.0-1<BR>"
+        default: "release-8.4.11-11"
         trim: false
     - string:
         name: WORKLOAD_NAMES
-        description: "Workload names separated by comma from <a href=\"https://github.com/Percona-QA/perf-tests/blob/3.1/db_bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.1/db_bench/workloads.inc</a><BR><b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES<BR><b>writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS, WR_DELETE,WR_INSERT,WR_REPLACE"
+        description: "Workload names separated by comma from <a href=\"https://github.com/Percona-QA/perf-tests/blob/3.1/db-bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.1/db-bench/workloads.inc</a><BR><b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES<BR><b>writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS, WR_DELETE,WR_INSERT,WR_REPLACE"
         default: "reads,writes"
         #default: "heavy_trx"
         trim: false
@@ -42,7 +42,7 @@
         trim: false
     - string:
         name: EXTRA_CONFIG_FILES
-        description: "Space-separated list of extra config files (relative to db-bench repo). Concatenated and passed as <b>--defaults-extra-file</b>.<BR>Available files: <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf\">cnf/extra-*.cnf</a><BR><b>extra-no-ACID.cnf</b> - disables ACID (sync_binlog=1024, innodb_flush_log_at_trx_commit=0) for more stable results and better performance<BR><b>extra-nproc{{16,32,64,128}}.cnf</b> - fixes InnoDB thread settings (buffer_pool_instances, page_cleaners, read_io_threads, parallel_read_threads) for a given CPU count; use on MySQL/PS 8.4+ where these auto-scale with nproc"
+        description: "Space-separated list of extra config files (relative to db-bench repo). Concatenated and passed as <b>--defaults-file</b>.<BR>Available files: <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf\">cnf/extra-*.cnf</a><BR><b>extra-no-ACID.cnf</b> - disables ACID (sync_binlog=1024, innodb_flush_log_at_trx_commit=0) for more stable results and better performance<BR><b>extra-nproc{{16,32,64,128}}.cnf</b> - fixes InnoDB thread settings (buffer_pool_instances, page_cleaners, read_io_threads, parallel_read_threads) for a given CPU count; use on MySQL/PS 8.4+ where these auto-scale with nproc"
         default: "cnf/extra-no-ACID.cnf cnf/extra-nproc16.cnf"
         trim: false
     - string:
