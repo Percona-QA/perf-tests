@@ -31,7 +31,7 @@
         trim: false
     - string:
         name: WORKLOAD_NAMES
-        description: "Workload names separated by comma from <a href=\"https://github.com/Percona-QA/perf-tests/blob/3.1/db-bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.1/db-bench/workloads.inc</a><BR><b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES<BR><b>writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS, WR_DELETE,WR_INSERT,WR_REPLACE"
+        description: "Workload names separated by comma from <a href=\"https://github.com/Percona-QA/perf-tests/blob/3.1/db-bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.1/db-bench/workloads.inc</a><BR><b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES<BR><b>writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS, WR_DELETE,WR_INSERT,WR_REPLACE<BR><b> prod_trx</b> = READ_ONLY_TRX,READ_WRITE_TRX,WRITE_ONLY_TRX"
         default: "reads,writes"
         #default: "heavy_trx"
         trim: false
