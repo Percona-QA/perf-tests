@@ -178,26 +178,8 @@ function shutdown_server() {
   fi
 }
 
-function sysbench_warmup() {
-  # *** REMEMBER *** warmmup is READ ONLY!
-  # warmup the cache, 64 threads for $WORKLOAD_WARMUP_TIME seconds,
-  num_threads=64
-  echo "Warming up for $WORKLOAD_WARMUP_TIME seconds"
-  LOG_NAME_SERVERD=${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.${SERVER_TYPE}d
-  start_server
-  pushd $SYSBENCH_LUA
-  $SYSBENCH_BIN $SYSBENCH_READ --threads=$num_threads --time=$WORKLOAD_WARMUP_TIME $SYSBENCH_OPTIONS run 2>&1
-  popd
-  shutdown_server
-  sleep $[WORKLOAD_WARMUP_TIME/10]
-}
-
 function run_sysbench() {
   echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
-
-  if [[ ${WORKLOAD_WARMUP_TIME} > 0 ]]; then
-    sysbench_warmup | tee ${LOGS_CONFIG}/sysbench_warmup_${WORKLOAD_NAME}.log
-  fi
 
   if [[ ${SYSBENCH_RUN_TIME} > 0 ]]; then
   for num_threads in ${THREADS_LIST}; do

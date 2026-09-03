@@ -48,7 +48,6 @@ A sysbench-based database benchmarking script. All options are configured throug
 | `SYSBENCH_BIN` | `sysbench` | Path or name of the sysbench binary. |
 | `SYSBENCH_LUA` | `/usr/local/share/sysbench` | Directory containing sysbench Lua scripts. |
 | `SYSBENCH_WRITE` | `oltp_write_only.lua` | Lua script used for write workloads during database preparation. |
-| `SYSBENCH_READ` | `oltp_read_only.lua` | Lua script used for read workloads during warmup (when `WORKLOAD_WARMUP_TIME > 0`). |
 | `SYSBENCH_EXTRA` | *(unset)* | Extra options appended to every sysbench invocation. |
 | `SYSBENCH_HOST` | *(unset)* | Hostname for remote sysbench connections. When set, connects via TCP instead of a local socket. |
 | `REBUILD_TEMPLATE` | *(unset)* | Set to `ON` to force rebuilding the template data directory even if one already exists. |
@@ -58,8 +57,7 @@ A sysbench-based database benchmarking script. All options are configured throug
 | Variable | Default | Description |
 |---|---|---|
 | `PS_START_TIMEOUT` | `300` | Maximum time in seconds to wait for the database server to start. |
-| `WORKLOAD_WARMUP_TIME` | `0` | Warmup time in seconds before each sysbench workload measurement begins. |
-| `WARMUP_TIME_SECONDS` | `0` | Additional warmup period in seconds (e.g. for cache warming). |
+| `WARMUP_TIME_SECONDS` | `0` | Warmup period in seconds, passed to sysbench as `--warmup-time`. Excluded from the reported statistics. |
 | `RUN_TIME_SECONDS` | `600` | Overall run time in seconds. Used as the default for `WRITES_TIME_SECONDS`. |
 | `WRITES_TIME_SECONDS` | `$RUN_TIME_SECONDS` (600) | Duration in seconds for write workloads. |
 | `READS_TIME_SECONDS` | `$WRITES_TIME_SECONDS / 2` (300) | Duration in seconds for read workloads. Defaults to half of the write duration. |
