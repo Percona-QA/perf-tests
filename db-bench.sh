@@ -16,6 +16,9 @@ SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 export RPORT=$(( RANDOM%21 + 10 ))
 export RBASE="$(( RPORT*1000 ))"
 export BENCHMARK_LOGGING=${BENCHMARK_LOGGING:-Y}
+# Y = restart the server before every concurrency level (every entry of THREADS_LIST),
+# N = start it once per workload and keep it running across all concurrency levels
+export RESTART_SERVER=${RESTART_SERVER:-Y}
 export SMART_DEVICE=${SMART_DEVICE:-/dev/nvme0n1}
 export WORKLOAD_NAMES=${WORKLOAD_NAMES:-reads,writes}
 

@@ -100,6 +100,12 @@
         default: "1"
         trim: false
     - choice:
+        name: RESTART_SERVER
+        description: "<b>Y</b> - restart the server before every concurrency level of THREADS_LIST, so every measurement starts with a cold cache and a fully flushed engine<BR><b>N</b> - start one server per workload and keep it running across all concurrency levels; measures steady state, but every run inherits the state left by the previous one"
+        choices:
+        - "Y"
+        - "N"
+    - choice:
         name: REBUILD_TEMPLATE
         choices:
         - "OFF"
@@ -155,6 +161,7 @@
             echo SCALING_GOVERNOR=$SCALING_GOVERNOR
             echo REPEAT_NUM=$REPEAT_NUM
             echo REBUILD_TEMPLATE=$REBUILD_TEMPLATE
+            echo RESTART_SERVER=$RESTART_SERVER
             echo RUN_NAME=$RUN_NAME
             echo DATA_DIR=$DATA_DIR
             echo DBBENCH_SSL=$DBBENCH_SSL

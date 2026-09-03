@@ -151,17 +151,29 @@ function start_mysqld() {
   fi
 }
 
+function mysql_reset_binlog() {
+  if [[ "$SERVER_VERSION" < "81" ]]; then
+    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET MASTER" 2>&1
+  else
+    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET BINARY LOGS AND GTIDS" 2>&1
+  fi
+}
+
+# called instead of a restart when RESTART_SERVER=N
+function mysql_between_runs() {
+  # purge the binary logs written by the finished run, otherwise they keep
+  # growing on the benchmarked device across all concurrency levels
+  mysql_reset_binlog
+  print_database_size ${DATA_DIR}
+}
+
 # shutdown_mysqld
 function shutdown_mysqld() {
   if [ "$PROFILER" == "1" ]; then
     sudo pkill -SIGINT -f "perf record"
   fi
 
-  if [[ "$SERVER_VERSION" < "81" ]]; then
-    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET MASTER" 2>&1
-  else
-    ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET BINARY LOGS AND GTIDS" 2>&1
-  fi
+  mysql_reset_binlog
 
   if [ "$ENGINE" == "rocksdb" ]; then
     ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "set global rocksdb_force_flush_memtable_and_lzero_now=0" 2>&1

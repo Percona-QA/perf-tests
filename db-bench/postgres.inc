@@ -178,6 +178,13 @@ function postgres_before_shutdown() {
     ${PSQL_BIN} -U $DB_USER -d $DB_NAME -c "SELECT * FROM pg_stat_activity;" >> ${LOG_NAME_SERVER} 2>&1
 }
 
+# called instead of a restart when RESTART_SERVER=N
+function postgres_between_runs() {
+  # start a fresh WAL segment so the finished run does not leave WAL behind
+  ${PSQL_BIN} -U $DB_USER -d postgres -c "SELECT pg_switch_wal();" 2>&1
+  print_database_size ${DATA_DIR}
+}
+
 function check_postgres_binaries() {
   export PSQL_BIN=$BUILD_PATH/psql
   if [ ! -x ${PSQL_BIN} ]; then usage "ERROR: Executable ${PSQL_BIN} not found."; fi

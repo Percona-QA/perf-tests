@@ -178,10 +178,28 @@ function shutdown_server() {
   fi
 }
 
+# true when the server has to be restarted before every concurrency level
+function restart_per_run() {
+  case ${RESTART_SERVER^^} in
+    N|NO|OFF|0|FALSE) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
 function run_sysbench() {
   echo "Using ${WORKLOAD_NAME}=${WORKLOAD_PARAMETERS}"
 
   if [[ ${SYSBENCH_RUN_TIME} > 0 ]]; then
+
+  # with RESTART_SERVER=N a single server instance serves all concurrency levels
+  # of this workload, so it is started here and shut down after the last one
+  if ! restart_per_run; then
+    LOG_NAME=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}-all_threads.txt
+    LOG_NAME_SERVERD=${LOG_NAME}.${SERVER_TYPE}d
+    echo "*** RESTART_SERVER=${RESTART_SERVER}: not restarting between concurrency levels ***"
+    start_server
+  fi
+
   for num_threads in ${THREADS_LIST}; do
     echo "Testing $WORKLOAD_NAME with $num_threads threads for $SYSBENCH_RUN_TIME seconds"
     LOG_NAME_RESULTS=${LOGS_CONFIG}/${BENCH_ID}_${WORKLOAD_NAME}_results_qps.csv
@@ -198,7 +216,7 @@ function run_sysbench() {
     LOG_NAME_SMART=${LOG_NAME}.smart
     LOG_NAME_PS=${LOG_NAME}.ps
     LOG_NAME_ZONEINFO=${LOG_NAME}.zoneinfo
-    start_server
+    if restart_per_run; then start_server; fi
 
     if [[ ${BENCHMARK_LOGGING} == "Y" ]]; then
         # verbose logging
@@ -224,10 +242,20 @@ function run_sysbench() {
     kill -9 ${REPORT_THREAD_PID}
     result_set+=(`grep  "queries:" $LOG_NAME | cut -d'(' -f2 | awk '{print $1}'`)
     ${SERVER_TYPE}_before_shutdown
+    if restart_per_run; then
+      shutdown_server | tee -a $LOG_NAME
+      kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
+    else
+      ${SERVER_TYPE}_between_runs | tee -a $LOG_NAME
+    fi
+    sync
+  done
+
+  if ! restart_per_run; then
     shutdown_server | tee -a $LOG_NAME
     kill -9 $(pgrep -f ${DATA_DIR}) 2>/dev/null
     sync
-  done
+  fi
 
   local LOG_RESULTS_PATH="${CACHE_DIR}/${BENCH_ID}_${CONFIG_LABELS^^}_$(basename "${WORKLOAD_NAMES}" .txt)_${RUN_NAME}"
   local LOG_RESULTS_CACHE="${LOG_RESULTS_PATH}/${WORKLOAD_NAME}_${SCALING_GOVERNOR}_${THREADS_LIST// /_}.csv"
