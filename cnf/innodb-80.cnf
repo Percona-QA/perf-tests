@@ -17,6 +17,9 @@ table_open_cache_instances=64
 innodb_open_files=4K
 innodb_redo_log_capacity=16G
 innodb_fast_shutdown=0
+# do not reload the buffer pool from ib_buffer_pool of the copied datadir
+innodb_buffer_pool_dump_at_shutdown=OFF
+innodb_buffer_pool_load_at_startup=OFF
 
 # Defaults from MySQL 8.0
 innodb_page_cleaners=4
