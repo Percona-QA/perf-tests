@@ -69,6 +69,11 @@
         default: "300"
         trim: false
     - string:
+        name: WARMUP_TIME_SECONDS
+        description: "Passed to sysbench as <b>--warmup-time</b>: the first N seconds of every run are executed but excluded from the reported statistics.<BR>Use it to keep the cold cache ramp out of the results; <b>30</b>-<b>60</b> is usually enough."
+        default: "0"
+        trim: false
+    - string:
         name: NUM_TABLES
         default: "16"
         trim: false
@@ -177,6 +182,7 @@
             echo RESULTS_EMAIL=$RESULTS_EMAIL
             echo THREADS_LIST=$THREADS_LIST
             echo WRITES_TIME_SECONDS=$WRITES_TIME_SECONDS
+            echo WARMUP_TIME_SECONDS=$WARMUP_TIME_SECONDS
             echo NUM_TABLES=$NUM_TABLES
             echo DATASIZE=$DATASIZE
             echo ENGINE_CACHE=$ENGINE_CACHE
