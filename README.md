@@ -27,6 +27,9 @@ A sysbench-based database benchmarking script. All options are configured throug
 | `BENCHMARK_LOGGING` | `Y` | Enable or disable verbose benchmark logging including CPU, memory, iostat, dstat (`Y`/`N`). |
 | `RESTART_SERVER` | `Y` | `Y` restarts the server before every concurrency level of `THREADS_LIST`, so each measurement starts with a cold cache and a fully flushed engine. `N` starts one server per workload and keeps it running across all concurrency levels, which measures steady state instead and makes each run inherit the state of the previous one. |
 | `SMART_DEVICE` | `/dev/nvme0n1` | Block device used for S.M.A.R.T. disk statistics collection. |
+| `TRIM_AFTER_BENCH` | `Y` | Run `fstrim` after the data directory is removed, so the SSD learns those blocks are free. Without it its spare area shrinks and the write latency of the next benchmark depends on how much the previous one wrote. |
+| `FSTRIM_PATHS` | *(unset)* | Space-separated paths to trim; each trims the whole filesystem holding it. Defaults to the filesystem holding `DATA_DIR`. |
+| `IDLE_AFTER_BENCH` | `0` | Seconds to idle at the very end of the run (after the results are published), giving the storage time to finish its internal housekeeping. Use `1200` or more when benchmarks run back to back on the same machine. |
 | `WORKLOAD_NAMES` | `reads,writes` | Comma-separated list of workload names or aliases to run. See [`db-bench/workloads.inc`](db-bench/workloads.inc) for all available workloads and aliases (e.g. `reads`, `writes`, `pg_writes`, `mixed`, `mixed_trx`, `heavy_trx`, `prod_trx`). |
 | `SCALING_GOVERNOR` | *(unset)* | CPU scaling governor to set during the benchmark (e.g. `performance`). When set, also disables address randomization and turbo boost. |
 | `DISABLE_IDLE_STATES` | *(unset)* | Set to `yes` to disable CPU idle states during the benchmark (requires `SCALING_GOVERNOR`). |

@@ -20,6 +20,12 @@ export BENCHMARK_LOGGING=${BENCHMARK_LOGGING:-Y}
 # N = start it once per workload and keep it running across all concurrency levels
 export RESTART_SERVER=${RESTART_SERVER:-Y}
 export SMART_DEVICE=${SMART_DEVICE:-/dev/nvme0n1}
+# discard the blocks of the removed data directory when the benchmark is done
+export TRIM_AFTER_BENCH=${TRIM_AFTER_BENCH:-Y}
+# filesystems to trim; by default the one holding the data directory
+export FSTRIM_PATHS=${FSTRIM_PATHS:-""}
+# seconds to idle at the very end, to let the storage recover before the next run
+export IDLE_AFTER_BENCH=${IDLE_AFTER_BENCH:-0}
 export WORKLOAD_NAMES=${WORKLOAD_NAMES:-reads,writes}
 
 # sysbench variables

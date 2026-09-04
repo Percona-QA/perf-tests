@@ -103,6 +103,17 @@
         default: "1"
         trim: false
     - choice:
+        name: TRIM_AFTER_BENCH
+        description: "Run <b>fstrim</b> after the data directory is removed, so the SSD learns those blocks are free. Without it its spare area shrinks and the write latency of the next benchmark depends on how much the previous one wrote."
+        choices:
+        - "Y"
+        - "N"
+    - string:
+        name: IDLE_AFTER_BENCH
+        description: "Seconds to idle at the very end of the run, after the results are published, to let the storage finish its internal housekeeping.<BR>Use <b>1200</b> or more when benchmarks run back to back on the same machine: a degraded SSD state survives a short gap and shifts the whole next run by up to 10%."
+        default: "0"
+        trim: false
+    - choice:
         name: RESTART_SERVER
         description: "<b>Y</b> - restart the server before every concurrency level of THREADS_LIST, so every measurement starts with a cold cache and a fully flushed engine<BR><b>N</b> - start one server per workload and keep it running across all concurrency levels; measures steady state, but every run inherits the state left by the previous one"
         choices:
@@ -175,6 +186,8 @@
             echo REPEAT_NUM=$REPEAT_NUM
             echo REBUILD_TEMPLATE=$REBUILD_TEMPLATE
             echo RESTART_SERVER=$RESTART_SERVER
+            echo TRIM_AFTER_BENCH=$TRIM_AFTER_BENCH
+            echo IDLE_AFTER_BENCH=$IDLE_AFTER_BENCH
             echo RUN_NAME=$RUN_NAME
             echo DATA_DIR=$DATA_DIR
             echo ROOT_DIR=$ROOT_DIR

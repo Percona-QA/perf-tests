@@ -29,6 +29,9 @@ function on_exit(){
 
   echo "Remove DATA_DIR=$DATA_DIR"
   rm -rf ${DATA_DIR}
+  # discard the freed blocks early, so the storage can recover while the
+  # results below are being processed
+  trim_filesystems
 
   local LOG_SYS_INFO=$LOGS/sys_info_end.txt
   print_system_info >> ${LOG_SYS_INFO}
@@ -108,6 +111,10 @@ function on_exit(){
     echo "- Sending e-mail to ${RESULTS_EMAIL} with ${tarFileName}"
     cat ${ALL_LOGS_BASE}.html | mutt -s "${SUBJECT}" -e "set content_type=text/html" -a ${tarFileName} -- ${RESULTS_EMAIL}
   fi
+
+  # last thing to do: the results are already published, only the next
+  # benchmark on this machine waits for it
+  idle_after_bench
 }
 
 function report_thread(){

@@ -118,6 +118,31 @@ function print_system_info() {
   cat /proc/cpuinfo
 }
 
+# Discard the blocks freed by the removal of the data directory. Without it the
+# SSD keeps them as live data, its spare area shrinks and the write latency of
+# the next benchmark depends on how much the previous one wrote.
+function trim_filesystems(){
+  if [[ ${TRIM_AFTER_BENCH^^} != "Y" ]]; then return; fi
+
+  local paths=${FSTRIM_PATHS:-$(dirname ${DATA_DIR})}
+  sync
+  for path in $paths; do
+    if [ ! -d "$path" ]; then echo "- fstrim: $path does not exist, skipped"; continue; fi
+    echo "- Trimming the filesystem holding $path"
+    (time sudo fstrim -v "$path") 2>&1 || echo "- fstrim failed or is not supported on $path"
+  done
+}
+
+# Give the storage time to finish its internal housekeeping, so that the next
+# benchmark on this machine does not start in a degraded state.
+function idle_after_bench(){
+  local seconds=${IDLE_AFTER_BENCH:-0}
+  if [[ ${seconds} -le 0 ]]; then return; fi
+
+  echo "- Idling for ${seconds} seconds before finishing"
+  sleep ${seconds}
+}
+
 function drop_caches(){
   echo "Dropping caches"
   sync
