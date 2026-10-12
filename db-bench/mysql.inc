@@ -152,6 +152,12 @@ function start_mysqld() {
 }
 
 function mysql_reset_binlog() {
+  local LOG_BIN=$(${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -N -B -e "SELECT @@log_bin" 2>/dev/null)
+  if [[ "$LOG_BIN" != "1" ]]; then
+    echo "- Binary log is not enabled (log_bin=${LOG_BIN}), skipping its reset"
+    return
+  fi
+
   if [[ "$SERVER_VERSION" < "81" ]]; then
     ${MYSQLCLIENT_BIN} -uroot -S$MYSQL_SOCKET -e "SHOW BINARY LOGS; RESET MASTER" 2>&1
   else
