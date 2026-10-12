@@ -65,12 +65,20 @@ function restore_scaling_governor(){
 }
 
 function disable_idle_states(){
+  # remember the per-CPU state of every idle state as "path:value" lines, so that
+  # restore_idle_states() brings back exactly what was set before the benchmark
+  PREVIOUS_IDLE_STATES=`grep -H . /sys/devices/system/cpu/cpu*/cpuidle/state*/disable 2>/dev/null`
   sudo cpupower idle-set --disable-by-latency 0
   sudo cpupower idle-info
 }
 
-function enable_idle_states(){
-  sudo cpupower idle-set --enable-all
+function restore_idle_states(){
+  if [[ -z ${PREVIOUS_IDLE_STATES} ]]; then
+    echo "No saved idle states (cpuidle not available?), nothing to restore"
+    return
+  fi
+  echo "${PREVIOUS_IDLE_STATES}" | sudo sh -c 'while IFS=: read -r file value; do echo "$value" > "$file"; done'
+  echo "Restored $(echo "${PREVIOUS_IDLE_STATES}" | wc -l) per-CPU idle state settings"
   sudo cpupower idle-info
 }
 

@@ -32,7 +32,7 @@ A sysbench-based database benchmarking script. All options are configured throug
 | `IDLE_AFTER_BENCH` | `0` | Seconds to idle at the very end of the run (after the results are published), giving the storage time to finish its internal housekeeping. Use `1200` or more when benchmarks run back to back on the same machine. |
 | `WORKLOAD_NAMES` | `reads,writes` | Comma-separated list of workload names or aliases to run. See [`db-bench/workloads.inc`](db-bench/workloads.inc) for all available workloads and aliases (e.g. `reads`, `writes`, `pg_writes`, `mixed`, `mixed_trx`, `heavy_trx`, `prod_trx`). |
 | `SCALING_GOVERNOR` | *(unset)* | CPU scaling governor to set during the benchmark (e.g. `performance`). When set, also disables address randomization and turbo boost. |
-| `DISABLE_IDLE_STATES` | *(unset)* | Set to `yes` to disable CPU idle states during the benchmark (requires `SCALING_GOVERNOR`). |
+| `DISABLE_IDLE_STATES` | *(unset)* | Set to `yes` to disable CPU idle states during the benchmark (requires `SCALING_GOVERNOR`). The per-CPU state of every idle state is saved before and restored after the benchmark. |
 | `BACKUP_DIR` | *(unset)* | Directory to copy result archives and CSV files to after the benchmark completes. |
 | `RESULTS_EMAIL` | *(unset)* | Email address to send benchmark results to (requires `mutt`). |
 | `SLACK_WEBHOOK_URL` | *(unset)* | Slack webhook URL for posting benchmark results. |

@@ -43,9 +43,9 @@ function on_exit(){
     restore_turbo_boost >> ${LOG_SYS_INFO}
     echo "Restoring scaling governor"
     restore_scaling_governor >> ${LOG_SYS_INFO}
-    echo "Enabling idle states"
     if [[ ${DISABLE_IDLE_STATES} == "yes" ]]; then
-      enable_idle_states >> ${LOG_SYS_INFO}
+      echo "Restoring idle states"
+      restore_idle_states >> ${LOG_SYS_INFO}
     fi
   fi
 
