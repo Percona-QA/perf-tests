@@ -39,6 +39,9 @@ SYSBENCH_REPORT_INTERVAL=${SYSBENCH_REPORT_INTERVAL:-10}
 SYSBENCH_BIN=${SYSBENCH_BIN:-sysbench}
 SYSBENCH_LUA=${SYSBENCH_LUA:-/usr/local/share/sysbench}
 SYSBENCH_WRITE=${SYSBENCH_WRITE:-oltp_write_only.lua}
+# Y = let sysbench (MySQL only) continue on duplicate key (1062), deadlock (1213),
+# record changed (1020) and lock wait timeout (1205) errors instead of aborting the run
+export SYSBENCH_IGNORE_ERRORS=${SYSBENCH_IGNORE_ERRORS:-Y}
 
 # time variables
 export PS_START_TIMEOUT=${PS_START_TIMEOUT:-300}

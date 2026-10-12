@@ -287,7 +287,12 @@ function mysql_killall() {
 }
 
 function sysbench_mysql_options() {
-    ALL_SYSBENCH_OPTIONS="$WORKLOAD_PARAMETERS --threads=$num_threads --time=$SYSBENCH_RUN_TIME --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) $SYSBENCH_OPTIONS "
+    ALL_SYSBENCH_OPTIONS="$WORKLOAD_PARAMETERS --threads=$num_threads --time=$SYSBENCH_RUN_TIME --warmup-time=$WARMUP_TIME_SECONDS --rand-seed=$(( RAND_SEED + num_threads*num_threads )) "
+    # added before $SYSBENCH_OPTIONS, so --mysql-ignore-errors in $SYSBENCH_EXTRA still wins
+    if [[ ${SYSBENCH_IGNORE_ERRORS^^} == "Y" ]]; then
+        ALL_SYSBENCH_OPTIONS+="--mysql-ignore-errors=1062,1213,1020,1205 "
+    fi
+    ALL_SYSBENCH_OPTIONS+="$SYSBENCH_OPTIONS "
     if [[ ${SYSBENCH_HOST} != "" ]]; then
         ALL_SYSBENCH_OPTIONS+="--mysql-host=$SYSBENCH_HOST --mysql-port=$RBASE"
     else

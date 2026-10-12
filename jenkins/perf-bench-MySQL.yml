@@ -125,6 +125,12 @@
         - "Y"
         - "N"
     - choice:
+        name: SYSBENCH_IGNORE_ERRORS
+        description: "<b>Y</b> - pass <b>--mysql-ignore-errors=1062,1213,1020,1205</b> to sysbench, so a duplicate key, deadlock, record changed or lock wait timeout error is counted and the run goes on instead of being aborted<BR><b>N</b> - leave the sysbench default"
+        choices:
+        - "Y"
+        - "N"
+    - choice:
         name: REBUILD_TEMPLATE
         choices:
         - "OFF"
@@ -192,6 +198,7 @@
             echo REPEAT_NUM=$REPEAT_NUM
             echo REBUILD_TEMPLATE=$REBUILD_TEMPLATE
             echo RESTART_SERVER=$RESTART_SERVER
+            echo SYSBENCH_IGNORE_ERRORS=$SYSBENCH_IGNORE_ERRORS
             echo TRIM_AFTER_BENCH=$TRIM_AFTER_BENCH
             echo IDLE_AFTER_BENCH=$IDLE_AFTER_BENCH
             echo RUN_NAME=$RUN_NAME

@@ -53,6 +53,7 @@ A sysbench-based database benchmarking script. All options are configured throug
 | `SYSBENCH_LUA` | `/usr/local/share/sysbench` | Directory containing sysbench Lua scripts. |
 | `SYSBENCH_WRITE` | `oltp_write_only.lua` | Lua script used for write workloads during database preparation. |
 | `SYSBENCH_EXTRA` | *(unset)* | Extra options appended to every sysbench invocation. |
+| `SYSBENCH_IGNORE_ERRORS` | `Y` | MySQL only. `Y` passes `--mysql-ignore-errors=1062,1213,1020,1205` to sysbench, so a duplicate key, deadlock, record changed or lock wait timeout error is counted and the run goes on instead of being aborted. `N` leaves the sysbench default. |
 | `SYSBENCH_HOST` | *(unset)* | Hostname for remote sysbench connections. When set, connects via TCP instead of a local socket. |
 | `REBUILD_TEMPLATE` | *(unset)* | Set to `ON` to force rebuilding the template data directory even if one already exists. |
 
