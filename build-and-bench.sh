@@ -82,7 +82,7 @@ function run_perf_tests() {
     export SYSBENCH_BIN=$SYSBENCH_REPO_DIR/src/sysbench
     export SYSBENCH_LUA=$SYSBENCH_REPO_DIR/src/lua
 
-    # path to files from https://github.com/Percona-QA/perf-tests/3.1
+    # path to files from https://github.com/Percona-QA/perf-tests/3.2
     CNFFILE_NAME=${CNFFILE_NAME:-cnf/innodb-84.cnf}
     export CONFIG_FILES=${CONFIG_FILES:-"${PERFTEST_PATH}/${CNFFILE_NAME}"}
     export EXTRA_CONFIG_FILES=${EXTRA_CONFIG_FILES:-""}
@@ -128,7 +128,7 @@ SYSBENCH_BRANCH=${SYSBENCH_BRANCH:-mdcallag}
 
 DBBENCH_REPO_DIR=${DBBENCH_REPO_DIR:-$ROOT_DIR/db-bench}
 DBBENCH_REPO_URL=${DBBENCH_REPO_URL:-https://github.com/Percona-QA/perf-tests.git}
-DBBENCH_BRANCH=${DBBENCH_BRANCH:-3.1}
+DBBENCH_BRANCH=${DBBENCH_BRANCH:-3.2}
 
 if [[ "${DBBENCH_SSL,,}" == "on" || "${DBBENCH_SSL}" == "1" ]]; then
     export SSL_CERTS_PATH=${DBBENCH_REPO_DIR}/cert

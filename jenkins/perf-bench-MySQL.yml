@@ -5,7 +5,7 @@
         Performance regression testing for MySQL/Percona Server<BR><BR>
         <b>Do not make changes to the pipeline definition via the web interface!<br>
         (Do not use 'Configure' option on the left for changing the pipeline definition)<br></b>
-        Change <a href="https://github.com/Percona-QA/perf-tests/blob/3.1/jenkins/perf-bench-MySQL.yml">perf-bench-MySQL.yml</a> instead.</b><br>
+        Change <a href="https://github.com/Percona-QA/perf-tests/blob/3.2/jenkins/perf-bench-MySQL.yml">perf-bench-MySQL.yml</a> instead.</b><br>
         Then update pipeline with "jenkins-jobs --server ps80.cd update jenkins/perf-bench-MySQL.yml".
     properties:
     - build-discarder:
@@ -31,18 +31,18 @@
         trim: false
     - string:
         name: WORKLOAD_NAMES
-        description: "Workload names separated by comma from <a href=\"https://github.com/Percona-QA/perf-tests/blob/3.1/db-bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.1/db-bench/workloads.inc</a><BR><b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES<BR><b>writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS, WR_DELETE,WR_INSERT,WR_REPLACE<BR><b> prod_trx</b> = READ_ONLY_TRX,READ_WRITE_TRX,WRITE_ONLY_TRX"
+        description: "Workload names separated by comma from <a href=\"https://github.com/Percona-QA/perf-tests/blob/3.2/db-bench/workloads.inc\">https://github.com/Percona-QA/perf-tests/blob/3.2/db-bench/workloads.inc</a><BR><b>reads</b> takes about 4h = POINT_SELECT,SELECT_RANDOM_POINTS,SELECT_HOT_POINTS,POINTS_COVERED,POINTS_COVERED_SI,POINTS_NOTCOVERED,POINTS_NOTCOVERED_SI, RANGE_COVERED,RANGE_COVERED_SI,RANGE_NOTCOVERED,RANGE_NOTCOVERED_SI,SIMPLE_RANGES,SUM_RANGES,ORDER_RANGES,DISTINCT_RANGES,COUNT_RANGES<BR><b>writes</b> takes about 4h = WR_INLIST_UPDATE,WR_INLIST_UPDATE_HOT_POINTS,WR_UPDATE_INDEX,WR_UPDATE_INDEX_LIMIT,WR_UPDATE_NON_INDEX,WR_DELETE_INSERTS, WR_DELETE,WR_INSERT,WR_REPLACE<BR><b> prod_trx</b> = READ_ONLY_TRX,READ_WRITE_TRX,WRITE_ONLY_TRX"
         default: "reads,writes"
         #default: "heavy_trx"
         trim: false
     - string:
         name: CNFFILE_NAME
-        description: "MySQL config file from <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf\">https://github.com/Percona-QA/perf-tests/tree/3.1/cnf</a><BR><b>innodb-57.cnf</b> for Percona Server 5.7 and newer<BR><b>innodb-80.cnf</b> for Percona Server 8.0 and newer<BR><b>innodb-84.cnf</b> for Percona Server 8.4 and newer<BR>All config files are ACID compliant; use <b>EXTRA_CONFIG_FILES=extra-no-ACID.cnf</b> to disable ACID and improve performance + stability"
+        description: "MySQL config file from <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.2/cnf\">https://github.com/Percona-QA/perf-tests/tree/3.2/cnf</a><BR><b>innodb-57.cnf</b> for Percona Server 5.7 and newer<BR><b>innodb-80.cnf</b> for Percona Server 8.0 and newer<BR><b>innodb-84.cnf</b> for Percona Server 8.4 and newer<BR>All config files are ACID compliant; use <b>EXTRA_CONFIG_FILES=extra-no-ACID.cnf</b> to disable ACID and improve performance + stability"
         default: "{config_file}"
         trim: false
     - string:
         name: EXTRA_CONFIG_FILES
-        description: "Space-separated list of extra config files (relative to db-bench repo). Concatenated and passed as <b>--defaults-file</b>.<BR>Available files: <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.1/cnf\">cnf/extra-*.cnf</a><BR><b>extra-no-ACID.cnf</b> - disables ACID (sync_binlog=1024, innodb_flush_log_at_trx_commit=0) for more stable results and better performance<BR><b>extra-nproc{{16,32,64,128}}.cnf</b> - fixes InnoDB thread settings (buffer_pool_instances, page_cleaners, read_io_threads, parallel_read_threads) for a given CPU count; use on MySQL/PS 8.4+ where these auto-scale with nproc"
+        description: "Space-separated list of extra config files (relative to db-bench repo). Concatenated and passed as <b>--defaults-file</b>.<BR>Available files: <a href=\"https://github.com/Percona-QA/perf-tests/tree/3.2/cnf\">cnf/extra-*.cnf</a><BR><b>extra-no-ACID.cnf</b> - disables ACID (sync_binlog=1024, innodb_flush_log_at_trx_commit=0) for more stable results and better performance<BR><b>extra-nproc{{16,32,64,128}}.cnf</b> - fixes InnoDB thread settings (buffer_pool_instances, page_cleaners, read_io_threads, parallel_read_threads) for a given CPU count; use on MySQL/PS 8.4+ where these auto-scale with nproc"
         default: "cnf/extra-no-ACID.cnf cnf/extra-nproc16.cnf"
         trim: false
     - string:
@@ -215,7 +215,7 @@
             sudo chown $USER:$USER $ROOT_DIR
             cd $ROOT_DIR
             rm -f build-and-bench.sh
-            wget https://raw.githubusercontent.com/Percona-QA/perf-tests/refs/heads/3.1/build-and-bench.sh
+            wget https://raw.githubusercontent.com/Percona-QA/perf-tests/refs/heads/3.2/build-and-bench.sh
             chmod a+x build-and-bench.sh
             sudo -E nice --adjustment=-10 sudo -E -u jenkins bash -xe ./build-and-bench.sh
 
